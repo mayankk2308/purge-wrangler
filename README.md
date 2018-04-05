@@ -25,7 +25,10 @@ $ cd /path/to/script/purge-wrangler.sh
 $ sudo chmod +x purge-wrangler.sh
 
 # tb1 for Thunderbolt 1 Macs, tb2 for Thunderbolt 2 Macs, not both together
-$ sudo ./purge-wrangler.sh [tb1 tb2]
+$ sudo ./purge-wrangler.sh patch [tb1 tb2]
+
+# For example, to patch a Thunderbolt 2 macOS
+$ sudo ./purge-wrangler.sh patch tb2
 ```
 
 Your mac will now behave like an iGPU-only device.
