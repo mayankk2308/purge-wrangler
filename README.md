@@ -37,8 +37,10 @@ Your mac will now behave like an iGPU-only device.
 If you are unable to boot into macOS, boot into recovery, launch **Terminal** and type in the following commands:
 ```bash
 $ cd /Volumes/<boot_disk_name>
+
 # Check if you have backup of AppleGraphicsControl.kext and proceed only if you do
 $ ls Library/Application\ Support/Purge-Wrangler/
+
 $ rm -r /System/Library/Extensions/AppleGraphicsControl.kext
 $ mv Library/Application\ Support/Purge-Wrangler/* System/Library/Extensions/
 $ reboot
