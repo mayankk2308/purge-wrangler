@@ -15,50 +15,50 @@ iotbswitchtype1=494F5468756E646572626F6C745377697463685479706531
 
 usage()
 {
-    echo "
-    Usage:
+  echo "
+  Usage:
 
-        ./purge-wrangler.sh [params]
+    ./purge-wrangler.sh [params]
 
-        No arguments: Apply patch and reboot.
+    No arguments: Apply patch and reboot.
 
-        uninstall: Remove all changes made by the script.
+    uninstall: Remove all changes made by the script.
 
-        Note: Do not uninstall if you upgraded your version of
+    Note: Do not uninstall if you upgraded your version of
 
-        macOS before uninstalling."
+    macOS before uninstalling."
 }
 
 check_sudo()
 {
-    if [[ "$(id -u)" != 0 ]]
-    then
-      echo "This script requires superuser access. Please run with 'sudo'.\n"
-      exit
-    fi
+  if [[ "$(id -u)" != 0 ]]
+  then
+    echo "This script requires superuser access. Please run with 'sudo'.\n"
+    exit
+  fi
 }
 
 check_sys_integrity_protection()
 {
-    if [[ `csrutil status | grep -i "enabled"` ]]
-    then
-        echo "
-        System Integrity Protection needs to be disabled before proceeding.
+  if [[ `csrutil status | grep -i "enabled"` ]]
+  then
+    echo "
+    System Integrity Protection needs to be disabled before proceeding.
 
-        Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
-        exit
-    fi
+    Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
+    exit
+  fi
 }
 
 check_macos_version()
 {
-    macos_ver=`sw_vers -productVersion`
-    if [[ "$macos_ver" == "10.13" ||  "$macos_ver" == "10.13.1" || "$macos_ver" == "10.13.2" || "$macos_ver" == "10.13.3" ]]
-    then
-        echo "
-        This version of does not require the patch.\n"
-        exit
-    fi
+  macos_ver=`sw_vers -productVersion`
+  if [[ "$macos_ver" == "10.13" ||  "$macos_ver" == "10.13.1" || "$macos_ver" == "10.13.2" || "$macos_ver" == "10.13.3" ]]
+  then
+    echo "
+    This version of does not require the patch.\n"
+    exit
+  fi
 }
 
 check_tb_version()
@@ -77,20 +77,20 @@ check_tb_version()
 
 invoke_kext_caching()
 {
-    echo "Rebuilding kext cache..."
-    touch "$ext_path"
-    kextcache -q -update-volume /
-    echo "Patch Complete.\n"
+  echo "Rebuilding kext cache..."
+  touch "$ext_path"
+  kextcache -q -update-volume /
+  echo "Patch Complete.\n"
 }
 
 initiate_reboot()
 {
-    for time in {5..0}
-    do
-        printf "Restarting in $time s...\r"
-        sleep 1
-    done
-    reboot
+  for time in {5..0}
+  do
+    printf "Restarting in $time s...\r"
+    sleep 1
+  done
+  reboot
 }
 
 repair_permissions()
