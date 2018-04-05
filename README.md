@@ -23,33 +23,26 @@ Boot back into macOS and run the following commands:
 ```bash
 $ cd /path/to/script/purge-wrangler.sh
 $ sudo chmod +x purge-wrangler.sh
-
-# tb1 for Thunderbolt 1 Macs, tb2 for Thunderbolt 2 Macs, not both together
-$ sudo ./purge-wrangler.sh patch [tb1 tb2]
-
-# For example, to patch a Thunderbolt 2 mac
-$ sudo ./purge-wrangler.sh patch tb2
+$ sudo ./purge-wrangler.sh
 ```
 
-Your mac will now behave like an iGPU-only device.
+eGPUs should be enabled after reboot.
 
 ## Troubleshooting
-If you are unable to boot into macOS, boot into recovery, launch **Terminal** and type in the following commands:
+If you are unable to boot into macOS, boot while pressing **CMD + S**, then enter the following commands:
 ```bash
-$ cd /Volumes/<boot_disk_name>
-
-# Check if you have backup of AppleGraphicsControl.kext and proceed only if you do
-$ ls Library/Application\ Support/Purge-Wrangler/
-
-$ rm -r /System/Library/Extensions/AppleGraphicsControl.kext
-$ mv Library/Application\ Support/Purge-Wrangler/* System/Library/Extensions/
-$ reboot
+$ mount -uw /
+$ ./purge-wrangler.sh recover
 ```
 
 ## Additional Options
 To uninstall changes:
 ```bash
 $ sudo ./purge-wrangler.sh uninstall
+```
+To recover original kext:
+```bash
+$ sudo ./purge-wrangler.sh recover
 ```
 
 For help with how to use the script:
