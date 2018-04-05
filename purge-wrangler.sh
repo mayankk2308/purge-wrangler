@@ -128,33 +128,47 @@ generic_patcher()
   repair_permissions
 }
 
-# Better uninstaller required
-# In-place repatch possible with generic_patcher()
+# In-place re-patcher
+# Backup directory for emergency recovery only
 uninstall()
 {
-  if [[ -d "$backup_dir" ]]
-  then
-    echo "Uninstalling..."
-    rm -r "$agc_path"
-    rsync -r "$backup_dir"* "$ext_path"
-    rm -r "$backup_dir"
-    repair_permissions
-    echo "Uninstallation complete.\n"
-    initiate_reboot
-  else
-    echo "Could not find valid installation."
-  fi
+  echo "Uninstalling..."
+  generic_patcher "$tb_version" "$iotbswitchtype"3
+  echo "Uninstallation Complete.\n"
+  initiate_reboot
+}
+
+# Backup system
+backup_system()
+{
+  mkdir -p "$backup_dir"
+  rsync -r "$agc_path" "$backup_dir"
 }
 
 # Patch TB3 check
 apply_patch()
 {
   echo "Patching..."
-  mkdir -p "$backup_dir"
-  rsync -r "$agc_path" "$backup_dir"
   generic_patcher "$iotbswitchtype"3 "$tb_version"
   echo "Patch Complete.\n"
   initiate_reboot
+}
+
+# Recovery system
+start_recovery()
+{
+  if [[ -d "$backup_dir" ]]
+  then
+    echo "Recovering..."
+    rm -r "$agc_path"
+    rsync -r "$backup_dir"* "$ext_path"
+    rm -r "$backup_dir"
+    repair_permissions
+    echo "Recovery complete.\n"
+    initiate_reboot
+  else
+    echo "Could not find valid backup. Recovery failed."
+  fi
 }
 
 # Hard checks
@@ -166,10 +180,15 @@ check_macos_version
 if [[ "$operation" == "" ]]
 then
   check_tb_version
+  backup_system
   apply_patch
 elif [[ "$operation" == "uninstall" ]]
 then
+  check_tb_version
   uninstall
+elif [[ "$operation" == "recover" ]]
+then
+  start_recovery
 elif [[ "$operation" == "help" ]]
 then
   usage
