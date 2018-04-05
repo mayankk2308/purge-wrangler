@@ -191,5 +191,6 @@ then
 elif [[ "$operation" == "help" ]]
 then
   usage
-  exit
+else
+  echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information."
 fi
