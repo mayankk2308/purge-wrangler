@@ -27,7 +27,7 @@ $ sudo chmod +x purge-wrangler.sh
 # tb1 for Thunderbolt 1 Macs, tb2 for Thunderbolt 2 Macs, not both together
 $ sudo ./purge-wrangler.sh patch [tb1 tb2]
 
-# For example, to patch a Thunderbolt 2 macOS
+# For example, to patch a Thunderbolt 2 mac
 $ sudo ./purge-wrangler.sh patch tb2
 ```
 
@@ -36,7 +36,6 @@ Your mac will now behave like an iGPU-only device.
 ## Troubleshooting
 If you are unable to boot into macOS, boot into recovery, launch **Terminal** and type in the following commands:
 ```bash
-$ nvram -c
 $ cd /Volumes/<boot_disk_name>
 # Check if you have backup of AppleGraphicsControl.kext and proceed only if you do
 $ ls Library/Application\ Support/Purge-Wrangler/
