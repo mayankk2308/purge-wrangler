@@ -2,17 +2,23 @@
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
 # Version 1.0.0
 
-operation="$1"
-tb_version="$2"
+# Parameters
 
+# operation to perform ["" "uninstall" "help"]
+operation="$1"
+
+# Kext paths
 ext_path="/System/Library/Extensions/"
 agc_path="$ext_path"AppleGraphicsControl.kext
 agw_bin="$agc_path"/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler
-backup_dir="/Library/Application Support/Purge-Wrangler/"
-iotbswitchtype3=494F5468756E646572626F6C745377697463685479706533
-iotbswitchtype2=494F5468756E646572626F6C745377697463685479706532
-iotbswitchtype1=494F5468756E646572626F6C745377697463685479706531
 
+# Backup directory
+backup_dir="/Library/Application Support/Purge-Wrangler/"
+
+# IOThunderboltSwitchType reference
+iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
+
+# Script help
 usage()
 {
   echo "
@@ -29,6 +35,7 @@ usage()
     macOS before uninstalling."
 }
 
+# Check superuser access
 check_sudo()
 {
   if [[ "$(id -u)" != 0 ]]
@@ -38,6 +45,7 @@ check_sudo()
   fi
 }
 
+# Check system integrity protection status
 check_sys_integrity_protection()
 {
   if [[ `csrutil status | grep -i "enabled"` ]]
@@ -50,6 +58,7 @@ check_sys_integrity_protection()
   fi
 }
 
+# Check version of macOS High Sierra
 check_macos_version()
 {
   macos_ver=`sw_vers -productVersion`
@@ -61,20 +70,24 @@ check_macos_version()
   fi
 }
 
+# Check thunderbolt version/availability
+# Credit: learex @ github.com / fr34k @ egpu.io
 check_tb_version()
 {
-  if [[ "$tb_version" == "tb1" ]]
+  tb="$(system_profiler SPThunderboltDataType | grep Speed)"
+  if [[ "$tb[@]" =~ "20" ]]
   then
-    tb_version="$iotbswitchtype1"
-  elif [[ "$tb_version" == "tb2" ]]
+    tb_version="$iotbswitchtype"2
+  elif [[ "$tb[@]" =~ "10" ]]
   then
-    tb_version="$iotbswitchtype2"
+    tb_version="$iotbswitchtype"1
   else
     echo "Unsupported/Invalid version of thunderbolt or none provided."
     exit
   fi
 }
 
+# Rebuild kernel cache
 invoke_kext_caching()
 {
   echo "Rebuilding kext cache..."
@@ -82,6 +95,7 @@ invoke_kext_caching()
   kextcache -q -update-volume /
 }
 
+# Reboot sequence
 initiate_reboot()
 {
   for time in {5..0}
@@ -92,16 +106,30 @@ initiate_reboot()
   reboot
 }
 
+# Repair kext and binary permissions
 repair_permissions()
 {
   echo "Repairing permissions..."
   chmod 700 "$agw_bin"
   chown -R root:wheel "$agc_path"
   invoke_kext_caching
-  initiate_reboot
 }
 
-# Re-patcher planned for future release
+# Primary patching mechanism
+generic_patcher()
+{
+  offending_hex="$1"
+  patched_hex="$2"
+  hexdump -ve '1/1 "%.2X"' "$agw_bin" |
+  sed "s/$offending_hex/$patched_hex/g" |
+  xxd -r -p > AppleGPUWrangler.p
+  rm "$agw_bin"
+  mv AppleGPUWrangler.p "$agw_bin"
+  repair_permissions
+}
+
+# Better uninstaller required
+# In-place repatch possible with generic_patcher()
 uninstall()
 {
   if [[ -d "$backup_dir" ]]
@@ -112,6 +140,7 @@ uninstall()
     rm -r "$backup_dir"
     repair_permissions
     echo "Uninstallation complete.\n"
+    initiate_reboot
   else
     echo "Could not find valid installation."
   fi
@@ -122,20 +151,18 @@ apply_patch()
   echo "Patching..."
   mkdir -p "$backup_dir"
   rsync -r "$agc_path" "$backup_dir"
-  hexdump -ve '1/1 "%.2X"' "$agw_bin" |
-  sed "s/$iotbswitchtype3/$tb_version/g" |
-  xxd -r -p > AppleGPUWrangler.p
-  rm "$agw_bin"
-  mv AppleGPUWrangler.p "$agw_bin"
-  repair_permissions
+  generic_patcher "$iotbswitchtype"3 "$tb_version"
   echo "Patch Complete.\n"
+  initiate_reboot
 }
 
+# Hard checks
 check_sudo
 check_sys_integrity_protection
 check_macos_version
 
-if [[ "$operation" == "patch" ]]
+# Option handlers
+if [[ "$operation" == "" ]]
 then
   check_tb_version
   apply_patch
