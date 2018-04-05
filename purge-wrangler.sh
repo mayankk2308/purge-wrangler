@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.0.0
+# Version 1.1.0
 
 # Parameters
 
@@ -162,7 +162,6 @@ start_recovery()
     echo "Recovering..."
     rm -r "$agc_path"
     rsync -r "$backup_dir"* "$ext_path"
-    rm -r "$backup_dir"
     repair_permissions
     echo "Recovery complete.\n"
     initiate_reboot
