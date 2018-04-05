@@ -56,7 +56,7 @@ check_macos_version()
   if [[ "$macos_ver" == "10.13" ||  "$macos_ver" == "10.13.1" || "$macos_ver" == "10.13.2" || "$macos_ver" == "10.13.3" ]]
   then
     echo "
-    This version of does not require the patch.\n"
+    This version of macOS does not require the patch.\n"
     exit
   fi
 }
@@ -80,7 +80,6 @@ invoke_kext_caching()
   echo "Rebuilding kext cache..."
   touch "$ext_path"
   kextcache -q -update-volume /
-  echo "Patch Complete.\n"
 }
 
 initiate_reboot()
@@ -102,8 +101,7 @@ repair_permissions()
   initiate_reboot
 }
 
-# Automatic re-patching to normal will be implemented in a future release if
-# deemed necessary
+# Re-patcher planned for future release
 uninstall()
 {
   if [[ -d "$backup_dir" ]]
@@ -130,6 +128,7 @@ apply_patch()
   rm "$agw_bin"
   mv AppleGPUWrangler.p "$agw_bin"
   repair_permissions
+  echo "Patch Complete.\n"
 }
 
 check_sudo
