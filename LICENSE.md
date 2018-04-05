@@ -1,8 +1,8 @@
 Copyright © 2018 Mayank Kumar
 
 This software must not be:
-- distributed anywhere else in any shape or form
-- used in any other open source projects except forks for contributions
+- distributed anywhere else in any shape or form without permission
+- used in any other open source projects without permission, except forks for contributions
 - used in commercial products in any format
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
