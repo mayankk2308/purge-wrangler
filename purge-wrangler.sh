@@ -146,6 +146,7 @@ uninstall()
   fi
 }
 
+# Patch TB3 check
 apply_patch()
 {
   echo "Patching..."
