@@ -53,7 +53,7 @@ check_sudo()
 # Check system integrity protection status
 check_sys_integrity_protection()
 {
-  if [[ `csrutil status | grep -i "enabled"` ]]
+  if [[ `csrutil status | grep -i enabled` && `csrutil status | grep -i "kext" | grep -i enabled` ]]
   then
     echo "
     System Integrity Protection needs to be disabled before proceeding.
@@ -100,15 +100,10 @@ invoke_kext_caching()
   kextcache -q -update-volume /
 }
 
-# Reboot sequence
-initiate_reboot()
+# Reboot sequence/message
+prompt_reboot()
 {
-  for time in {5..0}
-  do
-    printf "Restarting in $time s...\r"
-    sleep 1
-  done
-  reboot
+  echo "System ready. Restart now to apply changes."
 }
 
 # Repair kext and binary permissions
@@ -140,7 +135,7 @@ uninstall()
   echo "Uninstalling..."
   generic_patcher "$tb_version" "$iotbswitchtype"3
   echo "Uninstallation Complete.\n"
-  initiate_reboot
+  prompt_reboot
 }
 
 # Backup system
@@ -163,7 +158,7 @@ apply_patch()
   echo "Patching..."
   generic_patcher "$iotbswitchtype"3 "$tb_version"
   echo "Patch Complete.\n"
-  initiate_reboot
+  prompt_reboot
 }
 
 # Recovery system
@@ -174,9 +169,10 @@ start_recovery()
     echo "Recovering..."
     rm -r "$agc_path"
     rsync -r "$backup_dir"* "$ext_path"
+    rm -r "$backup_dir"
     repair_permissions
     echo "Recovery complete.\n"
-    initiate_reboot
+    prompt_reboot
   else
     echo "Could not find valid backup. Recovery failed."
   fi
