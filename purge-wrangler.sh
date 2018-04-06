@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.2.0
+# Version 1.1.1
 
 # Parameters
 
@@ -148,8 +148,8 @@ backup_system()
     echo "Backup already exists."
   else
     mkdir -p "$backup_dir"
-	rsync -r "$agc_path" "$backup_dir"
-	echo "Backup complete."
+    rsync -r "$agc_path" "$backup_dir"
+    echo "Backup complete."
   fi
 }
 
