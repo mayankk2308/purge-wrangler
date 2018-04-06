@@ -29,11 +29,15 @@ usage()
 
     No arguments: Apply patch and reboot.
 
-    uninstall: Remove all changes made by the script.
+    uninstall: Repatch kext to default.
 
-    Note: Do not uninstall if you upgraded your version of
+    recover: Recover system from backup.
 
-    macOS before uninstalling."
+    help: See script help.
+
+    Note: Do not recover if you upgraded your version of
+
+    macOS. Optimally, recover every time before updating."
 }
 
 # Check superuser access
