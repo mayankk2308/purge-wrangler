@@ -1,8 +1,9 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
 # Version 1.2.0
+script_ver="1.2.0"
 
-# operation to perform ["" "uninstall" "recover" "help"]
+# operation to perform ["" "uninstall" "recover" "-v" "help"]
 operation="$1"
 
 # only for devs who know what they're doing ["" "-f"]
@@ -246,6 +247,9 @@ then
 elif [[ "$operation" == "help" ]]
 then
   usage
+elif [[ "$operation" == "-v" ]]
+then
+  echo "Version: $script_ver"
 else
   echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information."
 fi
