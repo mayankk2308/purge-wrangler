@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.1.1
+# Version 1.2.0
 
 # Parameters
 
@@ -10,11 +10,15 @@ operation="$1"
 # Kext paths
 ext_path="/System/Library/Extensions/"
 agc_path="$ext_path"AppleGraphicsControl.kext
-agw_bin="$agc_path"/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler
+sub_agw_path="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
+agw_bin="$agc_path$sub_agw_path"
 
 # Backup directory
-backup_dir="/Library/Application Support/Purge-Wrangler/"
-backup_file="$backup_dir"AppleGraphicsControl.kext
+support_dir="/Library/Application Support/Purge-Wrangler/"
+backup_kext_dir="$support_dir"Kexts/
+backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
+backup_agw_bin="$backup_agc$sub_agw_path"
+manifest="$support_dir"manifest.txt
 
 # IOThunderboltSwitchType reference
 iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
@@ -92,6 +96,16 @@ check_tb_version()
   fi
 }
 
+# Write manifest file
+write_manifest()
+{
+  macos_ver=`sw_vers -productVersion`
+  macos_build=`sw_vers -buildVersion`
+  unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
+  patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
+  echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
+}
+
 # Rebuild kernel cache
 invoke_kext_caching()
 {
@@ -142,12 +156,12 @@ uninstall()
 backup_system()
 {
   echo "Backing up..."
-  if [[ -s "$backup_file" ]]
+  if [[ -s "$backup_agc" ]]
   then
     echo "Backup already exists."
   else
-    mkdir -p "$backup_dir"
-    rsync -r "$agc_path" "$backup_dir"
+    mkdir -p "$backup_kext_dir"
+    rsync -r "$agc_path" "$backup_kext_dir"
     echo "Backup complete."
   fi
 }
@@ -164,12 +178,12 @@ apply_patch()
 # Recovery system
 start_recovery()
 {
-  if [[ -s "$backup_file" ]]
+  if [[ -s "$backup_agc" ]]
   then
     echo "Recovering..."
     rm -r "$agc_path"
-    rsync -r "$backup_dir"* "$ext_path"
-    rm -r "$backup_dir"
+    rsync -r "$backup_kext_dir"* "$ext_path"
+    rm -r "$support_dir"
     repair_permissions
     echo "Recovery complete.\n"
     prompt_reboot
@@ -189,10 +203,12 @@ then
   check_tb_version
   backup_system
   apply_patch
+  write_manifest
 elif [[ "$operation" == "uninstall" ]]
 then
   check_tb_version
   uninstall
+  write_manifest
 elif [[ "$operation" == "recover" ]]
 then
   start_recovery
