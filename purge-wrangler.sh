@@ -4,7 +4,7 @@
 
 # Parameters
 
-# operation to perform ["" "uninstall" "help"]
+# operation to perform ["" "uninstall" "recover" "help"]
 operation="$1"
 
 # Kext paths
