@@ -5,7 +5,7 @@
 # operation to perform ["" "uninstall" "recover" "help"]
 operation="$1"
 
-# only for users who know what they're doing ["" "-f"]
+# only for devs who know what they're doing ["" "-f"]
 advanced_operation="$2"
 
 # Kext paths
@@ -19,10 +19,14 @@ support_dir="/Library/Application Support/Purge-Wrangler/"
 backup_kext_dir="$support_dir"Kexts/
 backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
 backup_agw_bin="$backup_agc$sub_agw_path"
-manifest="$support_dir"manifest.txt
+manifest="$support_dir"manifest.wglr
 
 # IOThunderboltSwitchType reference
 iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
+
+# System information
+macos_ver=`sw_vers -productVersion`
+macos_build=`sw_vers -buildVersion`
 
 # Script help
 usage()
@@ -71,7 +75,6 @@ check_sys_integrity_protection()
 # Check version of macOS High Sierra
 check_macos_version()
 {
-  macos_ver=`sw_vers -productVersion`
   if [[ "$macos_ver" == "10.13" ||  "$macos_ver" == "10.13.1" || "$macos_ver" == "10.13.2" || "$macos_ver" == "10.13.3" ]]
   then
     echo "
@@ -107,8 +110,6 @@ write_manifest()
   override="$1"
   if [[ "$override" == "" ]]
   then
-    macos_ver=`sw_vers -productVersion`
-    macos_build=`sw_vers -buildVersion`
     unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
     patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
     echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
@@ -168,16 +169,30 @@ uninstall()
   fi
 }
 
+execute_backup()
+{
+  mkdir -p "$backup_kext_dir"
+  rsync -r "$agc_path" "$backup_kext_dir"
+}
+
 # Backup system
 backup_system()
 {
   echo "Backing up..."
-  if [[ -s "$backup_agc" ]]
+  if [[ -s "$backup_agc" && -s "$manifest" ]]
   then
-    echo "Backup already exists."
+    manifest_macos_ver=`sed "3q;d" $manifest`
+    manifest_macos_build=`sed "4q;d" $manifest`
+    if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
+    then
+      echo "Backup already exists."
+    else
+      echo "Different build/version of macOS detected. Updating backup..."
+      rm -r "$backup_agc"
+      execute_backup
+    fi
   else
-    mkdir -p "$backup_kext_dir"
-    rsync -r "$agc_path" "$backup_kext_dir"
+    execute_backup
     echo "Backup complete."
   fi
 }
