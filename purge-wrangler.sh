@@ -3,7 +3,7 @@
 # Version 1.2.0
 script_ver="1.2.0"
 
-# operation to perform ["" "uninstall" "recover" "-v" "help"]
+# operation to perform ["" "uninstall" "recover" "version" "help"]
 operation="$1"
 
 # only for devs who know what they're doing ["" "-f"]
@@ -247,7 +247,7 @@ then
 elif [[ "$operation" == "help" ]]
 then
   usage
-elif [[ "$operation" == "-v" ]]
+elif [[ "$operation" == "version" ]]
 then
   echo "Version: $script_ver"
 else
