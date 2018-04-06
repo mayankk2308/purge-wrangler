@@ -32,6 +32,7 @@ eGPUs should be enabled after reboot.
 If you are unable to boot into macOS, boot while pressing **CMD + S**, then enter the following commands:
 ```bash
 $ mount -uw /
+$ cd /path/to/script/
 $ ./purge-wrangler.sh recover
 ```
 
