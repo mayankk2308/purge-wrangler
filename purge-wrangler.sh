@@ -97,6 +97,10 @@ check_tb_version()
 }
 
 # Write manifest file
+# Line 1: Unpatched Kext SHA
+# Line 2: Patched Kext (in /S/L/E) SHA
+# Line 3: macOS Version
+# Line 4: macOS Build No.
 write_manifest()
 {
   macos_ver=`sw_vers -productVersion`
