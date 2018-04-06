@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.1.0
+# Version 1.1.1
 
 # Parameters
 
@@ -14,6 +14,7 @@ agw_bin="$agc_path"/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleG
 
 # Backup directory
 backup_dir="/Library/Application Support/Purge-Wrangler/"
+backup_file="$backup_dir"AppleGraphicsControl.kext
 
 # IOThunderboltSwitchType reference
 iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
@@ -141,8 +142,15 @@ uninstall()
 # Backup system
 backup_system()
 {
-  mkdir -p "$backup_dir"
-  rsync -r "$agc_path" "$backup_dir"
+  echo "Backing up..."
+  if [[ -s "$backup_file" ]]
+  then
+    echo "Backup already exists."
+  else
+    mkdir -p "$backup_dir"
+    rsync -r "$agc_path" "$backup_dir"
+    echo "Backup complete."
+  fi
 }
 
 # Patch TB3 check
@@ -157,7 +165,7 @@ apply_patch()
 # Recovery system
 start_recovery()
 {
-  if [[ -d "$backup_dir" ]]
+  if [[ -s "$backup_file" ]]
   then
     echo "Recovering..."
     rm -r "$agc_path"
