@@ -2,10 +2,11 @@
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
 # Version 1.2.0
 
-# Parameters
-
 # operation to perform ["" "uninstall" "recover" "help"]
 operation="$1"
+
+# only for users who know what they're doing ["" "-f"]
+advanced_operation="$2"
 
 # Kext paths
 ext_path="/System/Library/Extensions/"
@@ -103,11 +104,15 @@ check_tb_version()
 # Line 4: macOS Build No.
 write_manifest()
 {
-  macos_ver=`sw_vers -productVersion`
-  macos_build=`sw_vers -buildVersion`
-  unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
-  patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
-  echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
+  override="$1"
+  if [[ "$override" == "" ]]
+  then
+    macos_ver=`sw_vers -productVersion`
+    macos_build=`sw_vers -buildVersion`
+    unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
+    patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
+    echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
+  fi
 }
 
 # Rebuild kernel cache
@@ -150,10 +155,17 @@ generic_patcher()
 # Backup directory for emergency recovery only
 uninstall()
 {
-  echo "Uninstalling..."
-  generic_patcher "$tb_version" "$iotbswitchtype"3
-  echo "Uninstallation Complete.\n"
-  prompt_reboot
+  override="$1"
+  if [[ -d "$support_dir" || "$override" == "-f" ]]
+  then
+    echo "Uninstalling..."
+    generic_patcher "$tb_version" "$iotbswitchtype"3
+    echo "Uninstallation Complete.\n"
+    prompt_reboot
+  else
+    echo "No installation found. No action taken."
+    exit
+  fi
 }
 
 # Backup system
@@ -207,12 +219,12 @@ then
   check_tb_version
   backup_system
   apply_patch
-  write_manifest
+  write_manifest ""
 elif [[ "$operation" == "uninstall" ]]
 then
   check_tb_version
-  uninstall
-  write_manifest
+  uninstall "$2"
+  write_manifest "$2"
 elif [[ "$operation" == "recover" ]]
 then
   start_recovery
