@@ -1,23 +1,33 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.1.1
+# Version 1.2.0
+script_ver="1.2.0"
 
-# Parameters
-
-# operation to perform ["" "uninstall" "help"]
+# operation to perform ["" "uninstall" "recover" "version" "help"]
 operation="$1"
+
+# only for devs who know what they're doing ["" "-f"]
+advanced_operation="$2"
 
 # Kext paths
 ext_path="/System/Library/Extensions/"
 agc_path="$ext_path"AppleGraphicsControl.kext
-agw_bin="$agc_path"/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler
+sub_agw_path="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
+agw_bin="$agc_path$sub_agw_path"
 
 # Backup directory
-backup_dir="/Library/Application Support/Purge-Wrangler/"
-backup_file="$backup_dir"AppleGraphicsControl.kext
+support_dir="/Library/Application Support/Purge-Wrangler/"
+backup_kext_dir="$support_dir"Kexts/
+backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
+backup_agw_bin="$backup_agc$sub_agw_path"
+manifest="$support_dir"manifest.wglr
 
 # IOThunderboltSwitchType reference
 iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
+
+# System information
+macos_ver=`sw_vers -productVersion`
+macos_build=`sw_vers -buildVersion`
 
 # Script help
 usage()
@@ -29,11 +39,15 @@ usage()
 
     No arguments: Apply patch and reboot.
 
-    uninstall: Remove all changes made by the script.
+    uninstall: Repatch kext to default.
 
-    Note: Do not uninstall if you upgraded your version of
+    recover: Recover system from backup.
 
-    macOS before uninstalling."
+    help: See script help.
+
+    Note: Do not recover if you upgraded your version of
+
+    macOS. Optimally, recover every time before updating."
 }
 
 # Check superuser access
@@ -49,7 +63,7 @@ check_sudo()
 # Check system integrity protection status
 check_sys_integrity_protection()
 {
-  if [[ `csrutil status | grep -i "enabled"` ]]
+  if [[ `csrutil status | grep -i enabled` && `csrutil status | grep -i "kext" | grep -i enabled` ]]
   then
     echo "
     System Integrity Protection needs to be disabled before proceeding.
@@ -62,7 +76,6 @@ check_sys_integrity_protection()
 # Check version of macOS High Sierra
 check_macos_version()
 {
-  macos_ver=`sw_vers -productVersion`
   if [[ "$macos_ver" == "10.13" ||  "$macos_ver" == "10.13.1" || "$macos_ver" == "10.13.2" || "$macos_ver" == "10.13.3" ]]
   then
     echo "
@@ -88,6 +101,22 @@ check_tb_version()
   fi
 }
 
+# Write manifest file
+# Line 1: Unpatched Kext SHA
+# Line 2: Patched Kext (in /S/L/E) SHA
+# Line 3: macOS Version
+# Line 4: macOS Build No.
+write_manifest()
+{
+  override="$1"
+  if [[ "$override" == "" ]]
+  then
+    unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
+    patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
+    echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
+  fi
+}
+
 # Rebuild kernel cache
 invoke_kext_caching()
 {
@@ -96,15 +125,10 @@ invoke_kext_caching()
   kextcache -q -update-volume /
 }
 
-# Reboot sequence
-initiate_reboot()
+# Reboot sequence/message
+prompt_reboot()
 {
-  for time in {5..0}
-  do
-    printf "Restarting in $time s...\r"
-    sleep 1
-  done
-  reboot
+  echo "System ready. Restart now to apply changes."
 }
 
 # Repair kext and binary permissions
@@ -133,22 +157,43 @@ generic_patcher()
 # Backup directory for emergency recovery only
 uninstall()
 {
-  echo "Uninstalling..."
-  generic_patcher "$tb_version" "$iotbswitchtype"3
-  echo "Uninstallation Complete.\n"
-  initiate_reboot
+  override="$1"
+  if [[ -d "$support_dir" || "$override" == "-f" ]]
+  then
+    echo "Uninstalling..."
+    generic_patcher "$tb_version" "$iotbswitchtype"3
+    echo "Uninstallation Complete.\n"
+    prompt_reboot
+  else
+    echo "No installation found. No action taken."
+    exit
+  fi
+}
+
+execute_backup()
+{
+  mkdir -p "$backup_kext_dir"
+  rsync -r "$agc_path" "$backup_kext_dir"
 }
 
 # Backup system
 backup_system()
 {
   echo "Backing up..."
-  if [[ -s "$backup_file" ]]
+  if [[ -s "$backup_agc" && -s "$manifest" ]]
   then
-    echo "Backup already exists."
+    manifest_macos_ver=`sed "3q;d" $manifest`
+    manifest_macos_build=`sed "4q;d" $manifest`
+    if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
+    then
+      echo "Backup already exists."
+    else
+      echo "Different build/version of macOS detected. Updating backup..."
+      rm -r "$backup_agc"
+      execute_backup
+    fi
   else
-    mkdir -p "$backup_dir"
-    rsync -r "$agc_path" "$backup_dir"
+    execute_backup
     echo "Backup complete."
   fi
 }
@@ -159,20 +204,21 @@ apply_patch()
   echo "Patching..."
   generic_patcher "$iotbswitchtype"3 "$tb_version"
   echo "Patch Complete.\n"
-  initiate_reboot
+  prompt_reboot
 }
 
 # Recovery system
 start_recovery()
 {
-  if [[ -s "$backup_file" ]]
+  if [[ -s "$backup_agc" ]]
   then
     echo "Recovering..."
     rm -r "$agc_path"
-    rsync -r "$backup_dir"* "$ext_path"
+    rsync -r "$backup_kext_dir"* "$ext_path"
+    rm -r "$support_dir"
     repair_permissions
     echo "Recovery complete.\n"
-    initiate_reboot
+    prompt_reboot
   else
     echo "Could not find valid backup. Recovery failed."
   fi
@@ -189,16 +235,21 @@ then
   check_tb_version
   backup_system
   apply_patch
+  write_manifest ""
 elif [[ "$operation" == "uninstall" ]]
 then
   check_tb_version
-  uninstall
+  uninstall "$2"
+  write_manifest "$2"
 elif [[ "$operation" == "recover" ]]
 then
   start_recovery
 elif [[ "$operation" == "help" ]]
 then
   usage
+elif [[ "$operation" == "version" ]]
+then
+  echo "Version: $script_ver"
 else
   echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information."
 fi
