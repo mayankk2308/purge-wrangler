@@ -182,8 +182,8 @@ backup_system()
   echo "Backing up..."
   if [[ -s "$backup_agc" && -s "$manifest" ]]
   then
-    manifest_macos_ver=`sed "3q;d" $manifest`
-    manifest_macos_build=`sed "4q;d" $manifest`
+    manifest_macos_ver=`sed "3q;d" "$manifest"`
+    manifest_macos_build=`sed "4q;d" "$manifest"`
     if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
     then
       echo "Backup already exists."
