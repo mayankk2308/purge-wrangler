@@ -3,6 +3,8 @@
 # Version 1.2.0
 script_ver="1.2.0"
 
+# --------------- ENVIRONMENT SETUP ---------------
+
 # operation to perform ["" "uninstall" "recover" "version" "help"]
 operation="$1"
 
@@ -23,7 +25,8 @@ backup_agw_bin="$backup_agc$sub_agw_path"
 manifest="$support_dir"manifest.wglr
 
 # IOThunderboltSwitchType reference
-iotbswitchtype=494F5468756E646572626F6C74537769746368547970653
+iotbswitchtype_ref="494F5468756E646572626F6C74537769746368547970653"
+sys_iotbswitchtype=""
 
 # System information
 macos_ver=`sw_vers -productVersion`
@@ -49,6 +52,8 @@ usage()
 
     macOS. Optimally, recover every time before updating."
 }
+
+# --------------- SYSTEM CHECKS ---------------
 
 # Check superuser access
 check_sudo()
@@ -86,24 +91,56 @@ check_macos_version()
 
 # Check thunderbolt version/availability
 # Credit: learex @ github.com / fr34k @ egpu.io
-check_tb_version()
+check_sys_iotbswitchtype()
 {
   tb="$(system_profiler SPThunderboltDataType | grep Speed)"
   if [[ "$tb[@]" =~ "20" ]]
   then
-    tb_version="$iotbswitchtype"2
+    sys_iotbswitchtype="$iotbswitchtype_ref"2
   elif [[ "$tb[@]" =~ "10" ]]
   then
-    tb_version="$iotbswitchtype"1
+    sys_iotbswitchtype="$iotbswitchtype_ref"1
   else
     echo "Unsupported/Invalid version of thunderbolt or none provided."
     exit
   fi
 }
 
+# Hard checks
+check_sudo
+check_sys_integrity_protection
+check_macos_version
+
+# --------------- OS MANAGEMENT ---------------
+
+# Reboot sequence/message
+prompt_reboot()
+{
+  echo "System ready. Restart now to apply changes."
+}
+
+# Rebuild kernel cache
+invoke_kext_caching()
+{
+  echo "Rebuilding kext cache..."
+  touch "$ext_path"
+  kextcache -q -update-volume /
+}
+
+# Repair kext and binary permissions
+repair_permissions()
+{
+  echo "Repairing permissions..."
+  chmod 700 "$agw_bin"
+  chown -R root:wheel "$agc_path"
+  invoke_kext_caching
+}
+
+# --------------- BACKUP SYSTEM ---------------
+
 # Write manifest file
-# Line 1: Unpatched Kext SHA
-# Line 2: Patched Kext (in /S/L/E) SHA
+# Line 1: Unpatched Kext SHA -- Kext in Backup directory
+# Line 2: Patched Kext (in /S/L/E) SHA -- Kext in original location
 # Line 3: macOS Version
 # Line 4: macOS Build No.
 write_manifest()
@@ -117,28 +154,36 @@ write_manifest()
   fi
 }
 
-# Rebuild kernel cache
-invoke_kext_caching()
+# Primary procedure
+execute_backup()
 {
-  echo "Rebuilding kext cache..."
-  touch "$ext_path"
-  kextcache -q -update-volume /
+  mkdir -p "$backup_kext_dir"
+  rsync -r "$agc_path" "$backup_kext_dir"
 }
 
-# Reboot sequence/message
-prompt_reboot()
+# Backup procedure
+backup_system()
 {
-  echo "System ready. Restart now to apply changes."
+  echo "Backing up..."
+  if [[ -s "$backup_agc" && -s "$manifest" ]]
+  then
+    manifest_macos_ver=`sed "3q;d" "$manifest"`
+    manifest_macos_build=`sed "4q;d" "$manifest"`
+    if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
+    then
+      echo "Backup already exists."
+    else
+      echo "Different build/version of macOS detected. Updating backup..."
+      rm -r "$backup_agc"
+      execute_backup
+    fi
+  else
+    execute_backup
+    echo "Backup complete."
+  fi
 }
 
-# Repair kext and binary permissions
-repair_permissions()
-{
-  echo "Repairing permissions..."
-  chmod 700 "$agw_bin"
-  chown -R root:wheel "$agc_path"
-  invoke_kext_caching
-}
+# --------------- PATCHING SYSTEM ---------------
 
 # Primary patching mechanism
 generic_patcher()
@@ -154,14 +199,13 @@ generic_patcher()
 }
 
 # In-place re-patcher
-# Backup directory for emergency recovery only
 uninstall()
 {
   override="$1"
   if [[ -d "$support_dir" || "$override" == "-f" ]]
   then
     echo "Uninstalling..."
-    generic_patcher "$tb_version" "$iotbswitchtype"3
+    generic_patcher "$sys_iotbswitchtype" "$iotbswitchtype_ref"3
     echo "Uninstallation Complete.\n"
     prompt_reboot
   else
@@ -170,44 +214,18 @@ uninstall()
   fi
 }
 
-execute_backup()
-{
-  mkdir -p "$backup_kext_dir"
-  rsync -r "$agc_path" "$backup_kext_dir"
-}
-
-# Backup system
-backup_system()
-{
-  echo "Backing up..."
-  if [[ -s "$backup_agc" && -s "$manifest" ]]
-  then
-    manifest_macos_ver=`sed "3q;d" $manifest`
-    manifest_macos_build=`sed "4q;d" $manifest`
-    if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
-    then
-      echo "Backup already exists."
-    else
-      echo "Different build/version of macOS detected. Updating backup..."
-      rm -r "$backup_agc"
-      execute_backup
-    fi
-  else
-    execute_backup
-    echo "Backup complete."
-  fi
-}
-
-# Patch TB3 check
+# Patch TB3 block
 apply_patch()
 {
   echo "Patching..."
-  generic_patcher "$iotbswitchtype"3 "$tb_version"
+  generic_patcher "$iotbswitchtype_ref"3 "$sys_iotbswitchtype"
   echo "Patch Complete.\n"
   prompt_reboot
 }
 
-# Recovery system
+# --------------- RECOVERY SYSTEM ---------------
+
+# Recovery procedure
 start_recovery()
 {
   if [[ -s "$backup_agc" ]]
@@ -224,21 +242,18 @@ start_recovery()
   fi
 }
 
-# Hard checks
-check_sudo
-check_sys_integrity_protection
-check_macos_version
+# --------------- INPUT MANAGER ---------------
 
 # Option handlers
 if [[ "$operation" == "" ]]
 then
-  check_tb_version
+  check_sys_iotbswitchtype
   backup_system
   apply_patch
   write_manifest ""
 elif [[ "$operation" == "uninstall" ]]
 then
-  check_tb_version
+  check_sys_iotbswitchtype
   uninstall "$2"
   write_manifest "$2"
 elif [[ "$operation" == "recover" ]]
