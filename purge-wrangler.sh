@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 1.2.0
-script_ver="1.2.0"
+# Version 2.0.0
+script_ver="2.0.0"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
@@ -17,7 +17,7 @@ agc_path="$ext_path"AppleGraphicsControl.kext
 sub_agw_path="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
 agw_bin="$agc_path$sub_agw_path"
 
-# Backup directory
+# Backup paths
 support_dir="/Library/Application Support/Purge-Wrangler/"
 backup_kext_dir="$support_dir"Kexts/
 backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
