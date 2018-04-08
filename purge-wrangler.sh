@@ -75,7 +75,7 @@ check_sys_integrity_protection()
 {
   if [[ `csrutil status | grep -i enabled` ]]
   then
-    if [[ ! `csrutil status | grep -i "kext" | grep -i disabled` ]]
+    if [[ ! `csrutil status | grep -i kext | grep -i disabled` ]]
     then
       echo "
       System Integrity Protection needs to be disabled before proceeding.
