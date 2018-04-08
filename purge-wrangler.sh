@@ -23,6 +23,7 @@ backup_kext_dir="$support_dir"Kexts/
 backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
 backup_agw_bin="$backup_agc$sub_agw_path"
 manifest="$support_dir"manifest.wglr
+scratch_file="$support_dir"AppleGPUWrangler.p
 
 # IOThunderboltSwitchType reference
 iotbswitchtype_ref="494F5468756E646572626F6C74537769746368547970653"
@@ -66,13 +67,16 @@ check_sudo()
 # Check system integrity protection status
 check_sys_integrity_protection()
 {
-  if [[ `csrutil status | grep -i enabled` && `csrutil status | grep -i "kext" | grep -i enabled` ]]
+  if [[ `csrutil status | grep -i enabled` ]]
   then
-    echo "
-    System Integrity Protection needs to be disabled before proceeding.
+    if [[ ! `csrutil status | grep -i "kext" | grep -i disabled` ]]
+    then
+      echo "
+      System Integrity Protection needs to be disabled before proceeding.
 
-    Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
-    exit
+      Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
+      exit
+    fi
   fi
 }
 
@@ -190,9 +194,9 @@ generic_patcher()
   patched_hex="$2"
   hexdump -ve '1/1 "%.2X"' "$agw_bin" |
   sed "s/$offending_hex/$patched_hex/g" |
-  xxd -r -p > AppleGPUWrangler.p
+  xxd -r -p > "$scratch_file"
   rm "$agw_bin"
-  mv AppleGPUWrangler.p "$agw_bin"
+  mv "$scratch_file" "$agw_bin"
   repair_permissions
 }
 
