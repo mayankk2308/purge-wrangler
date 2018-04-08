@@ -148,7 +148,7 @@ repair_permissions()
 write_manifest()
 {
   override="$1"
-  if [[ "$override" == "" ]]
+  if [[ "$override" != "-f" ]]
   then
     unpatched_kext_sha=`shasum -a 512 -b "$backup_agw_bin" | awk '{ print $1 }'`
     patched_kext_sha=`shasum -a 512 -b "$agw_bin" | awk '{ print $1 }'`
