@@ -39,17 +39,23 @@ usage()
   echo "
   Usage:
 
-    ./purge-wrangler.sh [params]
+    ./purge-wrangler.sh [params] [advanced-params]
 
-    No arguments: Apply patch.
+    Basics:
 
-    uninstall: Repatch kext to default.
+      No arguments: Apply patch.
 
-    recover: Recover system from backup.
+      uninstall: Repatch kext to default.
 
-    version: See current script version.
+      recover: Recover system from backup.
 
-    help: See script help."
+      version: See current script version.
+
+      help: See script help.
+
+    Advanced Options:
+
+      -f: Force override checks and manifest.\n"
 }
 
 # --------------- SYSTEM CHECKS ---------------
