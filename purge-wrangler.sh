@@ -40,17 +40,15 @@ usage()
 
     ./purge-wrangler.sh [params]
 
-    No arguments: Apply patch and reboot.
+    No arguments: Apply patch.
 
     uninstall: Repatch kext to default.
 
     recover: Recover system from backup.
 
-    help: See script help.
+    version: See current script version.
 
-    Note: Do not recover if you upgraded your version of
-
-    macOS. Optimally, recover every time before updating."
+    help: See script help."
 }
 
 # --------------- SYSTEM CHECKS ---------------
@@ -148,8 +146,8 @@ write_manifest()
   override="$1"
   if [[ "$override" == "" ]]
   then
-    unpatched_kext_sha=`shasum -a 256 -b "$backup_agw_bin" | awk '{ print $1 }'`
-    patched_kext_sha=`shasum -a 256 -b "$agw_bin" | awk '{ print $1 }'`
+    unpatched_kext_sha=`shasum -a 512 -b "$backup_agw_bin" | awk '{ print $1 }'`
+    patched_kext_sha=`shasum -a 512 -b "$agw_bin" | awk '{ print $1 }'`
     echo "$unpatched_kext_sha\n$patched_kext_sha\n$macos_ver\n$macos_build" > "$manifest"
   fi
 }
