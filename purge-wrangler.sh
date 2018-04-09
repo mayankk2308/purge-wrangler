@@ -8,7 +8,7 @@ script_ver="2.0.0"
 clear
 echo "---------- PURGE WRANGLER ($script_ver) ----------"
 echo
-# operation to perform ["" "uninstall" "recover" "version" "help"]
+# operation to perform ["" "uninstall" "recover" "check-patch" "version" "help"]
 operation="$1"
 
 # only for devs who know what they're doing ["" "-f"]
@@ -27,6 +27,7 @@ backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
 backup_agw_bin="$backup_agc$sub_agw_path"
 manifest="$support_dir"manifest.wglr
 scratch_file="$support_dir"AppleGPUWrangler.p
+patch_status=""
 
 # IOThunderboltSwitchType reference
 iotbswitchtype_ref="494F5468756E646572626F6C74537769746368547970653"
@@ -119,10 +120,51 @@ check_sys_iotbswitchtype()
   fi
 }
 
+# Patch check
+check_patch()
+{
+  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
+  then
+    echo "Patch detected."
+    patch_status=1
+  else
+    echo "Ready to patch."
+    patch_status=0
+  fi
+}
+
+# Check if older install exists
+check_legacy_script_install()
+{
+  old_install_file="$support_dir"AppleGraphicsControl.kext
+  if [[ -d "$old_install_file" ]]
+  then
+    echo "\nInstallation from older version of the script detected.\n"
+    if [[ "$patch_status" == 0 ]]
+    then
+      echo "Safely removing older installation..."
+      rm -r "$support_dir"
+      echo "Re-running script..."
+      sleep 3
+      "$0" "$operation"
+      exit
+    else
+      echo "
+      Please use the recover command on the older version of
+
+      the script before proceeding.\n"
+      exit
+    fi
+  fi
+}
+
 # Hard checks
 check_sudo
 check_sys_integrity_protection
 check_macos_version
+check_sys_iotbswitchtype
+check_patch
+check_legacy_script_install
 
 # --------------- OS MANAGEMENT ---------------
 
@@ -198,17 +240,6 @@ backup_system()
 
 # --------------- PATCHING SYSTEM ---------------
 
-# Patch check
-check_patch()
-{
-  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
-  then
-    echo "Patch has been applied already."
-  else
-    echo "Patch has not been applied yet."
-  fi
-}
-
 # Primary patching mechanism
 generic_patcher()
 {
@@ -271,13 +302,11 @@ start_recovery()
 # Option handlers
 if [[ "$operation" == "" ]]
 then
-  check_sys_iotbswitchtype
   backup_system
   apply_patch
   write_manifest ""
 elif [[ "$operation" == "uninstall" ]]
 then
-  check_sys_iotbswitchtype
   uninstall "$2"
   write_manifest "$2"
 elif [[ "$operation" == "recover" ]]
@@ -288,7 +317,6 @@ then
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
-  check_sys_iotbswitchtype
   check_patch
 elif [[ "$operation" == "version" ]]
 then
