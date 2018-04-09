@@ -17,7 +17,7 @@ then
   clear
 fi
 echo
-echo "---------- PURGE WRANGLER (v$script_ver) ----------"
+echo "---------- PURGE WRANGLER ($script_ver) ----------"
 echo
 
 # Kext paths
@@ -69,7 +69,9 @@ usage()
 
     Advanced Options:
 
-      -f: Force override checks and manifest.\n"
+      -f: Force override checks and manifest.
+
+      -nc: Avoid clear screen on invocation."
 }
 
 # --------------- SYSTEM CHECKS ---------------
@@ -133,10 +135,8 @@ check_patch()
 {
   if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
   then
-    echo "Patch detected.\n"
     patch_status=1
   else
-    echo "No system modifications detected.\n"
     patch_status=0
   fi
 }
@@ -150,9 +150,9 @@ check_legacy_script_install()
     echo "\nInstallation from v1.x.x of the script detected.\n"
     if [[ "$patch_status" == 0 ]]
     then
-      echo "Safely removing older installation..."
+      echo "Safely removing older installation...\n"
       rm -r "$support_dir"
-      echo "Re-running script..."
+      echo "Re-running script...\n"
       sleep 3
       "$0" "$operation"
       exit
@@ -185,7 +185,7 @@ prompt_reboot()
 # Rebuild kernel cache
 invoke_kext_caching()
 {
-  echo "Rebuilding kext cache..."
+  echo "Rebuilding kext cache...\n"
   touch "$ext_path"
   kextcache -q -update-volume /
 }
@@ -193,7 +193,7 @@ invoke_kext_caching()
 # Repair kext and binary permissions
 repair_permissions()
 {
-  echo "Repairing permissions..."
+  echo "Repairing permissions...\n"
   chmod 700 "$agw_bin"
   chown -R root:wheel "$agc_path"
   invoke_kext_caching
@@ -227,14 +227,14 @@ execute_backup()
 # Backup procedure
 backup_system()
 {
-  echo "Backing up..."
+  echo "Backing up...\n"
   if [[ -s "$backup_agc" && -s "$manifest" ]]
   then
     manifest_macos_ver=`sed "3q;d" "$manifest"`
     manifest_macos_build=`sed "4q;d" "$manifest"`
     if [[ "$manifest_macos_ver" == "$macos_ver" && "$manifest_macos_build" == "$macos_build" ]]
     then
-      echo "Backup already exists."
+      echo "Backup already exists.\n"
     else
       echo "Different build/version of macOS detected. Updating backup..."
       rm -r "$backup_agc"
@@ -242,7 +242,7 @@ backup_system()
     fi
   else
     execute_backup
-    echo "Backup complete."
+    echo "Backup complete.\n"
   fi
 }
 
@@ -267,7 +267,7 @@ uninstall()
   override="$1"
   if [[ -d "$support_dir" || "$override" == "-f" ]]
   then
-    echo "Uninstalling..."
+    echo "Uninstalling...\n"
     generic_patcher "$sys_iotbswitchtype" "$iotbswitchtype_ref"3
     echo "Uninstallation Complete.\n"
     prompt_reboot
@@ -280,7 +280,7 @@ uninstall()
 # Patch TB3 block
 apply_patch()
 {
-  echo "Patching..."
+  echo "Patching...\n"
   generic_patcher "$iotbswitchtype_ref"3 "$sys_iotbswitchtype"
   echo "Patch Complete.\n"
   prompt_reboot
@@ -293,7 +293,7 @@ start_recovery()
 {
   if [[ -s "$backup_agc" ]]
   then
-    echo "Recovering..."
+    echo "Recovering...\n"
     rm -r "$agc_path"
     rsync -r "$backup_kext_dir"* "$ext_path"
     rm -r "$support_dir"
@@ -322,10 +322,16 @@ then
   start_recovery
 elif [[ "$operation" == "help" ]]
 then
+  printf '\e[8;31;80t'
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
-  exit
+  if [[ "$patch_status" == 0 ]]
+  then
+    echo "No system modifications detected."
+  else
+    echo "System has been patched."
+  fi
 elif [[ "$operation" == "version" ]]
 then
   echo "Version: $script_ver"
