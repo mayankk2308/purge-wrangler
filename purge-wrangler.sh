@@ -317,7 +317,8 @@ then
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
-  check_patch
+  echo
+  exit
 elif [[ "$operation" == "version" ]]
 then
   echo "Version: $script_ver"
