@@ -139,7 +139,7 @@ check_legacy_script_install()
   old_install_file="$support_dir"AppleGraphicsControl.kext
   if [[ -d "$old_install_file" ]]
   then
-    echo "\nInstallation from older version of the script detected.\n"
+    echo "\nInstallation from v1.x.x of the script detected.\n"
     if [[ "$patch_status" == 0 ]]
     then
       echo "Safely removing older installation..."
