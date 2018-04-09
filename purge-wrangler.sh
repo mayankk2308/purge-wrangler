@@ -5,6 +5,9 @@ script_ver="2.0.0"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
+clear
+echo "---------- PURGE WRANGLER ($script_ver) ----------"
+echo
 # operation to perform ["" "uninstall" "recover" "version" "help"]
 operation="$1"
 
@@ -48,6 +51,8 @@ usage()
       uninstall: Repatch kext to default.
 
       recover: Recover system from backup.
+
+      check-patch: Check if patch has been applied.
 
       version: See current script version.
 
@@ -193,6 +198,17 @@ backup_system()
 
 # --------------- PATCHING SYSTEM ---------------
 
+# Patch check
+check_patch()
+{
+  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
+  then
+    echo "Patch has been applied already.\n"
+  else
+    echo "Patch has not been applied yet.\n"
+  fi
+}
+
 # Primary patching mechanism
 generic_patcher()
 {
@@ -270,6 +286,10 @@ then
 elif [[ "$operation" == "help" ]]
 then
   usage
+elif [[ "$operation" == "check-patch" ]]
+then
+  check_sys_iotbswitchtype
+  check_patch
 elif [[ "$operation" == "version" ]]
 then
   echo "Version: $script_ver"
