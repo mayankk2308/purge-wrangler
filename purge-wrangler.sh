@@ -203,9 +203,9 @@ check_patch()
 {
   if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
   then
-    echo "Patch has been applied already.\n"
+    echo "Patch has been applied already."
   else
-    echo "Patch has not been applied yet.\n"
+    echo "Patch has not been applied yet."
   fi
 }
 
@@ -296,3 +296,5 @@ then
 else
   echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information."
 fi
+
+echo
