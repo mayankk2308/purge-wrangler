@@ -5,14 +5,20 @@ script_ver="2.0.0"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
-clear
-echo "---------- PURGE WRANGLER ($script_ver) ----------"
-echo
-# operation to perform ["" "uninstall" "recover" "check-patch" "version" "help"]
+# operation to perform ["" "patch" "uninstall" "recover" "check-patch" "version" "help"]
 operation="$1"
 
-# only for devs who know what they're doing ["" "-f"]
+# only for devs who know what they're doing ["" "-f" "-nc"]
 advanced_operation="$2"
+
+# Avoid clearing screen
+if [[ "$advanced_operation" != "-nc" ]]
+then
+  clear
+fi
+echo
+echo "---------- PURGE WRANGLER (v$script_ver) ----------"
+echo
 
 # Kext paths
 ext_path="/System/Library/Extensions/"
@@ -48,6 +54,8 @@ usage()
     Basics:
 
       No arguments: Apply patch.
+
+      patch: Apply patch. Useful for providing advanced options.
 
       uninstall: Repatch kext to default.
 
@@ -125,10 +133,10 @@ check_patch()
 {
   if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
   then
-    echo "Patch detected."
+    echo "Patch detected.\n"
     patch_status=1
   else
-    echo "Ready to patch."
+    echo "No system modifications detected.\n"
     patch_status=0
   fi
 }
@@ -300,7 +308,7 @@ start_recovery()
 # --------------- INPUT MANAGER ---------------
 
 # Option handlers
-if [[ "$operation" == "" ]]
+if [[ "$operation" == "" || "$operation" == "patch" ]]
 then
   backup_system
   apply_patch
@@ -317,7 +325,6 @@ then
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
-  echo
   exit
 elif [[ "$operation" == "version" ]]
 then
