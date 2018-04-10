@@ -53,25 +53,25 @@ usage()
 
     Basics:
 
-      No arguments: Apply patch.
+    \tNo arguments: Apply patch.
 
-      patch: Apply patch. Useful for providing advanced options.
+    \tpatch: Apply patch. Useful for providing advanced options.
 
-      uninstall: Repatch kext to default.
+    \tuninstall: Repatch kext to default.
 
-      recover: Recover system from backup.
+    \trecover: Recover system from backup.
 
-      check-patch: Check if patch has been applied.
+    \tcheck-patch: Check if patch has been applied.
 
-      version: See current script version.
+    \tversion: See current script version.
 
-      help: See script help.
+    \thelp: See script help.
 
     Advanced Options:
 
-      -f: Force override checks and manifest.
+    \t-f: Force override checks and manifest.
 
-      -nc: Avoid clear screen on invocation."
+    \t-nc: Avoid clear screen on invocation.\n"
 }
 
 # --------------- SYSTEM CHECKS ---------------
@@ -141,26 +141,41 @@ check_patch()
   fi
 }
 
+# Patch status check
+check_patch_status()
+{
+  if [[ "$patch_status" == 0 ]]
+  then
+    echo "No system modifications detected.\n"
+  else
+    echo "System has been patched.\n"
+  fi
+}
+
 # Check if older install exists
 check_legacy_script_install()
 {
   old_install_file="$support_dir"AppleGraphicsControl.kext
-  if [[ -d "$old_install_file" ]]
+  if [[ -d "$old_install_file" && "$advanced_operation" != "-f" ]]
   then
     echo "\nInstallation from v1.x.x of the script detected.\n"
     if [[ "$patch_status" == 0 ]]
     then
-      echo "Safely removing older installation...\n"
+      echo "\tSafely removing older installation...\n"
       rm -r "$support_dir"
+      echo "\tRemoval complete.\n"
       echo "Re-running script...\n"
       sleep 3
-      "$0" "$operation"
     else
-      echo "
-      Please use the recover command on the older version of
-
-      the script before proceeding.\n"
+      echo "\tSafely reverting changes...\n"
+      echo "Re-running script...\n"
+      sleep 3
+      "$0" "recover" "-f"
+      echo "\tChanges reverted.\n"
+      echo "Re-running script...\n"
+      sleep 3
     fi
+    "$0" "$operation" "$advanced_operation"
     exit
   fi
 }
@@ -171,30 +186,37 @@ check_sys_integrity_protection
 check_macos_version
 check_sys_iotbswitchtype
 check_patch
-check_legacy_script_install
 
 # --------------- OS MANAGEMENT ---------------
 
 # Reboot sequence/message
 prompt_reboot()
 {
-  echo "System ready. Restart now to apply changes."
+  if [[ "$advanced_operation" != "-f" ]]
+  then
+    echo "System ready. Restart now to apply changes.\n"
+  fi
 }
 
 # Rebuild kernel cache
 invoke_kext_caching()
 {
-  echo "Rebuilding kext cache...\n"
-  touch "$ext_path"
-  kextcache -q -update-volume /
+  if [[ "$advanced_operation" != "-f" ]]
+  then
+    echo "\tRebuilding kext cache...\n"
+    touch "$ext_path"
+    kextcache -q -update-volume /
+    echo "\tRebuild complete.\n"
+  fi
 }
 
 # Repair kext and binary permissions
 repair_permissions()
 {
-  echo "Repairing permissions...\n"
+  echo "\tRepairing permissions...\n"
   chmod 700 "$agw_bin"
   chown -R root:wheel "$agc_path"
+  echo "\tPermissions set.\n"
   invoke_kext_caching
 }
 
@@ -207,8 +229,7 @@ repair_permissions()
 # Line 4: macOS Build No.
 write_manifest()
 {
-  override="$1"
-  if [[ "$override" != "-f" ]]
+  if [[ "$advanced_operation" != "-f" ]]
   then
     unpatched_kext_sha=`shasum -a 512 -b "$backup_agw_bin" | awk '{ print $1 }'`
     patched_kext_sha=`shasum -a 512 -b "$agw_bin" | awk '{ print $1 }'`
@@ -235,9 +256,10 @@ backup_system()
     then
       echo "Backup already exists.\n"
     else
-      echo "Different build/version of macOS detected. Updating backup..."
+      echo "Different build/version of macOS detected. Updating backup...\n"
       rm -r "$backup_agc"
       execute_backup
+      echo "Update complete.\n"
     fi
   else
     execute_backup
@@ -263,15 +285,14 @@ generic_patcher()
 # In-place re-patcher
 uninstall()
 {
-  override="$1"
-  if [[ -d "$support_dir" || "$override" == "-f" ]]
+  if [[ -d "$support_dir" || "$advanced_operation" == "-f" ]]
   then
     echo "Uninstalling...\n"
     generic_patcher "$sys_iotbswitchtype" "$iotbswitchtype_ref"3
     echo "Uninstallation Complete.\n"
     prompt_reboot
   else
-    echo "No installation found. No action taken."
+    echo "No installation found. No action taken.\n"
     exit
   fi
 }
@@ -300,7 +321,7 @@ start_recovery()
     echo "Recovery complete.\n"
     prompt_reboot
   else
-    echo "Could not find valid backup. Recovery failed."
+    echo "Could not find valid backup. Recovery not possible.\n"
   fi
 }
 
@@ -309,15 +330,18 @@ start_recovery()
 # Option handlers
 if [[ "$operation" == "" || "$operation" == "patch" ]]
 then
+  check_legacy_script_install
   backup_system
   apply_patch
-  write_manifest ""
+  write_manifest
 elif [[ "$operation" == "uninstall" ]]
 then
-  uninstall "$2"
-  write_manifest "$2"
+  check_legacy_script_install
+  uninstall
+  write_manifest
 elif [[ "$operation" == "recover" ]]
 then
+  check_legacy_script_install
   start_recovery
 elif [[ "$operation" == "help" ]]
 then
@@ -325,17 +349,10 @@ then
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
-  if [[ "$patch_status" == 0 ]]
-  then
-    echo "No system modifications detected."
-  else
-    echo "System has been patched."
-  fi
+  check_patch_status
 elif [[ "$operation" == "version" ]]
 then
-  echo "Version: $script_ver"
+  echo "Version: $script_ver\n"
 else
-  echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information."
+  echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information.\n"
 fi
-
-echo
