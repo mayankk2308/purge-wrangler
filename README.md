@@ -65,7 +65,7 @@ $ sudo ./purge-wrangler.sh help
 
 Advanced options are available for invoking different behavior, but they are only recommended for developers.
 
-**Uninstallation not required, but recommended.**
+**Uninstallation not required, but recommended before updating macOS.**
 
 ## References
 Many thanks to **@itsage**, **@fricorico**, **@goalque**, and many others at [egpu.io](https://egpu.io) for the insightful discussion that led me to the fix.
