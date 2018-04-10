@@ -154,29 +154,24 @@ check_patch_status()
   fi
 }
 
-# Check if older install exists
+# Manage older script install
 check_legacy_script_install()
 {
   old_install_file="$support_dir"AppleGraphicsControl.kext
   if [[ -d "$old_install_file" && "$advanced_operation" != "-f" ]]
   then
     echo "\nInstallation from v1.x.x of the script detected.\n"
-    if [[ "$patch_status" == 0 ]]
+    echo "\tSafely removing older installation...\n"
+    if [[ "$patch_status" == 1 ]]
     then
-      echo "\tSafely removing older installation...\n"
-      rm -r "$support_dir"
-      echo "\tRemoval complete.\n"
       echo "Re-running script...\n"
       sleep 3
-    else
-      echo "\tSafely reverting changes...\n"
-      echo "Re-running script...\n"
-      sleep 3
-      "$0" "recover" "-f"
-      echo "\tChanges reverted.\n"
-      echo "Re-running script...\n"
-      sleep 3
+      "$0" "uninstall" "-f"
     fi
+    rm -r "$support_dir"
+    echo "\tRemoval complete.\n"
+    echo "Re-running script...\n"
+    sleep 3
     "$0" "$operation" "$advanced_operation"
     exit
   fi
