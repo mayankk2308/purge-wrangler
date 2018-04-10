@@ -17,7 +17,7 @@ then
   clear
 fi
 echo
-echo "---------- PURGE WRANGLER ($script_ver) ----------"
+echo "---------- PURGE-WRANGLER ($script_ver) ----------"
 echo
 
 # Kext paths
