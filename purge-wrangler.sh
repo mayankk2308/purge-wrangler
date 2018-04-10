@@ -16,9 +16,7 @@ if [[ "$advanced_operation" != "-nc" ]]
 then
   clear
 fi
-echo
-echo "---------- PURGE-WRANGLER ($script_ver) ----------"
-echo
+echo "\n---------- PURGE-WRANGLER ($script_ver) ----------\n"
 
 # Kext paths
 ext_path="/System/Library/Extensions/"
