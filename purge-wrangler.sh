@@ -155,14 +155,13 @@ check_legacy_script_install()
       echo "Re-running script...\n"
       sleep 3
       "$0" "$operation"
-      exit
     else
       echo "
       Please use the recover command on the older version of
 
       the script before proceeding.\n"
-      exit
     fi
+    exit
   fi
 }
 
