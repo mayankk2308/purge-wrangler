@@ -42,9 +42,20 @@ To uninstall changes:
 ```bash
 $ sudo ./purge-wrangler.sh uninstall
 ```
+
+To check if patch is installed:
+```bash
+$ sudo ./purge-wrangler.sh check-patch
+```
+
 To recover original kext:
 ```bash
 $ sudo ./purge-wrangler.sh recover
+```
+
+To check script version:
+```bash
+$ sudo ./purge-wrangler.sh version
 ```
 
 For help with how to use the script:
@@ -52,7 +63,9 @@ For help with how to use the script:
 $ sudo ./purge-wrangler.sh help
 ```
 
-**Uninstallation recommended before updating macOS.**
+Advanced options are available for invoking different behavior, but they are only recommended for developers.
+
+**Uninstallation not required, but recommended.**
 
 ## References
 Many thanks to **@itsage**, **@fricorico**, **@goalque**, and many others at [egpu.io](https://egpu.io) for the insightful discussion that led me to the fix.
