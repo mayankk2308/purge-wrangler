@@ -116,6 +116,10 @@ check_macos_version()
 check_sys_iotbswitchtype()
 {
   tb="$(system_profiler SPThunderboltDataType | grep Speed)"
+  if [[ "$tb[@]" =~ "40" ]]
+  then
+    echo "This mac does not require the patch.\n"
+    exit
   if [[ "$tb[@]" =~ "20" ]]
   then
     sys_iotbswitchtype="$iotbswitchtype_ref"2
@@ -123,7 +127,7 @@ check_sys_iotbswitchtype()
   then
     sys_iotbswitchtype="$iotbswitchtype_ref"1
   else
-    echo "Unsupported/Invalid version of thunderbolt or none provided."
+    echo "Unsupported/Invalid version of thunderbolt.\n"
     exit
   fi
 }
