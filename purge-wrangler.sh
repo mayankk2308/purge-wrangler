@@ -255,6 +255,18 @@ backup_system()
     else
       echo "Different build/version of macOS detected. Updating backup...\n"
       rm -r "$backup_agc"
+      if [[ "$patch_status" == 1 ]]
+      then
+        echo "Uninstalling patch before backup update...\n"
+        echo "Re-running script...\n"
+        sleep 3
+        "$0" "uninstall" "-f"
+        echo "System re-patched.\n"
+        echo "Re-running script...\n"
+        sleep 3
+        "$0" "$operation" "$advanced_operation"
+        exit
+      fi
       execute_backup
       echo "Update complete.\n"
     fi
