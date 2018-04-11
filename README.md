@@ -1,3 +1,5 @@
+![Header](https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/header.png)
+
 ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge)
 # PurgeWrangler
 This script enables external graphics on Thunderbolt 1/2 Macs, which is actively blocked in macOS **10.13.4**.
