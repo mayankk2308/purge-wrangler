@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 2.0.0
-script_ver="2.0.0"
+# Version 2.0.1
+script_ver="2.0.1"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
@@ -89,14 +89,11 @@ check_sys_integrity_protection()
 {
   if [[ `csrutil status | grep -i enabled` ]]
   then
-    if [[ ! `csrutil status | grep -i kext | grep -i disabled` ]]
-    then
-      echo "
-      System Integrity Protection needs to be disabled before proceeding.
+    echo "
+    System Integrity Protection needs to be disabled before proceeding.
 
-      Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
-      exit
-    fi
+    Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
+    exit
   fi
 }
 
