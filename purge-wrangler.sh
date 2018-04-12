@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 2.0.1
-script_ver="2.0.1"
+# Version 2.0.2
+script_ver="2.0.2"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
@@ -109,18 +109,18 @@ check_macos_version()
 }
 
 # Check thunderbolt version/availability
-# Credit: learex @ github.com / fr34k @ egpu.io
+# Credit: @owenrw @ github
 check_sys_iotbswitchtype()
 {
-  tb="$(system_profiler SPThunderboltDataType | grep Speed)"
-  if [[ "$tb[@]" =~ "40" ]]
+  tb="$(ioreg | grep AppleThunderboltNHIType)"
+  if [[ "$tb[@]" =~ "NHIType3" ]]
   then
     echo "This mac does not require the patch.\n"
     exit
-  elif [[ "$tb[@]" =~ "20" ]]
+  elif [[ "$tb[@]" =~ "NHIType2" ]]
   then
     sys_iotbswitchtype="$iotbswitchtype_ref"2
-  elif [[ "$tb[@]" =~ "10" ]]
+  elif [[ "$tb[@]" =~ "NHIType1" ]]
   then
     sys_iotbswitchtype="$iotbswitchtype_ref"1
   else
