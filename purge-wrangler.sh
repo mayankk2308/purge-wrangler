@@ -5,6 +5,11 @@ script_ver="2.0.2"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
+# Text management
+bold=`tput bold`
+normal=`tput sgr0`
+underline=`tput smul`
+
 # operation to perform ["" "patch" "uninstall" "recover" "check-patch" "version" "help"]
 operation="$1"
 
@@ -16,7 +21,7 @@ if [[ "$advanced_operation" != "-nc" ]]
 then
   clear
 fi
-echo "\n---------- PURGE-WRANGLER ($script_ver) ----------\n"
+echo "\n---------- ${bold}PURGE-WRANGLER ($script_ver)${normal} ----------\n"
 
 # Kext paths
 ext_path="/System/Library/Extensions/"
@@ -45,31 +50,31 @@ macos_build=`sw_vers -buildVersion`
 usage()
 {
   echo "
-  Usage:
+  ${bold}Usage${normal}:
 
-    ./purge-wrangler.sh [params] [advanced-params]
+    ./purge-wrangler.sh [${underline}params${normal}] [${underline}advanced-params${normal}]
 
-    Basics:
+    ${bold}Basics${normal}:
 
-    \tNo arguments: Apply patch.
+    \t${underline}No arguments${normal}: Apply patch.
 
-    \tpatch: Apply patch. Useful for providing advanced options.
+    \t${underline}patch${normal}: Apply patch. Useful for providing advanced options.
 
-    \tuninstall: Repatch kext to default.
+    \t${underline}uninstall${normal}: Repatch kext to default.
 
-    \trecover: Recover system from backup.
+    \t${underline}recover${normal}: Recover system from backup.
 
-    \tcheck-patch: Check if patch has been applied.
+    \t${underline}check-patch${normal}: Check if patch has been applied.
 
-    \tversion: See current script version.
+    \t${underline}version${normal}: See current script version.
 
-    \thelp: See script help.
+    \t${underline}help${normal}: See script help.
 
-    Advanced Options:
+    ${bold}Advanced Options${normal}:
 
-    \t-f: Force override checks and manifest.
+    \t${underline}-f${normal}: Force override checks and manifest.
 
-    \t-nc: Avoid clear screen on invocation.\n"
+    \t${underline}-nc${normal}: Avoid clear screen on invocation.\n"
 }
 
 # --------------- SYSTEM CHECKS ---------------
