@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script (purge-wrangler.sh), by mac_editor @ egpu.io (mayankk2308@gmail.com)
-# Version 2.0.2
-script_ver="2.0.2"
+# Version 3.0.0
+script_ver="3.0.0"
 
 # --------------- ENVIRONMENT SETUP ---------------
 
@@ -10,10 +10,10 @@ bold=`tput bold`
 normal=`tput sgr0`
 underline=`tput smul`
 
-# operation to perform ["" "patch" "uninstall" "recover" "check-patch" "version" "help"]
+# Operation to perform ["" "amd-patch" "nv-patch" "uninstall" "recover" "check-patch" "version" "help"]
 operation="$1"
 
-# only for devs who know what they're doing ["" "-f" "-nc"]
+# Only for devs who know what they're doing ["" "-f" "-nc"]
 advanced_operation="$2"
 
 # Avoid clearing screen
@@ -36,11 +36,16 @@ backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
 backup_agw_bin="$backup_agc$sub_agw_path"
 manifest="$support_dir"manifest.wglr
 scratch_file="$support_dir"AppleGPUWrangler.p
-patch_status=""
+tb_patch_status=""
+nv_patch_status=""
 
 # IOThunderboltSwitchType reference
 iotbswitchtype_ref="494F5468756E646572626F6C74537769746368547970653"
 sys_iotbswitchtype=""
+
+# Function reference
+r13_test_ref="3C24E81DBDFFFF41F7C500000001757F"
+r13_test_patch="3C24E81DBDFFFF41F7C500000000757F"
 
 # System information
 macos_ver=`sw_vers -productVersion`
@@ -56,19 +61,19 @@ usage()
 
     ${bold}Basics${normal}:
 
-    \t${underline}No arguments${normal}: Apply patch.
+    \t${underline}${bold}No arguments${normal}: Apply patch.
 
-    \t${underline}patch${normal}: Apply patch. Useful for providing advanced options.
+    \t${underline}${bold}patch${normal}: Apply patch. Useful for providing advanced options.
 
-    \t${underline}uninstall${normal}: Repatch kext to default.
+    \t${underline}${bold}uninstall${normal}: Repatch kext to default.
 
-    \t${underline}recover${normal}: Recover system from backup.
+    \t${underline}${bold}recover${normal}: Recover system from backup.
 
-    \t${underline}check-patch${normal}: Check if patch has been applied.
+    \t${underline}${bold}check-patch${normal}: Check if patch has been applied.
 
-    \t${underline}version${normal}: See current script version.
+    \t${underline}${bold}version${normal}: See current script version.
 
-    \t${underline}help${normal}: See script help.
+    \t${underline}${bold}help${normal}: See script help.
 
     ${bold}Advanced Options${normal}:
 
@@ -120,8 +125,13 @@ check_sys_iotbswitchtype()
   tb="$(ioreg | grep AppleThunderboltNHIType)"
   if [[ "$tb[@]" =~ "NHIType3" ]]
   then
-    echo "This mac does not require the patch.\n"
-    exit
+    if [[ "$operation" == "nv-patch" ]]
+    then
+      sys_iotbswitchtype="$iotbswitchtype_ref"3
+    else
+      echo "This mac does not require the patch.\n"
+      exit
+    fi
   elif [[ "$tb[@]" =~ "NHIType2" ]]
   then
     sys_iotbswitchtype="$iotbswitchtype_ref"2
@@ -137,22 +147,34 @@ check_sys_iotbswitchtype()
 # Patch check
 check_patch()
 {
-  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` ]]
+  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$sys_iotbswitchtype"` && "$sys_iotbswitchtype" != "$iotbswitchtype_ref"3 ]]
   then
-    patch_status=1
+    tb_patch_status=1
   else
-    patch_status=0
+    tb_patch_status=0
+  fi
+  if [[ `hexdump -ve '1/1 "%.2X"' "$agw_bin" | grep "$r13_test_patch"` ]]
+  then
+    nv_patch_status=1
+  else
+    nv_patch_status=0
   fi
 }
 
 # Patch status check
 check_patch_status()
 {
-  if [[ "$patch_status" == 0 ]]
+  if [[ "$tb_patch_status" == 0 ]]
   then
-    echo "No system modifications detected.\n"
+    echo "Thunderbolt 1/2 patch not detected.\n"
   else
-    echo "System has been patched.\n"
+    echo "Thunderbolt 1/2 patch detected.\n"
+  fi
+  if [[ "$nv_patch_status" == 0 ]]
+  then
+    echo "NVIDIA patch not detected.\n"
+  else
+    echo "NVIDIA patch detected.\n"
   fi
 }
 
@@ -162,9 +184,9 @@ check_legacy_script_install()
   old_install_file="$support_dir"AppleGraphicsControl.kext
   if [[ -d "$old_install_file" && "$advanced_operation" != "-f" ]]
   then
-    echo "\nInstallation from v1.x.x of the script detected.\n"
+    echo "\nInstallation from legacy version(s) of the script detected.\n"
     echo "\tSafely removing older installation...\n"
-    if [[ "$patch_status" == 1 ]]
+    if [[ "$tb_patch_status" == 1 || "$nv_patch_status" == 1 ]]
     then
       echo "Re-running script...\n"
       sleep 3
@@ -183,8 +205,6 @@ check_legacy_script_install()
 check_sudo
 check_sys_integrity_protection
 check_macos_version
-check_sys_iotbswitchtype
-check_patch
 
 # --------------- OS MANAGEMENT ---------------
 
@@ -290,7 +310,6 @@ generic_patcher()
   xxd -r -p > "$scratch_file"
   rm "$agw_bin"
   mv "$scratch_file" "$agw_bin"
-  repair_permissions
 }
 
 # In-place re-patcher
@@ -300,6 +319,8 @@ uninstall()
   then
     echo "Uninstalling...\n"
     generic_patcher "$sys_iotbswitchtype" "$iotbswitchtype_ref"3
+    generic_patcher "$r13_test_patch" "$r13_test_ref"
+    repair_permissions
     echo "Uninstallation Complete.\n"
     prompt_reboot
   else
@@ -313,6 +334,11 @@ apply_patch()
 {
   echo "Patching...\n"
   generic_patcher "$iotbswitchtype_ref"3 "$sys_iotbswitchtype"
+  if [[ "$operation" == "nv-patch" ]]
+  then
+    generic_patcher "$r13_test_ref" "$r13_test_patch"
+  fi
+  repair_permissions
   echo "Patch Complete.\n"
   prompt_reboot
 }
@@ -339,19 +365,24 @@ start_recovery()
 # --------------- INPUT MANAGER ---------------
 
 # Option handlers
-if [[ "$operation" == "" || "$operation" == "patch" ]]
+if [[ "$operation" == "" || "$operation" == "amd-patch" || "$operation" == "nv-patch" ]]
 then
+  check_sys_iotbswitchtype
+  check_patch
   check_legacy_script_install
   backup_system
   apply_patch
   write_manifest
 elif [[ "$operation" == "uninstall" ]]
 then
+  check_sys_iotbswitchtype
+  check_patch
   check_legacy_script_install
   uninstall
   write_manifest
 elif [[ "$operation" == "recover" ]]
 then
+  check_patch
   check_legacy_script_install
   start_recovery
 elif [[ "$operation" == "help" ]]
@@ -360,6 +391,7 @@ then
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
+  check_patch
   check_patch_status
 elif [[ "$operation" == "version" ]]
 then
