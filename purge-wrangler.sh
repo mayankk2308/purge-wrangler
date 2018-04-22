@@ -16,13 +16,6 @@ operation="$1"
 # Only for devs who know what they're doing ["" "-f" "-nc"]
 advanced_operation="$2"
 
-# Avoid clearing screen
-if [[ "$advanced_operation" != "-nc" ]]
-then
-  clear
-fi
-echo "\n---------- ${bold}PURGE-WRANGLER ($script_ver)${normal} ----------\n"
-
 # Kext paths
 ext_path="/System/Library/Extensions/"
 agc_path="$ext_path"AppleGraphicsControl.kext
@@ -36,6 +29,8 @@ backup_agc="$backup_kext_dir"AppleGraphicsControl.kext
 backup_agw_bin="$backup_agc$sub_agw_path"
 manifest="$support_dir"manifest.wglr
 scratch_file="$support_dir"AppleGPUWrangler.p
+
+# Patch state
 tb_patch_status=""
 nv_patch_status=""
 
@@ -61,9 +56,11 @@ usage()
 
     ${bold}Basics${normal}:
 
-    \t${underline}${bold}No arguments${normal}: Apply patch.
+    \t${underline}${bold}No arguments${normal}: Same as amd-patch - standard Apple eGPU support.
 
-    \t${underline}${bold}patch${normal}: Apply patch. Useful for providing advanced options.
+    \t${underline}${bold}amd-patch${normal}: Apply patch for AMD eGPUs.
+
+    \t${underline}${bold}nv-patch${normal}: Apply patch for NVDA eGPUs.
 
     \t${underline}${bold}uninstall${normal}: Repatch kext to default.
 
@@ -77,9 +74,9 @@ usage()
 
     ${bold}Advanced Options${normal}:
 
-    \t${underline}-f${normal}: Force override checks and manifest.
+    \t${underline}${bold}-f${normal}: Force override checks and manifest.
 
-    \t${underline}-nc${normal}: Avoid clear screen on invocation.\n"
+    \t${underline}${bold}-nc${normal}: Avoid clear screen on invocation.\n"
 }
 
 # --------------- SYSTEM CHECKS ---------------
@@ -87,9 +84,10 @@ usage()
 # Check superuser access
 check_sudo()
 {
-  if [[ "$(id -u)" != 0 ]]
+  if [[ "$(id -u)" != 0 && "$operation" != "help" ]]
   then
-    echo "This script requires superuser access. Please run with 'sudo'.\n"
+    echo "Requesting ${bold}superuser${normal} permissions...\n"
+    sudo "$0" "$operation" "$advanced_operation"
     exit
   fi
 }
@@ -100,9 +98,9 @@ check_sys_integrity_protection()
   if [[ `csrutil status | grep -i enabled` ]]
   then
     echo "
-    System Integrity Protection needs to be disabled before proceeding.
+    System Integrity Protection needs to be ${bold}disabled${normal} before proceeding.
 
-    Boot into recovery, launch Terminal and execute: 'csrutil disable'\n"
+    Boot into recovery, launch Terminal and execute: ${bold}'csrutil disable'${normal}\n"
     exit
   fi
 }
@@ -129,7 +127,7 @@ check_sys_iotbswitchtype()
     then
       sys_iotbswitchtype="$iotbswitchtype_ref"3
     else
-      echo "This mac does not require the patch.\n"
+      echo "This mac does not require any patching for AMD eGPUs.\n"
       exit
     fi
   elif [[ "$tb[@]" =~ "NHIType2" ]]
@@ -184,17 +182,17 @@ check_legacy_script_install()
   old_install_file="$support_dir"AppleGraphicsControl.kext
   if [[ -d "$old_install_file" && "$advanced_operation" != "-f" ]]
   then
-    echo "\nInstallation from legacy version(s) of the script detected.\n"
+    echo "\nInstallation from ${bold}legacy version(s)${normal} of the script detected.\n"
     echo "\tSafely removing older installation...\n"
     if [[ "$tb_patch_status" == 1 || "$nv_patch_status" == 1 ]]
     then
-      echo "Re-running script...\n"
+      echo "${bold}Re-running script...${normal}\n"
       sleep 3
       "$0" "uninstall" "-f"
     fi
     rm -r "$support_dir"
     echo "\tRemoval complete.\n"
-    echo "Re-running script...\n"
+    echo "${bold}Re-running script...${normal}\n"
     sleep 3
     "$0" "$operation" "$advanced_operation"
     exit
@@ -213,7 +211,7 @@ prompt_reboot()
 {
   if [[ "$advanced_operation" != "-f" ]]
   then
-    echo "System ready. Restart now to apply changes.\n"
+    echo "${bold}System ready.${normal} Restart now to apply changes.\n"
   fi
 }
 
@@ -222,7 +220,7 @@ invoke_kext_caching()
 {
   if [[ "$advanced_operation" != "-f" ]]
   then
-    echo "\tRebuilding kext cache...\n"
+    echo "\t${bold}Rebuilding kext cache...${normal}\n"
     touch "$ext_path"
     kextcache -q -update-volume /
     echo "\tRebuild complete.\n"
@@ -232,7 +230,7 @@ invoke_kext_caching()
 # Repair kext and binary permissions
 repair_permissions()
 {
-  echo "\tRepairing permissions...\n"
+  echo "\t${bold}Repairing permissions...${normal}\n"
   chmod 700 "$agw_bin"
   chown -R root:wheel "$agc_path"
   echo "\tPermissions set.\n"
@@ -266,7 +264,7 @@ execute_backup()
 # Backup procedure
 backup_system()
 {
-  echo "Backing up...\n"
+  echo "${bold}Backing up...${normal}\n"
   if [[ -s "$backup_agc" && -s "$manifest" ]]
   then
     manifest_macos_ver=`sed "3q;d" "$manifest"`
@@ -275,16 +273,16 @@ backup_system()
     then
       echo "Backup already exists.\n"
     else
-      echo "Different build/version of macOS detected. Updating backup...\n"
+      echo "Different build/version of macOS detected. ${bold}Updating backup...${normal}\n"
       rm -r "$backup_agc"
       if [[ "$patch_status" == 1 ]]
       then
-        echo "Uninstalling patch before backup update...\n"
-        echo "Re-running script...\n"
+        echo "${bold}Uninstalling patch before backup update...${normal}\n"
+        echo "${bold}Re-running script...${normal}\n"
         sleep 3
         "$0" "uninstall" "-f"
         echo "System re-patched.\n"
-        echo "Re-running script...\n"
+        echo "${bold}Re-running script...${normal}\n"
         sleep 3
         "$0" "$operation" "$advanced_operation"
         exit
@@ -317,7 +315,7 @@ uninstall()
 {
   if [[ -d "$support_dir" || "$advanced_operation" == "-f" ]]
   then
-    echo "Uninstalling...\n"
+    echo "${bold}Uninstalling...${normal}\n"
     generic_patcher "$sys_iotbswitchtype" "$iotbswitchtype_ref"3
     generic_patcher "$r13_test_patch" "$r13_test_ref"
     repair_permissions
@@ -332,7 +330,7 @@ uninstall()
 # Patch TB3 block
 apply_patch()
 {
-  echo "Patching...\n"
+  echo "${bold}Patching...${normal}\n"
   generic_patcher "$iotbswitchtype_ref"3 "$sys_iotbswitchtype"
   if [[ "$operation" == "nv-patch" ]]
   then
@@ -350,7 +348,7 @@ start_recovery()
 {
   if [[ -s "$backup_agc" ]]
   then
-    echo "Recovering...\n"
+    echo "${bold}Recovering...${normal}\n"
     rm -r "$agc_path"
     rsync -r "$backup_kext_dir"* "$ext_path"
     rm -r "$support_dir"
@@ -363,6 +361,13 @@ start_recovery()
 }
 
 # --------------- INPUT MANAGER ---------------
+
+# Avoid clearing screen
+if [[ "$advanced_operation" != "-nc" ]]
+then
+  clear
+fi
+echo "\n---------- ${bold}PURGE-WRANGLER ($script_ver)${normal} ----------\n"
 
 # Option handlers
 if [[ "$operation" == "" || "$operation" == "amd-patch" || "$operation" == "nv-patch" ]]
@@ -387,7 +392,7 @@ then
   start_recovery
 elif [[ "$operation" == "help" ]]
 then
-  printf '\e[8;31;80t'
+  printf '\e[8;32;80t'
   usage
 elif [[ "$operation" == "check-patch" ]]
 then
@@ -397,5 +402,5 @@ elif [[ "$operation" == "version" ]]
 then
   echo "Version: $script_ver\n"
 else
-  echo "Invalid option. Type sudo ./purge-wrangler.sh help for more information.\n"
+  echo "Invalid option. Type ./purge-wrangler.sh help for more information.\n"
 fi
