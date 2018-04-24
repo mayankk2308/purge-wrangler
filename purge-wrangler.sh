@@ -86,7 +86,6 @@ check_sudo()
 {
   if [[ "$(id -u)" != 0 && "$operation" != "help" ]]
   then
-    echo "Requesting ${bold}superuser${normal} permissions...\n"
     sudo "$0" "$operation" "$advanced_operation"
     exit
   fi
@@ -327,7 +326,7 @@ uninstall()
   fi
 }
 
-# Patch TB3 block
+# Patch TB1/2 block + NVIDIA kernel panics
 apply_patch()
 {
   echo "${bold}Patching...${normal}\n"
