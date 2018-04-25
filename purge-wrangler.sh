@@ -1,15 +1,21 @@
 #!/bin/sh
 
 # purge-wrangler.sh
-# Author(s): Mayank Kumar (mayankk2308 @ github, mac_editor @ egpu.io)
+# Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
+# Version: 3.0.0
+# Re-written from the ground up for scalable patches and a user-friendly
+# command-line menu-driven interface.
+
+# Invaluable Contributers
+# ----- TB1/2 Patch
+#       @mac_editor <-- @fricorico for reverse-engineering, egpu.io
+# ----- NVIDIA eGPU Patch
+#       @goalque <-- @fr34k for reverse-engineering, egpu.io
 
 # ----- COMMAND LINE ARGS
 
-# Script
-SCRIPT="$0"
-
-# Option
+# Option - need not be specified
 OPTION="$1"
 
 # ----- ENVIRONMENT
@@ -30,14 +36,27 @@ SIP_ON_ERR=1
 MACOS_VER_ERR=2
 TB_VER_ERR=3
 
+# Arg-Function Map
+t=1
+n=2
+c=3
+u=4
+r=5
+h=6
+v=7
+b=8
+q=9
+
 # Input-Function Map
-IF[1]="patch_tb"
-IF[2]="patch_nv"
-IF[3]="check_sys"
-IF[4]="uninstall"
-IF[5]="recover_sys"
-IF[6]="reboot_sys"
-IF[7]="quit"
+IF["$t"]="patch_tb"
+IF["$n"]="patch_nv"
+IF["$c"]="check_patch_status"
+IF["$u"]="uninstall"
+IF["$r"]="recover_sys"
+IF["$h"]="usage"
+IF["$v"]="show_script_version"
+IF["$b"]="initiate_reboot"
+IF["$q"]="quit"
 
 # System Information
 MACOS_VER=`sw_vers -productVersion`
@@ -46,6 +65,10 @@ SYS_TB_VER=""
 
 # AppleGPUWrangler References
 TB_SWITCH_HEX="494F5468756E646572626F6C74537769746368547970653"
+R13_TEST_REF="3C24E81DBDFFFF41F7C500000001757F"
+R13_TEST_PATCH="3C24E81DBDFFFF41F7C500000000757F"
+TB_PATCH_STATUS=""
+NV_PATCH_STATUS=""
 
 # Kext paths
 EXT_PATH="/System/Library/Extensions/"
@@ -59,7 +82,8 @@ BACKUP_KEXT_DIR="${SUPPORT_DIR}Kexts/"
 BACKUP_AGC="${BACKUP_KEXT_DIR}AppleGraphicsControl.kext"
 BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
-SCRATCH_FILE="${SUPPORT_DIR}AppleGPUWrangler.p"
+SCRATCH_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
+SCRATCH_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 
 # ----- SYSTEM CONFIGURATION MANAGER
 
@@ -90,7 +114,7 @@ check_macos_version()
   MACOS_MINOR_VER=`echo $MACOS_VER | cut -d '.' -f3`
   if [[ ("$MACOS_MAJOR_VER" < 13) || ("$MACOS_MAJOR_VER" == 13 && "$MACOS_MINOR_VER" < 4) ]]
   then
-    echo "\nThis script requires macOS 10.13.6 or later.\n"
+    echo "\nThis script requires macOS 10.13.4 or later.\n"
     exit $MACOS_VER_ERR
   fi
 }
@@ -114,6 +138,41 @@ retrieve_tb_ver()
   fi
 }
 
+# Patch check
+check_patch()
+{
+  if [[ `hexdump -ve '1/1 "%.2X"' "$AGW_BIN" | grep "$SYS_TB_VER"` && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]]
+  then
+    TB_PATCH_STATUS=1
+  else
+    TB_PATCH_STATUS=0
+  fi
+  if [[ `hexdump -ve '1/1 "%.2X"' "$AGW_BIN" | grep "$R13_TEST_PATCH"` ]]
+  then
+    NV_PATCH_STATUS=1
+  else
+    NV_PATCH_STATUS=0
+  fi
+}
+
+# Patch status check
+check_patch_status()
+{
+  echo "\n>> ${BOLD}Patch Status Check${NORMAL}\n"
+  if [[ "$TB_PATCH_STATUS" == 0 ]]
+  then
+    echo "${BOLD}Thunderbolt 1/2${NORMAL}: Not Detected"
+  else
+    echo "${BOLD}Thunderbolt 1/2${NORMAL}: Detected"
+  fi
+  if [[ "$NV_PATCH_STATUS" == 0 ]]
+  then
+    echo "${BOLD}NVIDIA${NORMAL}: Not Detected\n"
+  else
+    echo "${BOLD}NVIDIA${NORMAL}: Detected\n"
+  fi
+}
+
 # Cumulative system check
 perform_sys_check()
 {
@@ -121,6 +180,7 @@ perform_sys_check()
   check_macos_version
   retrieve_tb_ver
   elevate_privileges
+  check_patch
 }
 
 # ----- OS MANAGEMENT
@@ -128,22 +188,16 @@ perform_sys_check()
 # Reboot sequence/message
 prompt_reboot()
 {
-  if [[ "$OPTION" != "-f" ]]
-  then
-    echo "${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
-  fi
+  echo "${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # Rebuild kernel cache
 invoke_kext_caching()
 {
-  if [[ "$OPTION" != "-f" ]]
-  then
-    echo "${BOLD}Rebuilding kext cache...${NORMAL}"
-    touch "$EXT_PATH"
-    kextcache -q -update-volume /
-    echo "Rebuild complete."
-  fi
+  echo "${BOLD}Rebuilding kext cache...${NORMAL}"
+  touch "$EXT_PATH"
+  kextcache -q -update-volume /
+  echo "Rebuild complete."
 }
 
 # Repair kext and binary permissions
@@ -156,6 +210,145 @@ repair_permissions()
   invoke_kext_caching
 }
 
+# ----- PATCHING SYSTEM
+
+generate_agw_hex()
+{
+  hexdump -ve '1/1 "%.2X"' "$AGW_BIN" > "$SCRATCH_HEX"
+}
+
+new_agw_bin()
+{
+  xxd -r -p "$SCRATCH_HEX" "$SCRATCH_BIN"
+  rm "$AGW_BIN"
+  rm "$SCRATCH_HEX"
+  mv "$SCRATCH_BIN" "$AGW_BIN"
+}
+
+# Primary patching mechanism
+generic_patcher()
+{
+  ORIGINAL="$1"
+  NEW="$2"
+  sed -i "" -e "s/${ORIGINAL}/${NEW}/g" "$SCRATCH_HEX"
+}
+
+# ----- BACKUP SYSTEM
+
+# Write manifest file
+# Line 1: Unpatched Kext SHA -- Kext in Backup directory
+# Line 2: Patched Kext (in /S/L/E) SHA -- Kext in original location
+# Line 3: macOS Version
+# Line 4: macOS Build No.
+write_manifest()
+{
+  UNPATCHED_KEXT_SHA=`shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }'`
+  PATCHED_KEXT_SHA=`shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }'`
+  echo "$UNPATCHED_KEXT_SHA\n$PATCHED_KEXT_SHA\n$MACOS_VER\n$MACOS_BUILD" > "$MANIFEST"
+}
+
+# Primary procedure
+execute_backup()
+{
+  mkdir -p "$BACKUP_KEXT_DIR"
+  rsync -r "$AGC_PATH" "$BACKUP_KEXT_DIR"
+}
+
+# Backup procedure
+backup_system()
+{
+  echo "${BOLD}Backing up...${NORMAL}"
+  if [[ -s "$BACKUP_AGC" && -s "$MANIFEST" ]]
+  then
+    MANIFEST_MACOS_VER=`sed "3q;d" "$MANIFEST"`
+    MANIFEST_MACOS_BUILD=`sed "4q;d" "$MANIFEST"`
+    if [[ "$MANIFEST_MACOS_VER" == "$MACOS_VER" && "$MANIFEST_MACOS_BUILD" == "$MACOS_BUILD" ]]
+    then
+      echo "Backup already exists.\n"
+    else
+      echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
+      rm -r "$BACKUP_AGC"
+      if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
+      then
+        echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
+        uninstall
+        echo "${BOLD}Re-running script...${NORMAL}"
+        sleep 3
+        "$0" "$OPTION"
+        exit
+      fi
+      execute_backup
+      echo "Update complete."
+    fi
+  else
+    execute_backup
+    echo "Backup complete."
+  fi
+}
+
+# ----- CORE PATCH
+
+# Start patching sequence
+begin_patch()
+{
+  echo "${BOLD}Starting patch...${NORMAL}"
+  backup_system
+  generate_agw_hex
+}
+
+# Conclude patching sequence
+end_patch()
+{
+  new_agw_bin
+  repair_permissions
+  echo "${BOLD}Patch complete.\n"
+  prompt_reboot
+}
+
+# Patch TB1/2 block
+patch_tb()
+{
+  if [[ "$SYS_TB_VER" == "$TB_SWITCH_HEX"3 ]]
+  then
+    echo "\nThis mac does not require a thunderbolt patch.\n"
+    exit "$TB_VER_ERR"
+  fi
+  echo "\n>> ${BOLD}TB1/2 Patch${NORMAL}\n"
+  begin_patch
+  generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
+  end_patch
+}
+
+# Patch for NVIDIA eGPUs
+patch_nv()
+{
+  echo "\n>> ${BOLD}Universal NVIDIA eGPU Patch${NORMAL}\n"
+  begin_patch
+  generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
+  generic_patcher "$R13R13_TEST_REF" "$R13R13_TEST_PATCH"
+  end_patch
+}
+
+# In-place re-patcher
+uninstall()
+{
+  if [[ -d "$SUPPORT_DIR" ]]
+  then
+    echo "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
+    echo "${BOLD}Uninstalling...${NORMAL}"
+    generate_agw_hex
+    generic_patcher "$SYS_TB_VER" "$TB_SWITCH_HEX"3
+    generic_patcher "$R13_TEST_PATCH" "$R13_TEST_REF"
+    new_agw_bin
+    repair_permissions
+    echo "Uninstallation Complete.\n"
+    prompt_reboot
+  else
+    echo "\n${BOLD}No installation found${NORMAL}. No action taken.\n"
+    exit
+  fi
+}
+
 # ----- RECOVERY SYSTEM
 
 # Recovery logic
@@ -163,7 +356,7 @@ recover_sys()
 {
   if [[ -s "$BACKUP_AGC" ]]
   then
-    echo "\n>> ${BOLD}Recover System${NORMAL}\n"
+    echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
     echo "${BOLD}Recovering...${NORMAL}"
     rm -r "$AGC_PATH"
     rsync -r "$BACKUP_KEXT_DIR"* "$EXT_PATH"
@@ -178,41 +371,137 @@ recover_sys()
 
 # ----- USER INTERFACE
 
+# Exit script
 quit()
 {
   echo "\n${BOLD}Later then${NORMAL}. Buh bye!\n"
   exit 0
 }
 
-provide_menu_selection()
+# Print script version
+show_script_version()
 {
+  echo "\nScript at ${BOLD}${SCRIPT_VER}${NORMAL}.\n"
+}
+
+# Print command line options
+usage()
+{
+  echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
+  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v b q]${NORMAL}"
   echo "
-   ${BOLD}1.${NORMAL} TB1/2 Patch
-   ${BOLD}2.${NORMAL} NVIDIA eGPU + TB1/2 Patch (if needed)
-   ${BOLD}3.${NORMAL} System Check
-   ${BOLD}4.${NORMAL} Uninstall Patch(es)
-   ${BOLD}5.${NORMAL} Recover System
-   ${BOLD}6.${NORMAL} Reboot System
-   ${BOLD}7.${NORMAL} Quit
-  "
-  read -p "${BOLD}What next?${NORMAL} [1-7]: " INPUT
-  if [[ "$INPUT" < 1 || "$INPUT" > 7 ]]
+    ${BOLD}-t${NORMAL}: TB1/2 Patch
+    ${BOLD}-n${NORMAL}: Universal NVIDIA eGPU Patch
+    ${BOLD}-c${NORMAL}: Patch Status Check
+    ${BOLD}-u${NORMAL}: Uninstall Patches
+    ${BOLD}-r${NORMAL}: System Recovery
+    ${BOLD}-h${NORMAL}: Command Line Shortcuts
+    ${BOLD}-v${NORMAL}: Script Version
+    ${BOLD}-b${NORMAL}: Reboot System
+    ${BOLD}-q${NORMAL}: Quit\n"
+}
+
+# Reboot sequence
+initiate_reboot()
+{
+  echo
+  for time in {5..0}
+  do
+    printf "Restarting in ${BOLD}${time}s${NORMAL}...\r"
+    sleep 1
+  done
+  reboot
+}
+
+# Input processing
+process_input()
+{
+  ARG="$1"
+  if [[ "$ARG" < 1 || "$ARG" > 9 ]]
   then
     echo "\nInvalid selection. Try again."
     provide_menu_selection
     return
   fi
-  "${IF[${INPUT}]}"
+  "${IF[${ARG}]}"
+}
+
+# Menu bypass
+process_arg_bypass()
+{
+  if [[ "$OPTION" ]]
+  then
+    OPTION=`echo $OPTION | head -c 2 | tail -c 1`
+    eval OPTION="${!OPTION}"
+    process_input "$OPTION"
+    exit
+  fi
+}
+
+# Ask for main menu
+ask_menu()
+{
+  read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
+  if [[ "$INPUT" == "Y" || "$INPUT" == "y" ]]
+  then
+    perform_sys_check
+    echo "\n>> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
+    provide_menu_selection
+  fi
+  echo
+  exit 0
+}
+
+# Menu
+provide_menu_selection()
+{
+  echo "
+   ${BOLD}1.${NORMAL} TB1/2 Patch
+   ${BOLD}2.${NORMAL} Universal NVIDIA eGPU Patch
+   ${BOLD}3.${NORMAL} Patch Status Check
+   ${BOLD}4.${NORMAL} Uninstall Patches
+   ${BOLD}5.${NORMAL} System Recovery
+   ${BOLD}6.${NORMAL} Command-Line Shortcuts
+   ${BOLD}7.${NORMAL} Script Version
+   ${BOLD}8.${NORMAL} Reboot System
+   ${BOLD}9.${NORMAL} Quit
+  "
+  read -p "${BOLD}What next?${NORMAL} [1-9]: " INPUT
+  process_input "$INPUT"
+  ask_menu
+}
+
+# ----- LEGACY SCRIPT MANAGER
+
+# Manage older script install
+check_legacy_script_install()
+{
+  OLD_INSTALL_FILE="${SUPPORT_DIR}AppleGraphicsControl.kext"
+  if [[ -d "$OLD_INSTALL_FILE" ]]
+  then
+    echo "\n>>${BOLD}Clean Up${NORMAL}\n"
+    echo "${BOLD}Safely removing older installation${NORMAL}..."
+    if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
+    then
+      uninstall
+    fi
+    rm -r "$SUPPORT_DIR"
+    echo "Removal complete.\n"
+    sleep 1
+  fi
 }
 
 # ----- SCRIPT DRIVER
 
-main()
+# Primary execution routine
+begin()
 {
   perform_sys_check
+  check_legacy_script_install
+  process_arg_bypass
   clear
   echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
   provide_menu_selection
 }
 
-main
+begin
