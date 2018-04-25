@@ -7,11 +7,16 @@
 # Re-written from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
-# Invaluable Contributers
+# Invaluable Contributors
 # ----- TB1/2 Patch
 #       @mac_editor <-- @fricorico for reverse-engineering, egpu.io
 # ----- NVIDIA eGPU Patch
 #       @goalque <-- @fr34k for reverse-engineering, egpu.io
+# ----- TB Detection
+#       @owenrw <-- fix for incorrect TB-reporting devices, egpu.io
+# ----- Testing
+#       @techyowl <-- especially for early versions of scripts, egpu.io
+#       @itsage <-- provided me with NVIDIA eGPU as well, egpu.io
 
 # ----- COMMAND LINE ARGS
 
@@ -56,8 +61,8 @@ IF["$u"]="uninstall"
 IF["$r"]="recover_sys"
 IF["$h"]="usage"
 IF["$v"]="show_script_version"
-IF["$s"]="disable_standby"
-IF["$y"]="default_standby"
+IF["$s"]="disable_hibernation"
+IF["$y"]="enable_hibernation"
 IF["$b"]="initiate_reboot"
 IF["$q"]="quit"
 
@@ -170,9 +175,9 @@ check_patch_status()
   fi
   if [[ "$NV_PATCH_STATUS" == 0 ]]
   then
-    echo "${BOLD}NVIDIA${NORMAL}: Not Detected\n"
+    echo "${BOLD}NVIDIA Universal${NORMAL}: Not Detected\n"
   else
-    echo "${BOLD}NVIDIA${NORMAL}: Detected\n"
+    echo "${BOLD}NVIDIA Universal${NORMAL}: Detected\n"
   fi
 }
 
@@ -206,23 +211,25 @@ initiate_reboot()
   reboot
 }
 
-# Disable standby
-disable_standby()
+# Disable hibernation
+disable_hibernation()
 {
-  echo "\n>> ${BOLD}Disable Standby${NORMAL}\n"
-  echo "${BOLD}Disabling standby...${NORMAL}"
+  echo "\n>> ${BOLD}Disable Hibernation${NORMAL}\n"
+  echo "${BOLD}Disabling hibernation...${NORMAL}"
   pmset -a autopoweroff 0
   pmset -a standby 0
+  pmset -a hibernatemode 0
   echo "Standby disabled.\n"
 }
 
-# Revert standby settings
-default_standby()
+# Revert hibernation settings
+enable_hibernation()
 {
-  echo "\n>> ${BOLD}Default Standby${NORMAL}\n"
-  echo "${BOLD}Enabling standby...${NORMAL}"
+  echo "\n>> ${BOLD}Enable Hibernation${NORMAL}\n"
+  echo "${BOLD}Enabling hibernation...${NORMAL}"
   pmset -a autopoweroff 1
   pmset -a standby 1
+  pmset -a hibernatemode 3
   echo "Standby enabled.\n"
 }
 
@@ -299,7 +306,7 @@ backup_system()
     MANIFEST_MACOS_BUILD=`sed "4q;d" "$MANIFEST"`
     if [[ "$MANIFEST_MACOS_VER" == "$MACOS_VER" && "$MANIFEST_MACOS_BUILD" == "$MACOS_BUILD" ]]
     then
-      echo "Backup already exists.\n"
+      echo "Backup already exists."
     else
       echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
       rm -r "$BACKUP_AGC"
@@ -336,6 +343,7 @@ end_patch()
 {
   new_agw_bin
   repair_permissions
+  write_manifest
   echo "${BOLD}Patch complete.\n"
   prompt_reboot
 }
@@ -348,7 +356,7 @@ patch_tb()
     echo "\nThis mac does not require a thunderbolt patch.\n"
     exit "$TB_VER_ERR"
   fi
-  echo "\n>> ${BOLD}TB1/2 Patch${NORMAL}\n"
+  echo "\n>> ${BOLD}TB1/2 eGPU Patch${NORMAL}\n"
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   end_patch
@@ -360,7 +368,7 @@ patch_nv()
   echo "\n>> ${BOLD}Universal NVIDIA eGPU Patch${NORMAL}\n"
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
-  generic_patcher "$R13R13_TEST_REF" "$R13R13_TEST_PATCH"
+  generic_patcher "$R13_TEST_REF" "$R13_TEST_PATCH"
   end_patch
 }
 
@@ -376,6 +384,7 @@ uninstall()
     generic_patcher "$R13_TEST_PATCH" "$R13_TEST_REF"
     new_agw_bin
     repair_permissions
+    write_manifest
     echo "Uninstallation Complete.\n"
     prompt_reboot
   else
@@ -423,17 +432,17 @@ show_script_version()
 usage()
 {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
-  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v b s y q]${NORMAL}"
+  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v s y b q]${NORMAL}"
   echo "
-    ${BOLD}-t${NORMAL}: TB1/2 Patch
+    ${BOLD}-t${NORMAL}: TB1/2 eGPU Patch
     ${BOLD}-n${NORMAL}: Universal NVIDIA eGPU Patch
     ${BOLD}-c${NORMAL}: Patch Status Check
     ${BOLD}-u${NORMAL}: Uninstall Patches
     ${BOLD}-r${NORMAL}: System Recovery
     ${BOLD}-h${NORMAL}: Command Line Shortcuts
     ${BOLD}-v${NORMAL}: Script Version
-    ${BOLD}-s${NORMAL}: Disable Standby
-    ${BOLD}-y${NORMAL}: Default Standby
+    ${BOLD}-s${NORMAL}: Disable Hibernation
+    ${BOLD}-y${NORMAL}: Enable Hibernation
     ${BOLD}-b${NORMAL}: Reboot System
     ${BOLD}-q${NORMAL}: Quit\n"
 }
@@ -442,9 +451,9 @@ usage()
 process_input()
 {
   ARG="$1"
-  if [[ $ARG -le 0 || $ARG -ge 12 ]]
+  if [[ ! $ARG =~ ^[0-9]+$ || $ARG -le 0 || $ARG -ge 12 ]]
   then
-    echo "\nInvalid selection. Try again."
+    echo "\nInvalid option. Try again."
     provide_menu_selection
     return
   fi
@@ -481,15 +490,15 @@ ask_menu()
 provide_menu_selection()
 {
   echo "
-   ${BOLD}1.${NORMAL}  TB1/2 Patch
-   ${BOLD}2.${NORMAL}  Universal NVIDIA eGPU Patch
+   ${BOLD}>> Patching System${NORMAL}               ${BOLD}>> Reverting & Recovery${NORMAL}
+   ${BOLD}1.${NORMAL}  TB1/2 eGPU Patch             ${BOLD}4.${NORMAL}  Uninstall Patches
+   ${BOLD}2.${NORMAL}  Universal NVIDIA eGPU Patch  ${BOLD}5.${NORMAL}  System Recovery
    ${BOLD}3.${NORMAL}  Patch Status Check
-   ${BOLD}4.${NORMAL}  Uninstall Patches
-   ${BOLD}5.${NORMAL}  System Recovery
-   ${BOLD}6.${NORMAL}  Command-Line Shortcuts
-   ${BOLD}7.${NORMAL}  Script Version
-   ${BOLD}8.${NORMAL}  Disable Standby
-   ${BOLD}9.${NORMAL}  Default Standby
+
+   ${BOLD}>> Additional Options${NORMAL}            ${BOLD}>> System Sleep Configuration${NORMAL}
+   ${BOLD}6.${NORMAL}  Command-Line Shortcuts       ${BOLD}8.${NORMAL}  Disable Hibernation
+   ${BOLD}7.${NORMAL}  Script Version               ${BOLD}9.${NORMAL}  Enable Hibernation
+
    ${BOLD}10.${NORMAL} Reboot System
    ${BOLD}11.${NORMAL} Quit
   "
