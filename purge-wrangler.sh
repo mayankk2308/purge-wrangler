@@ -5,7 +5,7 @@
 # License: Specified in LICENSE.md.
 # Version: 3.0.0
 # Re-written from the ground up for scalable patches and a user-friendly
-# command-line menu-driven interface.
+# command-line + menu-driven interface.
 
 # Invaluable Contributers
 # ----- TB1/2 Patch
@@ -29,7 +29,6 @@ INPUT=""
 # Text management
 BOLD=`tput bold`
 NORMAL=`tput sgr0`
-UNDERLINE=`tput smul`
 
 # Errors
 SIP_ON_ERR=1
@@ -44,8 +43,10 @@ u=4
 r=5
 h=6
 v=7
-b=8
-q=9
+s=8
+y=9
+b=10
+q=11
 
 # Input-Function Map
 IF["$t"]="patch_tb"
@@ -55,6 +56,8 @@ IF["$u"]="uninstall"
 IF["$r"]="recover_sys"
 IF["$h"]="usage"
 IF["$v"]="show_script_version"
+IF["$s"]="disable_standby"
+IF["$y"]="default_standby"
 IF["$b"]="initiate_reboot"
 IF["$q"]="quit"
 
@@ -189,6 +192,38 @@ perform_sys_check()
 prompt_reboot()
 {
   echo "${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+}
+
+# Reboot sequence
+initiate_reboot()
+{
+  echo
+  for time in {5..0}
+  do
+    printf "Restarting in ${BOLD}${time}s${NORMAL}...\r"
+    sleep 1
+  done
+  reboot
+}
+
+# Disable standby
+disable_standby()
+{
+  echo "\n>> ${BOLD}Disable Standby${NORMAL}\n"
+  echo "${BOLD}Disabling standby...${NORMAL}"
+  pmset -a autopoweroff 0
+  pmset -a standby 0
+  echo "Standby disabled.\n"
+}
+
+# Revert standby settings
+default_standby()
+{
+  echo "\n>> ${BOLD}Default Standby${NORMAL}\n"
+  echo "${BOLD}Enabling standby...${NORMAL}"
+  pmset -a autopoweroff 1
+  pmset -a standby 1
+  echo "Standby enabled.\n"
 }
 
 # Rebuild kernel cache
@@ -388,7 +423,7 @@ show_script_version()
 usage()
 {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
-  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v b q]${NORMAL}"
+  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v b s y q]${NORMAL}"
   echo "
     ${BOLD}-t${NORMAL}: TB1/2 Patch
     ${BOLD}-n${NORMAL}: Universal NVIDIA eGPU Patch
@@ -397,27 +432,17 @@ usage()
     ${BOLD}-r${NORMAL}: System Recovery
     ${BOLD}-h${NORMAL}: Command Line Shortcuts
     ${BOLD}-v${NORMAL}: Script Version
+    ${BOLD}-s${NORMAL}: Disable Standby
+    ${BOLD}-y${NORMAL}: Default Standby
     ${BOLD}-b${NORMAL}: Reboot System
     ${BOLD}-q${NORMAL}: Quit\n"
-}
-
-# Reboot sequence
-initiate_reboot()
-{
-  echo
-  for time in {5..0}
-  do
-    printf "Restarting in ${BOLD}${time}s${NORMAL}...\r"
-    sleep 1
-  done
-  reboot
 }
 
 # Input processing
 process_input()
 {
   ARG="$1"
-  if [[ "$ARG" < 1 || "$ARG" > 9 ]]
+  if [[ $ARG -le 0 || $ARG -ge 12 ]]
   then
     echo "\nInvalid selection. Try again."
     provide_menu_selection
@@ -456,17 +481,19 @@ ask_menu()
 provide_menu_selection()
 {
   echo "
-   ${BOLD}1.${NORMAL} TB1/2 Patch
-   ${BOLD}2.${NORMAL} Universal NVIDIA eGPU Patch
-   ${BOLD}3.${NORMAL} Patch Status Check
-   ${BOLD}4.${NORMAL} Uninstall Patches
-   ${BOLD}5.${NORMAL} System Recovery
-   ${BOLD}6.${NORMAL} Command-Line Shortcuts
-   ${BOLD}7.${NORMAL} Script Version
-   ${BOLD}8.${NORMAL} Reboot System
-   ${BOLD}9.${NORMAL} Quit
+   ${BOLD}1.${NORMAL}  TB1/2 Patch
+   ${BOLD}2.${NORMAL}  Universal NVIDIA eGPU Patch
+   ${BOLD}3.${NORMAL}  Patch Status Check
+   ${BOLD}4.${NORMAL}  Uninstall Patches
+   ${BOLD}5.${NORMAL}  System Recovery
+   ${BOLD}6.${NORMAL}  Command-Line Shortcuts
+   ${BOLD}7.${NORMAL}  Script Version
+   ${BOLD}8.${NORMAL}  Disable Standby
+   ${BOLD}9.${NORMAL}  Default Standby
+   ${BOLD}10.${NORMAL} Reboot System
+   ${BOLD}11.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [1-9]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [1-11]: " INPUT
   process_input "$INPUT"
   ask_menu
 }
