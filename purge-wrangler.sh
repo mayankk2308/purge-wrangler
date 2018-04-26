@@ -25,8 +25,15 @@ OPTION="$1"
 
 # ----- ENVIRONMENT
 
+# Script
+SCRIPT="$0"
+SCRIPT_BIN="/usr/local/bin/purge-wrangler"
+
 # Script version
 SCRIPT_VER="3.0.0"
+
+# Plist Buddy
+PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # User Input
 INPUT=""
@@ -395,6 +402,24 @@ uninstall()
 
 # ----- RECOVERY SYSTEM
 
+# Bin first-time setup
+first_time_setup()
+{
+  if [[ ! -s "$SCRIPT_BIN" ]]
+  then
+    SCRIPT_FILE="$(pwd)$(echo "$SCRIPT" | cut -c 2-)"
+    echo "\n>> ${BOLD}First-Time Setup${NORMAL}\n"
+    echo "${BOLD}Creating binary...${NORMAL}"
+    rsync "$SCRIPT_FILE" "$SCRIPT_BIN"
+    chown $(whoami):everyone "$SCRIPT_BIN"
+    chmod 700 "$SCRIPT_BIN"
+    chflags nouchg "$SCRIPT_BIN"
+    chmod a+x "$SCRIPT_BIN"
+    echo "Binary installed. 'purge-wrangler' command now available. ${BOLD}Proceeding...${NORMAL}\n"
+    sleep 3
+  fi
+}
+
 # Recovery logic
 recover_sys()
 {
@@ -468,7 +493,7 @@ process_arg_bypass()
     OPTION=`echo $OPTION | head -c 2 | tail -c 1`
     eval OPTION="${!OPTION}"
     process_input "$OPTION"
-    exit
+    exit 0
   fi
 }
 
@@ -532,9 +557,9 @@ check_legacy_script_install()
 # Primary execution routine
 begin()
 {
+  first_time_setup
   perform_sys_check
   check_legacy_script_install
-  process_arg_bypass
   clear
   echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
   provide_menu_selection
