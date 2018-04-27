@@ -4,7 +4,7 @@
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
 # Version: 3.0.0
-# Re-written from the ground up for scalable patches and a user-friendly
+# Re-designed from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
 # Invaluable Contributors
@@ -20,20 +20,23 @@
 
 # ----- COMMAND LINE ARGS
 
-# Option - need not be specified
-OPTION="$1"
+# Setup command args
+if [[ "$0" == "sh" ]]
+then
+  SCRIPT="$1"
+  OPTION="$2"
+else
+  SCRIPT="$0"
+  OPTION="$1"
+fi
 
 # ----- ENVIRONMENT
 
-# Script
-SCRIPT="$0"
+# Script Binary
 SCRIPT_BIN="/usr/local/bin/purge-wrangler"
 
 # Script version
 SCRIPT_VER="3.0.0"
-
-# Plist Buddy
-PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # User Input
 INPUT=""
@@ -107,7 +110,7 @@ elevate_privileges()
 {
   if [[ `id -u` != 0 ]]
   then
-    sudo "$0" "$OPTION"
+    sudo "$SCRIPT" "$OPTION"
     exit 0
   fi
 }
@@ -226,7 +229,7 @@ disable_hibernation()
   pmset -a autopoweroff 0
   pmset -a standby 0
   pmset -a hibernatemode 0
-  echo "Standby disabled.\n"
+  echo "Hibernation disabled.\n"
 }
 
 # Revert hibernation settings
@@ -237,7 +240,7 @@ enable_hibernation()
   pmset -a autopoweroff 1
   pmset -a standby 1
   pmset -a hibernatemode 3
-  echo "Standby enabled.\n"
+  echo "Hibernation enabled.\n"
 }
 
 # Rebuild kernel cache
@@ -377,6 +380,7 @@ patch_nv()
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   generic_patcher "$R13_TEST_REF" "$R13_TEST_PATCH"
   end_patch
+  echo "Please install ${BOLD}NVIDIAEGPUSupport + Web Drivers${NORMAL} for eGPU support.\n"
 }
 
 # In-place re-patcher
@@ -419,7 +423,11 @@ first_time_setup()
   then
     return 0
   fi
-  SCRIPT_FILE="$(pwd)$(echo "$SCRIPT" | cut -c 2-)"
+  SCRIPT_FILE="$(pwd)/$(echo "$SCRIPT")"
+  if [[ "$SCRIPT" == "$0" ]]
+  then
+    SCRIPT_FILE="$(echo "$SCRIPT_FILE" | cut -c 1-)"
+  fi
   SCRIPT_SHA=`shasum -a 512 -b "$SCRIPT_FILE" | awk '{ print $1 }'`
   if [[ ! -s "$SCRIPT_BIN" ]]
   then
