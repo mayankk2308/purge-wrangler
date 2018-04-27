@@ -402,21 +402,43 @@ uninstall()
 
 # ----- RECOVERY SYSTEM
 
+# Bin management procedure
+install_bin()
+{
+  rsync "$SCRIPT_FILE" "$SCRIPT_BIN"
+  chown $(whoami):everyone "$SCRIPT_BIN"
+  chmod 700 "$SCRIPT_BIN"
+  chflags nouchg "$SCRIPT_BIN"
+  chmod a+x "$SCRIPT_BIN"
+}
+
 # Bin first-time setup
 first_time_setup()
 {
+  if [[ "$SCRIPT" == "$SCRIPT_BIN" ]]
+  then
+    return 0
+  fi
+  SCRIPT_FILE="$(pwd)$(echo "$SCRIPT" | cut -c 2-)"
+  SCRIPT_SHA=`shasum -a 512 -b "$SCRIPT_FILE" | awk '{ print $1 }'`
   if [[ ! -s "$SCRIPT_BIN" ]]
   then
-    SCRIPT_FILE="$(pwd)$(echo "$SCRIPT" | cut -c 2-)"
-    echo "\n>> ${BOLD}First-Time Setup${NORMAL}\n"
+    echo "\n>> ${BOLD}System Management${NORMAL}\n"
     echo "${BOLD}Creating binary...${NORMAL}"
-    rsync "$SCRIPT_FILE" "$SCRIPT_BIN"
-    chown $(whoami):everyone "$SCRIPT_BIN"
-    chmod 700 "$SCRIPT_BIN"
-    chflags nouchg "$SCRIPT_BIN"
-    chmod a+x "$SCRIPT_BIN"
-    echo "Binary installed. 'purge-wrangler' command now available. ${BOLD}Proceeding...${NORMAL}\n"
-    sleep 3
+    install_bin
+    echo "Binary installed. ${BOLD}'purge-wrangler'${NORMAL} command now available. ${BOLD}Proceeding...${NORMAL}\n"
+    sleep 2
+    return 0
+  fi
+  BIN_SHA=`shasum -a 512 -b "$SCRIPT_BIN" | awk '{ print $1 }'`
+  if [[ "$BIN_SHA" != "$SCRIPT_SHA" ]]
+  then
+    echo "\n>> ${BOLD}System Management${NORMAL}\n"
+    echo "${BOLD}Updating binary...${NORMAL}"
+    rm "$SCRIPT_BIN"
+    install_bin
+    echo "Binary updated. ${BOLD}Proceeding...${NORMAL}\n"
+    sleep 2
   fi
 }
 
@@ -457,7 +479,7 @@ show_script_version()
 usage()
 {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
-  echo "./purge-wrangler.sh ${BOLD}-[t n c u r h v s y b q]${NORMAL}"
+  echo " purge-wrangler ${BOLD}-[t n c u r h v s y b q]${NORMAL}"
   echo "
     ${BOLD}-t${NORMAL}: TB1/2 eGPU Patch
     ${BOLD}-n${NORMAL}: Universal NVIDIA eGPU Patch
@@ -560,6 +582,7 @@ begin()
   first_time_setup
   perform_sys_check
   check_legacy_script_install
+  process_arg_bypass
   clear
   echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
   provide_menu_selection
