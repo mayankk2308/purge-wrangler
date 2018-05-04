@@ -87,3 +87,13 @@ This script moves core system files associated with macOS. While any of the pote
 
 ## License
 See the license file for more information.
+
+## Donate
+A *"Thank you"* is enough to make me smile. But due to popular demand:
+
+[![paypal][image-1]][1]
+
+Knock yourself out :)
+
+[image-1]:	https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif
+[1]:	https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=mac_editor&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest
