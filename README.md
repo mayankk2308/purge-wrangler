@@ -22,52 +22,62 @@ $ reboot
 ```
 
 ### Step 2
-Boot back into macOS and run the following commands:
+Boot back into macOS, then copy-paste the following into **Terminal**:
 ```bash
-$ cd /path/to/script/purge-wrangler.sh
-$ sudo chmod +x purge-wrangler.sh
-$ sudo ./purge-wrangler.sh
+curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.0/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
 ```
 
-eGPUs should be enabled after reboot.
+Note that you may change **3.0.0** to a different valid version in the above command.
+
+Alternatively, download [purge-wrangler.sh](https://github.com/mayankk2308/purge-wrangler/releases). Then run the following in **Terminal**:
+```bash
+$ cd Downloads
+$ chmod +x purge-wrangler.sh
+$ ./purge-wrangler.sh
+```
+
+You will be prompted to enter your account password for **superuser permissions**. On first-time use, the script will auto-install itself as a binary into `/usr/local/bin/`. This enables much simpler future use - simply type in `purge-nvda` in Terminal. Note that versions prior to **3.0.0** do not have auto-install capability.
+
+## Options
+The script provides users with a variety of options in an attempt to be as user-friendly as possible.
+
+### 1. TB1/2 eGPU Patch
+Enables default eGPU support on **Thunderbolt 1/2** macs.
+
+### 2. Universal NVIDIA eGPU Patch
+Enables NVIDIA eGPUs on **any** mac, regardless of **Thunderbolt** version.
+
+### 3. Patch Status Check
+Checks for the applied patches and provides system state information
+
+### 4. Uninstall Patches
+In-place uninstaller for the patches.
+
+### 5. System Recovery
+Recover original untouched macOS configuration prior to script modifications.
+
+### 6. Command-Line Shortcuts
+Prints a list of single-letter options that may be passed to the script or binary to completely forgo the command-line user interface and directly perform actions.
+
+### 7. Script Version
+Prints the version of the script/binary.
+
+### 8. Disable Hibernation
+Disables hibernation mode and automatic power off as these settings may resolve wake-up failures with discrete graphics disabled.
+
+### 9. Enable Hibernation
+Restores the hibernation mode configurations to recommended settings.
+
+### 10. Reboot System
+Reboots the system with a countdown.
 
 ## Troubleshooting
 If you are unable to boot into macOS, boot while pressing **CMD + S**, then enter the following commands:
 ```bash
 $ mount -uw /
 $ cd /path/to/script/
-$ ./purge-wrangler.sh recover
+$ purge-wrangler
 ```
-
-## Additional Options
-To uninstall changes:
-```bash
-$ sudo ./purge-wrangler.sh uninstall
-```
-
-To check if patch is installed:
-```bash
-$ sudo ./purge-wrangler.sh check-patch
-```
-
-To recover original kext:
-```bash
-$ sudo ./purge-wrangler.sh recover
-```
-
-To check script version:
-```bash
-$ sudo ./purge-wrangler.sh version
-```
-
-For help with how to use the script:
-```bash
-$ sudo ./purge-wrangler.sh help
-```
-
-Advanced options are available for invoking different behavior, but they are only recommended for developers.
-
-**Uninstallation not required, but recommended before updating macOS.**
 
 ## References
 Many thanks to **@itsage**, **@fricorico**, **@goalque**, and many others at [egpu.io](https://egpu.io) for the insightful discussion that led me to the fix.
