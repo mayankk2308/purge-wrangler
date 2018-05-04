@@ -16,29 +16,30 @@
 #       @owenrw <-- fix for incorrect TB-reporting devices, egpu.io
 # ----- Testing
 #       @techyowl <-- especially for early versions of scripts, egpu.io
-#       @itsage <-- provided me with NVIDIA eGPU as well, egpu.io
+#       @itsage <-- provided me with NVIDIA eGPU, egpu.io
 
 # ----- COMMAND LINE ARGS
 
 # Setup command args
-if [[ "$0" == "sh" ]]
+SCRIPT="$BASH_SOURCE"
+OPTION=""
+
+if [[ "$0" != "$SCRIPT" ]]
 then
-  SCRIPT="$1"
   OPTION="$2"
 else
-  SCRIPT="$0"
   OPTION="$1"
 fi
-
 # ----- ENVIRONMENT
 
-# Script Binary
+# Script binary
 SCRIPT_BIN="/usr/local/bin/purge-wrangler"
+SCRIPT_FILE=""
 
 # Script version
 SCRIPT_VER="3.0.0"
 
-# User Input
+# User input
 INPUT=""
 
 # Text management
@@ -50,7 +51,7 @@ SIP_ON_ERR=1
 MACOS_VER_ERR=2
 TB_VER_ERR=3
 
-# Arg-Function Map
+# Arg-Function map
 t=1
 n=2
 c=3
@@ -63,7 +64,7 @@ y=9
 b=10
 q=11
 
-# Input-Function Map
+# Input-Function map
 IF["$t"]="patch_tb"
 IF["$n"]="patch_nv"
 IF["$c"]="check_patch_status"
@@ -76,15 +77,17 @@ IF["$y"]="enable_hibernation"
 IF["$b"]="initiate_reboot"
 IF["$q"]="quit"
 
-# System Information
+# System information
 MACOS_VER=`sw_vers -productVersion`
 MACOS_BUILD=`sw_vers -buildVersion`
 SYS_TB_VER=""
 
-# AppleGPUWrangler References
+# AppleGPUWrangler references
 TB_SWITCH_HEX="494F5468756E646572626F6C74537769746368547970653"
 R13_TEST_REF="3C24E81DBDFFFF41F7C500000001757F"
 R13_TEST_PATCH="3C24E81DBDFFFF41F7C500000000757F"
+
+# Patch status indicators
 TB_PATCH_STATUS=""
 NV_PATCH_STATUS=""
 
@@ -400,26 +403,24 @@ uninstall()
     prompt_reboot
   else
     echo "\n${BOLD}No installation found${NORMAL}. No action taken.\n"
-    exit
   fi
 }
 
-# ----- RECOVERY SYSTEM
+# ----- BINARY MANAGER
 
 # Bin management procedure
 install_bin()
 {
   rsync "$SCRIPT_FILE" "$SCRIPT_BIN"
-  chown $(whoami):everyone "$SCRIPT_BIN"
+  chown "$SUDO_USER" "$SCRIPT_BIN"
   chmod 700 "$SCRIPT_BIN"
-  chflags nouchg "$SCRIPT_BIN"
   chmod a+x "$SCRIPT_BIN"
 }
 
 # Bin first-time setup
 first_time_setup()
 {
-  if [[ "$SCRIPT" == "$SCRIPT_BIN" ]]
+  if [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]]
   then
     return 0
   fi
@@ -449,6 +450,8 @@ first_time_setup()
     sleep 2
   fi
 }
+
+# ----- RECOVERY SYSTEM
 
 # Recovery logic
 recover_sys()
@@ -587,8 +590,8 @@ check_legacy_script_install()
 # Primary execution routine
 begin()
 {
-  first_time_setup
   perform_sys_check
+  first_time_setup
   check_legacy_script_install
   process_arg_bypass
   clear
