@@ -32,6 +32,9 @@ else
 fi
 # ----- ENVIRONMENT
 
+# Enable case-insensitive comparisons
+shopt -s nocasematch
+
 # Script binary
 SCRIPT_BIN="/usr/local/bin/purge-wrangler"
 SCRIPT_FILE=""
@@ -534,14 +537,19 @@ process_arg_bypass()
 ask_menu()
 {
   read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
-  if [[ "$INPUT" == "Y" || "$INPUT" == "y" ]]
+  if [[ "$INPUT" == "Y" ]]
   then
     perform_sys_check
     echo "\n>> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
     provide_menu_selection
+  elif [[ "$INPUT" == "N" ]]
+  then
+    echo
+    exit 0
+  else
+    echo "\nInvalid choice. Try again.\n"
+    ask_menu
   fi
-  echo
-  exit 0
 }
 
 # Menu
