@@ -6,8 +6,9 @@ This script enables external graphics on Thunderbolt 1/2 Macs, which is actively
 
 ## Requirements
 This script requires the following specifications:
-* Mac with **Thunderbolt 1/2**
+* Mac with **Thunderbolt**
 * **macOS 10.13.4** or later
+* System Backup
 
 It is recommended that you have a backup of the system. Testing was done on a **Mid-2014 MacBook Pro w/ GeForce GT 750M**.
 
