@@ -2,7 +2,7 @@
 
 ![macOS Support](https://img.shields.io/badge/macOS-10.13.4+-orange.svg?style=for-the-badge) ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge)
 # PurgeWrangler
-This script enables external graphics on Thunderbolt 1/2 Macs, which is actively blocked in macOS **10.13.4**.
+This script enables native external GPU support on Thunderbolt 1/2 macs - actively blocked in macOS **10.13.4**, and also includes a patch for NVIDIA eGPUs for any mac.
 
 ## Requirements
 This script requires the following specifications:
@@ -25,10 +25,10 @@ $ reboot
 ### Step 2
 Boot back into macOS, then copy-paste the following into **Terminal**:
 ```bash
-curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.0/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
+curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.1/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
 ```
 
-Note that you may change **3.0.0** to a different valid version in the above command.
+Note that you may change **3.0.1** to a different valid version in the above command.
 
 Alternatively, download [purge-wrangler.sh](https://github.com/mayankk2308/purge-wrangler/releases). Then run the following in **Terminal**:
 ```bash
