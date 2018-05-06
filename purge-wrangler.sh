@@ -262,7 +262,7 @@ invoke_kext_caching()
 repair_permissions()
 {
   echo "${BOLD}Repairing permissions...${NORMAL}"
-  chmod 700 "$AGW_BIN"
+  chmod 755 "$AGW_BIN"
   chown -R root:wheel "$AGC_PATH"
   echo "Permissions set."
   invoke_kext_caching
