@@ -25,10 +25,10 @@ $ reboot
 ### Step 2
 Boot back into macOS, then copy-paste the following into **Terminal**:
 ```bash
-curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.1/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
+curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.2/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
 ```
 
-Note that you may change **3.0.1** to a different valid version in the above command.
+Note that you may change **3.0.2** to a different valid version in the above command.
 
 Alternatively, download [purge-wrangler.sh](https://github.com/mayankk2308/purge-wrangler/releases). Then run the following in **Terminal**:
 ```bash
