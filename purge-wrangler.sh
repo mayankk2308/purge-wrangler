@@ -128,7 +128,7 @@ check_sip()
 {
   if [[ `csrutil status | grep -i enabled` ]]
   then
-    echo "System Integrity Protection needs to be disabled before proceeding.\n"
+    echo "\nSystem Integrity Protection needs to be disabled before proceeding.\n"
     exit $SIP_ON_ERR
   fi
 }
