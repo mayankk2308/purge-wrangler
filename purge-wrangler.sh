@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 3.0.2
+# Version: 3.1.0
 # Re-designed from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
@@ -42,7 +42,7 @@ SCRIPT_BIN="${LOCAL_BIN}/purge-wrangler"
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_VER="3.0.2"
+SCRIPT_VER="3.1.0"
 
 # User input
 INPUT=""
@@ -184,18 +184,18 @@ check_patch()
 # Patch status check
 check_patch_status()
 {
-  echo "\n>> ${BOLD}Patch Status Check${NORMAL}\n"
+  echo "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
   if [[ "$TB_PATCH_STATUS" == 0 ]]
   then
-    echo "${BOLD}Thunderbolt 1/2${NORMAL}: Not Detected"
+    echo "${BOLD}Thunderbolt Override${NORMAL}: Not Detected"
   else
-    echo "${BOLD}Thunderbolt 1/2${NORMAL}: Detected"
+    echo "${BOLD}Thunderbolt Override${NORMAL}: Detected"
   fi
   if [[ "$NV_PATCH_STATUS" == 0 ]]
   then
-    echo "${BOLD}NVIDIA Universal${NORMAL}: Not Detected\n"
+    echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n"
   else
-    echo "${BOLD}NVIDIA Universal${NORMAL}: Detected\n"
+    echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n"
   fi
 }
 
@@ -374,7 +374,7 @@ patch_tb()
     echo "\nThis mac does not require a thunderbolt patch.\n"
     exit "$TB_VER_ERR"
   fi
-  echo "\n>> ${BOLD}TB1/2 eGPU Patch${NORMAL}\n"
+  echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n"
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   end_patch
@@ -383,7 +383,7 @@ patch_tb()
 # Patch for NVIDIA eGPUs
 patch_nv()
 {
-  echo "\n>> ${BOLD}Universal NVIDIA eGPU Patch${NORMAL}\n"
+  echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n"
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   generic_patcher "$R13_TEST_REF" "$R13_TEST_PATCH"
@@ -438,9 +438,9 @@ first_time_setup()
   if [[ ! -s "$SCRIPT_BIN" ]]
   then
     echo "\n>> ${BOLD}System Management${NORMAL}\n"
-    echo "${BOLD}Creating binary...${NORMAL}"
+    echo "${BOLD}Installing binary...${NORMAL}"
     install_bin
-    echo "Binary installed. ${BOLD}'purge-wrangler'${NORMAL} command now available. ${BOLD}Proceeding...${NORMAL}\n"
+    echo "Installation successful. ${BOLD}'purge-wrangler'${NORMAL} command now available. ${BOLD}Proceeding...${NORMAL}\n"
     sleep 2
     return 0
   fi
@@ -497,9 +497,9 @@ usage()
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
   echo " purge-wrangler ${BOLD}-[t n c u r h v s y b q]${NORMAL}"
   echo "
-    ${BOLD}-t${NORMAL}: TB1/2 eGPU Patch
-    ${BOLD}-n${NORMAL}: Universal NVIDIA eGPU Patch
-    ${BOLD}-c${NORMAL}: Patch Status Check
+    ${BOLD}-t${NORMAL}: Enable AMD eGPUs
+    ${BOLD}-n${NORMAL}: Enable NVIDIA eGPUs
+    ${BOLD}-c${NORMAL}: Check Patch Status
     ${BOLD}-u${NORMAL}: Uninstall Patches
     ${BOLD}-r${NORMAL}: System Recovery
     ${BOLD}-h${NORMAL}: Command Line Shortcuts
@@ -559,9 +559,9 @@ provide_menu_selection()
 {
   echo "
    ${BOLD}>> Patching System${NORMAL}               ${BOLD}>> Reverting & Recovery${NORMAL}
-   ${BOLD}1.${NORMAL}  TB1/2 eGPU Patch             ${BOLD}4.${NORMAL}  Uninstall Patches
-   ${BOLD}2.${NORMAL}  Universal NVIDIA eGPU Patch  ${BOLD}5.${NORMAL}  System Recovery
-   ${BOLD}3.${NORMAL}  Patch Status Check
+   ${BOLD}1.${NORMAL}  Enable AMD eGPUs             ${BOLD}4.${NORMAL}  Uninstall Patches
+   ${BOLD}2.${NORMAL}  Enable NVIDIA eGPUs          ${BOLD}5.${NORMAL}  System Recovery
+   ${BOLD}3.${NORMAL}  Check Patch Status
 
    ${BOLD}>> Additional Options${NORMAL}            ${BOLD}>> System Sleep Configuration${NORMAL}
    ${BOLD}6.${NORMAL}  Command-Line Shortcuts       ${BOLD}8.${NORMAL}  Disable Hibernation
