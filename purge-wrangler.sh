@@ -24,12 +24,6 @@
 SCRIPT="$BASH_SOURCE"
 OPTION=""
 
-if [[ "$0" != "$SCRIPT" ]]
-then
-  OPTION="$2"
-else
-  OPTION="$1"
-fi
 # ----- ENVIRONMENT
 
 # Enable case-insensitive comparisons
@@ -39,6 +33,7 @@ shopt -s nocasematch
 LOCAL_BIN="/usr/local/bin"
 mkdir -p -m 775 "$LOCAL_BIN"
 SCRIPT_BIN="${LOCAL_BIN}/purge-wrangler"
+BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
@@ -55,6 +50,7 @@ NORMAL=`tput sgr0`
 SIP_ON_ERR=1
 MACOS_VER_ERR=2
 TB_VER_ERR=3
+EXEC_ERR=4
 
 # Arg-Function map
 t=1
@@ -112,6 +108,26 @@ SCRATCH_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
 SCRATCH_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 
 # ----- SYSTEM CONFIGURATION MANAGER
+
+# Check caller
+validate_caller()
+{
+  if [[ "$0" == "sh" && ! "$1" ]]
+  then
+    echo "\n${BOLD}Invalid manner of execution detected${NORMAL}.\nPlease see the README for instructions.\n"
+    exit $EXEC_ERR
+  fi
+  if [[ "$0" != "$SCRIPT" ]]
+  then
+    OPTION="$2"
+  else
+    OPTION="$1"
+  fi
+  if [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]]
+  then
+    BIN_CALL=1
+  fi
+}
 
 # Elevate privileges
 elevate_privileges()
@@ -425,7 +441,7 @@ install_bin()
 # Bin first-time setup
 first_time_setup()
 {
-  if [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]]
+  if [[ ! "$BIN_CALL" ]]
   then
     return 0
   fi
@@ -600,6 +616,7 @@ check_legacy_script_install()
 # Primary execution routine
 begin()
 {
+  validate_caller
   perform_sys_check
   first_time_setup
   check_legacy_script_install
