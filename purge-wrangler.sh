@@ -327,9 +327,7 @@ restore_sleep()
 {
   echo "\n>> ${BOLD}Restore Sleep Configuration${NORMAL}\n"
   echo "${BOLD}Restoring default sleep settings...${NORMAL}"
-  pmset -a autopoweroff 1
-  pmset -a standby 1
-  pmset -a hibernatemode 3
+  pmset -c 2 -b 1 -u 1
   echo "Restore complete.\n"
 }
 
