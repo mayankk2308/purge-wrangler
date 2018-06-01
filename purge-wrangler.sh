@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 3.1.0
+# Version: 3.1.1
 # Re-designed from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
@@ -33,7 +33,6 @@ shopt -s nocasematch
 
 # Script binary
 LOCAL_BIN="/usr/local/bin"
-mkdir -p -m 775 "$LOCAL_BIN"
 SCRIPT_BIN="${LOCAL_BIN}/purge-wrangler"
 TMP_SCRIPT="${LOCAL_BIN}/purge-wrangler-new"
 BIN_CALL=0
@@ -42,7 +41,7 @@ SCRIPT_FILE=""
 # Script version
 SCRIPT_MAJOR_VER="3"
 SCRIPT_MINOR_VER="1"
-SCRIPT_PATCH_VER="0"
+SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -154,6 +153,7 @@ prompt_software_update()
 # Check Github for newer version + prompt update
 fetch_latest_release()
 {
+  mkdir -p -m 775 "$LOCAL_BIN"
   if [[ "$BIN_CALL" == 0 ]]
   then
     return 0
