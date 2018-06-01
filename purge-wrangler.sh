@@ -9,18 +9,18 @@
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
-#       @mac_editor <-- @fricorico for reverse-engineering, egpu.io
+#       @mac_editor, @fricorico at egpu.io
 # ----- NVIDIA eGPU Patch
-#       @goalque <-- @fr34k for reverse-engineering, egpu.io
+#       @goalque, @fr34k at egpu.io
 # ----- TB Detection
-#       @owenrw <-- fix for incorrect TB-reporting devices, egpu.io
+#       @owenrw at egpu.io
 # ----- Testing
-#       @techyowl <-- especially for early versions of scripts, egpu.io
-#       @itsage <-- provided me with NVIDIA eGPU, egpu.io
+#       @techyowl at egpu.io
+#       @itsage at egpu.io
 
 # ----- COMMAND LINE ARGS
 
-# Setup command args + Script Data
+# Setup command args + data
 SCRIPT="$BASH_SOURCE"
 OPTION=""
 LATEST_SCRIPT_INFO=""
