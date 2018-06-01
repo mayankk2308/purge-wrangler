@@ -665,7 +665,7 @@ check_legacy_script_install()
   OLD_INSTALL_FILE="${SUPPORT_DIR}AppleGraphicsControl.kext"
   if [[ -d "$OLD_INSTALL_FILE" ]]
   then
-    echo "\n>>${BOLD}Clean Up${NORMAL}\n"
+    echo "\n>> ${BOLD}Clean Up${NORMAL}\n"
     echo "${BOLD}Safely removing older installation${NORMAL}..."
     if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
     then

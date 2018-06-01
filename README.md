@@ -25,10 +25,10 @@ $ reboot
 ### Step 2
 Boot back into macOS, then copy-paste the following into **Terminal**:
 ```bash
-curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.0.2/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
+curl -L -s https://github.com/mayankk2308/purge-wrangler/releases/download/3.1.0/purge-wrangler.sh > purge-wrangler.sh;chmod +x purge-wrangler.sh;./purge-wrangler.sh;rm purge-wrangler.sh
 ```
 
-Note that you may change **3.0.2** to a different valid version in the above command.
+Note that you may change to a different valid version in the above command.
 
 Alternatively, download [purge-wrangler.sh](https://github.com/mayankk2308/purge-wrangler/releases). Then run the following in **Terminal**:
 ```bash
@@ -37,39 +37,44 @@ $ chmod +x purge-wrangler.sh
 $ ./purge-wrangler.sh
 ```
 
-You will be prompted to enter your account password for **superuser permissions**. On first-time use, the script will auto-install itself as a binary into `/usr/local/bin/`. This enables much simpler future use - simply type in `purge-wrangler` in Terminal. Note that versions prior to **3.0.0** do not have auto-install capability.
+You will be prompted to enter your account password for **superuser permissions**. On first-time use, the script will auto-install itself as a binary into `/usr/local/bin/`. This enables much simpler future use. To use the script again, just type the following in **Terminal**:
+```bash
+$ purge-wrangler
+```
+
+This is supported on **3.0.0** or later. Automatic updates are supported from **3.1.0** or later.
 
 ## Options
-The script provides users with a variety of options in an attempt to be as user-friendly as possible.
+The script provides users with a variety of options in an attempt to be as user-friendly as possible - as a numbered menu. Advanced users may pass arguments to bypass the menu.
 
-### 1. TB1/2 eGPU Patch
+#### 1. Enable AMD eGPUs (`-enable-amd`)
 Enables default eGPU support on **Thunderbolt 1/2** macs.
 
-### 2. Universal NVIDIA eGPU Patch
+#### 2. Enable NVIDIA eGPUs (`-enable-nvda`)
 Enables NVIDIA eGPUs on **any** mac, regardless of **Thunderbolt** version.
 
-### 3. Patch Status Check
+#### 3. Patch Status Check (`-status`)
 Checks for the applied patches and provides system state information
 
-### 4. Uninstall Patches
+#### 4. Uninstall Patches (`-uninstall`)
 In-place uninstaller for the patches.
 
-### 5. System Recovery
+#### 5. System Recovery (`-recover`)
 Recover original untouched macOS configuration prior to script modifications.
 
-### 6. Command-Line Shortcuts
+#### 6. Command-Line Shortcuts (`-shortcuts`)
 Prints a list of single-letter options that may be passed to the script or binary to completely forgo the command-line user interface and directly perform actions.
 
-### 7. Script Version
+#### 7. Script Version (`-version`)
 Prints the version of the script/binary.
 
-### 8. Disable Hibernation
+#### 8. Disable Hibernation (`-disable-hibernation`)
 Disables hibernation mode and automatic power off as these settings may resolve wake-up failures with discrete graphics disabled.
 
-### 9. Enable Hibernation
+#### 9. Enable Hibernation (`-restore-hibernation`)
 Restores the hibernation mode configurations to recommended settings.
 
-### 10. Reboot System
+#### 10. Reboot System (`-reboot`)
 Reboots the system with a countdown.
 
 ## Troubleshooting
