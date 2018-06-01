@@ -47,10 +47,10 @@ This is supported on **3.0.0** or later. Automatic updates are supported from **
 ## Options
 The script provides users with a variety of options in an attempt to be as user-friendly as possible - as a numbered menu. Advanced users may pass arguments to bypass the menu.
 
-#### 1. Enable AMD eGPUs (`-enable-amd`)
+#### 1. Enable AMD eGPUs (`-enable_amd`)
 Enables default eGPU support on **Thunderbolt 1/2** macs.
 
-#### 2. Enable NVIDIA eGPUs (`-enable-nvda`)
+#### 2. Enable NVIDIA eGPUs (`-enable_nvda`)
 Enables NVIDIA eGPUs on **any** mac, regardless of **Thunderbolt** version.
 
 #### 3. Patch Status Check (`-status`)
@@ -68,10 +68,10 @@ Prints a list of single-letter options that may be passed to the script or binar
 #### 7. Script Version (`-version`)
 Prints the version of the script/binary.
 
-#### 8. Disable Hibernation (`-disable-hibernation`)
+#### 8. Disable Hibernation (`-disable_hibernation`)
 Disables hibernation mode and automatic power off as these settings may resolve wake-up failures with discrete graphics disabled.
 
-#### 9. Enable Hibernation (`-restore-hibernation`)
+#### 9. Restore Sleep Configuration (`-restore_sleep`)
 Restores the hibernation mode configurations to recommended settings.
 
 #### 10. Reboot System (`-reboot`)

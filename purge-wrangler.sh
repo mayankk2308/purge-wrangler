@@ -59,30 +59,30 @@ TB_VER_ERR=3
 EXEC_ERR=4
 
 # Arg-Function map
-t=1
-n=2
-c=3
-u=4
-r=5
-h=6
-v=7
-s=8
-y=9
-b=10
-q=11
+enable_amd=1
+enable_nvda=2
+status=3
+uninstall=4
+recover=5
+shortcuts=6
+version=7
+disable_hibernation=8
+restore_sleep=9
+reboot=10
+quit=11
 
 # Input-Function map
-IF["$t"]="patch_tb"
-IF["$n"]="patch_nv"
-IF["$c"]="check_patch_status"
-IF["$u"]="uninstall"
-IF["$r"]="recover_sys"
-IF["$h"]="usage"
-IF["$v"]="show_script_version"
-IF["$s"]="disable_hibernation"
-IF["$y"]="enable_hibernation"
-IF["$b"]="initiate_reboot"
-IF["$q"]="quit"
+IF["${enable_amd}"]="patch_tb"
+IF["${enable_nvda}"]="patch_nv"
+IF["${status}"]="check_patch_status"
+IF["${uninstall}"]="uninstall"
+IF["${recover}"]="recover_sys"
+IF["${shortcuts}"]="usage"
+IF["${version}"]="show_script_version"
+IF["${disable_hibernation}"]="disable_hibernation"
+IF["${restore_sleep}"]="restore_sleep"
+IF["${reboot}"]="initiate_reboot"
+IF["${quit}"]="quit"
 
 # System information
 MACOS_VER=`sw_vers -productVersion`
@@ -178,16 +178,16 @@ fetch_latest_release()
 # Check caller
 validate_caller()
 {
-  if [[ "$0" == "sh" && ! "$1" ]]
+  if [[ "$1" == "sh" && ! "$2" ]]
   then
     echo "\n${BOLD}Invalid manner of execution detected${NORMAL}.\nPlease see the README for instructions.\n"
     exit $EXEC_ERR
   fi
-  if [[ "$0" != "$SCRIPT" ]]
+  if [[ "$1" != "$SCRIPT" ]]
   then
-    OPTION="$2"
+    OPTION="$3"
   else
-    OPTION="$1"
+    OPTION="$2"
   fi
   if [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]]
   then
@@ -323,14 +323,14 @@ disable_hibernation()
 }
 
 # Revert hibernation settings
-enable_hibernation()
+restore_sleep()
 {
-  echo "\n>> ${BOLD}Enable Hibernation${NORMAL}\n"
-  echo "${BOLD}Enabling hibernation...${NORMAL}"
+  echo "\n>> ${BOLD}Restore Sleep Configuration${NORMAL}\n"
+  echo "${BOLD}Restoring default sleep settings...${NORMAL}"
   pmset -a autopoweroff 1
   pmset -a standby 1
   pmset -a hibernatemode 3
-  echo "Hibernation enabled.\n"
+  echo "Restore complete.\n"
 }
 
 # Rebuild kernel cache
@@ -577,19 +577,19 @@ show_script_version()
 usage()
 {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
-  echo " purge-wrangler ${BOLD}-[t n c u r h v s y b q]${NORMAL}"
+  echo " purge-wrangler ${BOLD}-[OPTION]${NORMAL}"
   echo "
-    ${BOLD}-t${NORMAL}: Enable AMD eGPUs
-    ${BOLD}-n${NORMAL}: Enable NVIDIA eGPUs
-    ${BOLD}-c${NORMAL}: Check Patch Status
-    ${BOLD}-u${NORMAL}: Uninstall Patches
-    ${BOLD}-r${NORMAL}: System Recovery
-    ${BOLD}-h${NORMAL}: Command Line Shortcuts
-    ${BOLD}-v${NORMAL}: Script Version
-    ${BOLD}-s${NORMAL}: Disable Hibernation
-    ${BOLD}-y${NORMAL}: Enable Hibernation
-    ${BOLD}-b${NORMAL}: Reboot System
-    ${BOLD}-q${NORMAL}: Quit\n"
+    ${BOLD}-enable_amd${NORMAL}: Enable AMD eGPUs
+    ${BOLD}-enable_nvda${NORMAL}: Enable NVIDIA eGPUs
+    ${BOLD}-status${NORMAL}: Check Patch Status
+    ${BOLD}-uninstall${NORMAL}: Uninstall Patches
+    ${BOLD}-recover${NORMAL}: System Recovery
+    ${BOLD}-shortcuts${NORMAL}: Command Line Shortcuts
+    ${BOLD}-version${NORMAL}: Script Version
+    ${BOLD}-disable_hibernation${NORMAL}: Disable Hibernation
+    ${BOLD}-restore_sleep${NORMAL}: Reset Sleep Configuration
+    ${BOLD}-reboot${NORMAL}: Reboot System
+    ${BOLD}-quit${NORMAL}: Quit\n"
 }
 
 # Input processing
@@ -610,7 +610,7 @@ process_arg_bypass()
 {
   if [[ "$OPTION" ]]
   then
-    OPTION=`echo $OPTION | head -c 2 | tail -c 1`
+    OPTION=${OPTION:1}
     eval OPTION="${!OPTION}"
     process_input "$OPTION"
     exit 0
@@ -647,7 +647,7 @@ provide_menu_selection()
 
    ${BOLD}>> Additional Options${NORMAL}            ${BOLD}>> System Sleep Configuration${NORMAL}
    ${BOLD}6.${NORMAL}  Command-Line Shortcuts       ${BOLD}8.${NORMAL}  Disable Hibernation
-   ${BOLD}7.${NORMAL}  Script Version               ${BOLD}9.${NORMAL}  Enable Hibernation
+   ${BOLD}7.${NORMAL}  Script Version               ${BOLD}9.${NORMAL}  Restore Sleep Configuration
 
    ${BOLD}10.${NORMAL} Reboot System
    ${BOLD}11.${NORMAL} Quit
@@ -682,7 +682,7 @@ check_legacy_script_install()
 # Primary execution routine
 begin()
 {
-  validate_caller
+  validate_caller "$1" "$2"
   perform_sys_check
   fetch_latest_release
   first_time_setup
@@ -692,5 +692,4 @@ begin()
   echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
   provide_menu_selection
 }
-
-begin
+begin "$0" "$1"
