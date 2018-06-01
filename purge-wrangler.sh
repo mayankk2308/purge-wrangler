@@ -20,9 +20,11 @@
 
 # ----- COMMAND LINE ARGS
 
-# Setup command args
+# Setup command args + Script Data
 SCRIPT="$BASH_SOURCE"
 OPTION=""
+LATEST_SCRIPT_INFO=""
+LATEST_RELEASE_DWLD=""
 
 # ----- ENVIRONMENT
 
@@ -33,11 +35,15 @@ shopt -s nocasematch
 LOCAL_BIN="/usr/local/bin"
 mkdir -p -m 775 "$LOCAL_BIN"
 SCRIPT_BIN="${LOCAL_BIN}/purge-wrangler"
+TMP_SCRIPT="${LOCAL_BIN}/purge-wrangler-new"
 BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_VER="3.1.0"
+SCRIPT_MAJOR_VER="3"
+SCRIPT_MINOR_VER="1"
+SCRIPT_PATCH_VER="0"
+SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
 INPUT=""
@@ -107,6 +113,66 @@ MANIFEST="${SUPPORT_DIR}manifest.wglr"
 SCRATCH_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
 SCRATCH_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 
+# ----- SCRIPT SOFTWARE UPDATE SYSTEM
+
+# Perform software update
+perform_software_update()
+{
+  echo "${BOLD}Downloading...${NORMAL}"
+  curl -L -s "$LATEST_RELEASE_DWLD" > "$TMP_SCRIPT"
+  echo "Download complete."
+  echo "${BOLD}Updating...${NORMAL}"
+  chmod 700 "$TMP_SCRIPT"
+  chmod +x "$TMP_SCRIPT"
+  rm "$SCRIPT"
+  mv "$TMP_SCRIPT" "$SCRIPT"
+  chown "$SUDO_USER" "$SCRIPT"
+  echo "Update complete. ${BOLD}Relaunching...${NORMAL}"
+  sleep 2
+  "$SCRIPT"
+  exit 0
+}
+
+# Prompt for update
+prompt_software_update()
+{
+  read -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
+  if [[ "$INPUT" == "Y" ]]
+  then
+    echo
+    perform_software_update
+  elif [[ "$INPUT" == "N" ]]
+  then
+    echo "\n${BOLD}Proceeding without updating...${NORMAL}"
+    sleep 2
+  else
+    echo "\nInvalid choice. Try again.\n"
+    prompt_software_update
+  fi
+}
+
+# Check Github for newer version + prompt update
+fetch_latest_release()
+{
+  if [[ "$BIN_CALL" == 0 ]]
+  then
+    return 0
+  fi
+  LATEST_SCRIPT_INFO=`curl -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest"`
+  LATEST_RELEASE_VER=`echo "$LATEST_SCRIPT_INFO" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
+  LATEST_RELEASE_DWLD=`echo "$LATEST_SCRIPT_INFO" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/'`
+  LATEST_MAJOR_VER=`echo "$LATEST_RELEASE_VER" | cut -d '.' -f1`
+  LATEST_MINOR_VER=`echo "$LATEST_RELEASE_VER" | cut -d '.' -f2`
+  LATEST_PATCH_VER=`echo "$LATEST_RELEASE_VER" | cut -d '.' -f3`
+  if [[ $LATEST_MAJOR_VER > $SCRIPT_MAJOR_VER || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER > $SCRIPT_MINOR_VER) || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER == $SCRIPT_MINOR_VER && $LATEST_PATCH_VER > $SCRIPT_PATCH_VER) && "$LATEST_RELEASE_DWLD" ]]
+  then
+    echo "\n>> ${BOLD}Software Update${NORMAL}"
+    echo "\nA script update (${BOLD}${LATEST_RELEASE_VER}${NORMAL}) is available."
+    echo "You are currently on ${BOLD}${SCRIPT_VER}${NORMAL}."
+    prompt_software_update
+  fi
+}
+
 # ----- SYSTEM CONFIGURATION MANAGER
 
 # Check caller
@@ -152,8 +218,8 @@ check_sip()
 # macOS Version check
 check_macos_version()
 {
-  MACOS_MAJOR_VER=`echo $MACOS_VER | cut -d '.' -f2`
-  MACOS_MINOR_VER=`echo $MACOS_VER | cut -d '.' -f3`
+  MACOS_MAJOR_VER=`echo "$MACOS_VER" | cut -d '.' -f2`
+  MACOS_MINOR_VER=`echo "$MACOS_VER" | cut -d '.' -f3`
   if [[ ("$MACOS_MAJOR_VER" < 13) || ("$MACOS_MAJOR_VER" == 13 && "$MACOS_MINOR_VER" < 4) ]]
   then
     echo "\nThis script requires macOS 10.13.4 or later.\n"
@@ -441,7 +507,7 @@ install_bin()
 # Bin first-time setup
 first_time_setup()
 {
-  if [[ ! "$BIN_CALL" ]]
+  if [[ "$BIN_CALL" == 1 ]]
   then
     return 0
   fi
@@ -618,6 +684,7 @@ begin()
 {
   validate_caller
   perform_sys_check
+  fetch_latest_release
   first_time_setup
   check_legacy_script_install
   process_arg_bypass
