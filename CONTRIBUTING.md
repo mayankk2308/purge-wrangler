@@ -4,7 +4,8 @@ Please report all problems in the **Issues** section and use labels to categoriz
 To develop the patch further:
 1. Fork it
 2. Write clean, coherent, and commented code
-3. Test your code throughly
-4. Submit a pull request with details on the *what's* and *why's*
+3. Adhere to the original code-style
+4. Test your code throughly
+5. Submit a pull request with details on the *what's* and *why's*
 
-Please adhere to these guidelines and post issues in an orderly manner. Thanks!
+Please adhere to these guidelines and post issues in an orderly manner. Thank you.

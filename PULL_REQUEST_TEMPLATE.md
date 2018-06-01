@@ -1,13 +1,10 @@
 # Pull Request
 
-**Problem(s)**:
-
+### Problem(s)
 Describe what problem you are addressing.
 
-**Changes**:
-
+### Changes
 Describe what exactly you're doing to resolve the problem.
 
-**Context**:
-
+### Context
 Explain device configurations and other contextual details involved.
