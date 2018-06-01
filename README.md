@@ -63,7 +63,7 @@ In-place uninstaller for the patches.
 Recover original untouched macOS configuration prior to script modifications.
 
 #### 6. Command-Line Shortcuts (`-shortcuts`)
-Prints a list of single-letter options that may be passed to the script or binary to completely forgo the command-line user interface and directly perform actions.
+Prints a list of command line options that may be passed to the script or binary to completely forgo the command-line user interface and directly perform actions.
 
 #### 7. Script Version (`-version`)
 Prints the version of the script/binary.
