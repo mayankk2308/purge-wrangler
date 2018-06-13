@@ -459,6 +459,11 @@ patch_tb()
     exit "$TB_VER_ERR"
   fi
   echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n"
+  if [[ "$TB_PATCH_STATUS" == 1 ]]
+  then
+    echo "System has already been patched for AMD eGPUs.\n"
+    return
+  fi
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   end_patch
@@ -468,6 +473,11 @@ patch_tb()
 patch_nv()
 {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n"
+  if [[ "$NV_PATCH_STATUS" == 1 ]]
+  then
+    echo "System has already been patched for NVIDIA eGPUs.\n"
+    return
+  fi
   begin_patch
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
   generic_patcher "$R13_TEST_REF" "$R13_TEST_PATCH"
