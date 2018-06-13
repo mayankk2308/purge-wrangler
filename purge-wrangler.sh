@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 3.1.1
+# Version: 3.1.2
 # Re-designed from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
@@ -41,7 +41,7 @@ SCRIPT_FILE=""
 # Script version
 SCRIPT_MAJOR_VER="3"
 SCRIPT_MINOR_VER="1"
-SCRIPT_PATCH_VER="1"
+SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -111,6 +111,10 @@ BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
 SCRATCH_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
 SCRATCH_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
+
+# Installation Info
+MANIFEST_MACOS_VER=""
+MANIFEST_MACOS_BUILD=""
 
 # ----- SCRIPT SOFTWARE UPDATE SYSTEM
 
@@ -477,6 +481,11 @@ uninstall()
   if [[ -d "$SUPPORT_DIR" ]]
   then
     echo "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
+    if [[ "$TB_PATCH_STATUS" == 0 && "$NV_PATCH_STATUS" == 0 ]]
+    then
+      echo "No patches detected. Uninstallation aborted. System clean.\n"
+      return
+    fi
     echo "${BOLD}Uninstalling...${NORMAL}"
     generate_agw_hex
     generic_patcher "$SYS_TB_VER" "$TB_SWITCH_HEX"3
@@ -541,9 +550,16 @@ first_time_setup()
 # Recovery logic
 recover_sys()
 {
-  if [[ -s "$BACKUP_AGC" ]]
+  if [[ -s "$BACKUP_AGC" && -s "$MANIFEST" ]]
   then
+    MANIFEST_MACOS_VER=`sed "3q;d" "$MANIFEST"`
+    MANIFEST_MACOS_BUILD=`sed "4q;d" "$MANIFEST"`
     echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
+    if [[ "$MANIFEST_MACOS_VER" != "$MACOS_VER" || "$MANIFEST_MACOS_BUILD" != "$MACOS_BUILD" ]]
+    then
+      echo "System was previously updated and is clean. Recovery not required.\n"
+      return
+    fi
     echo "${BOLD}Recovering...${NORMAL}"
     rm -r "$AGC_PATH"
     rsync -r "$BACKUP_KEXT_DIR"* "$EXT_PATH"
@@ -690,4 +706,5 @@ begin()
   echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
   provide_menu_selection
 }
+
 begin "$0" "$1"
