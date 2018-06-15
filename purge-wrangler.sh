@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 3.1.2
+# Version: 3.2.0
 # Re-designed from the ground up for scalable patches and a user-friendly
 # command-line + menu-driven interface.
 
@@ -40,8 +40,8 @@ SCRIPT_FILE=""
 
 # Script version
 SCRIPT_MAJOR_VER="3"
-SCRIPT_MINOR_VER="1"
-SCRIPT_PATCH_VER="2"
+SCRIPT_MINOR_VER="2"
+SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -204,7 +204,7 @@ elevate_privileges()
 {
   if [[ `id -u` != 0 ]]
   then
-    sudo "$SCRIPT" "$OPTION"
+    sudo sh "${SCRIPT}" "${OPTION}"
     exit 0
   fi
 }
