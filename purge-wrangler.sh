@@ -93,6 +93,10 @@ TB_SWITCH_HEX="494F5468756E646572626F6C74537769746368547970653"
 R13_TEST_REF="3C24E81DBDFFFF41F7C500000001757F"
 R13_TEST_PATCH="3C24E81DBDFFFF41F7C500000000757F"
 
+# IOGraphicsFamily references
+PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6564"
+PATCHED_PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6571"
+
 # Patch status indicators
 TB_PATCH_STATUS=""
 NV_PATCH_STATUS=""
@@ -102,15 +106,30 @@ EXT_PATH="/System/Library/Extensions/"
 AGC_PATH="${EXT_PATH}AppleGraphicsControl.kext"
 SUB_AGW_PATH="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
 AGW_BIN="${AGC_PATH}${SUB_AGW_PATH}"
+IONDRV_PATH="${EXT_PATH}IONDRVSupport.kext"
+IONDRV_PLIST_PATH="${IONDRV_PATH}/Info.plist"
+IOG_PATH="${EXT_PATH}IOGraphicsFamily.kext"
+SUB_IOG_PATH="/IOGraphicsFamily"
+IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
+NVDA_PLIST_PATH="/Library/Extensions/NVDAStartup.kext"
 
 # Backup paths
 SUPPORT_DIR="/Library/Application Support/Purge-Wrangler/"
 BACKUP_KEXT_DIR="${SUPPORT_DIR}Kexts/"
 BACKUP_AGC="${BACKUP_KEXT_DIR}AppleGraphicsControl.kext"
 BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
+BACKUP_IOG="${BACKUP_KEXT_DIR}IOGraphicsFamily.kext"
+BACKUP_IOG_BIN="${BACKUP_IOG}${SUB_IOG_PATH}"
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
-SCRATCH_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
-SCRATCH_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
+SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
+SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
+SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
+SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
+
+# PlistBuddy Config
+PlistBuddy="/usr/libexec/PlistBuddy"
+NDRV_PCI_TUN_CP=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
+NVDA_PCI_TUN_CP=":IOKitPersonalities:IOPCITunnelCompatible bool"
 
 # Installation Info
 MANIFEST_MACOS_VER=""
@@ -259,7 +278,7 @@ check_patch()
   else
     TB_PATCH_STATUS=0
   fi
-  if [[ `hexdump -ve '1/1 "%.2X"' "$AGW_BIN" | grep "$R13_TEST_PATCH"` ]]
+  if [[ `hexdump -ve '1/1 "%.2X"' "$IOG_BIN" | grep "$PATCHED_PCI_TUNNELLED_HEX"` ]]
   then
     NV_PATCH_STATUS=1
   else
@@ -349,24 +368,32 @@ repair_permissions()
 {
   echo "${BOLD}Repairing permissions...${NORMAL}"
   chmod 755 "$AGW_BIN"
+  chmod 755 "$IOG_BIN"
   chown -R root:wheel "$AGC_PATH"
+  chown -R root:wheel "$IOG_PATH"
+  chown -R root:wheel "$IONDRV_PATH"
   echo "Permissions set."
   invoke_kext_caching
 }
 
 # ----- PATCHING SYSTEM
 
-generate_agw_hex()
+generate_hex()
 {
-  hexdump -ve '1/1 "%.2X"' "$AGW_BIN" > "$SCRATCH_HEX"
+  TARGET_BIN="$1"
+  SCRATCH_HEX="$2"
+  hexdump -ve '1/1 "%.2X"' "$TARGET_BIN" > "$SCRATCH_HEX"
 }
 
-new_agw_bin()
+generate_new_bin()
 {
+  SCRATCH_HEX="$1"
+  SCRATCH_BIN="$2"
+  TARGET_BIN="$3"
   xxd -r -p "$SCRATCH_HEX" "$SCRATCH_BIN"
-  rm "$AGW_BIN"
+  rm "$TARGET_BIN"
   rm "$SCRATCH_HEX"
-  mv "$SCRATCH_BIN" "$AGW_BIN"
+  mv "$SCRATCH_BIN" "$TARGET_BIN"
 }
 
 # Primary patching mechanism
@@ -374,6 +401,7 @@ generic_patcher()
 {
   ORIGINAL="$1"
   NEW="$2"
+  SCRATCH_HEX="$3"
   sed -i "" -e "s/${ORIGINAL}/${NEW}/g" "$SCRATCH_HEX"
 }
 
@@ -386,9 +414,20 @@ generic_patcher()
 # Line 4: macOS Build No.
 write_manifest()
 {
-  UNPATCHED_KEXT_SHA=`shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }'`
-  PATCHED_KEXT_SHA=`shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }'`
-  echo "$UNPATCHED_KEXT_SHA\n$PATCHED_KEXT_SHA\n$MACOS_VER\n$MACOS_BUILD" > "$MANIFEST"
+  MANIFEST_STR="${MACOS_VER}\n${MACOS_BUILD}"
+  if [[ -s "$BACKUP_AGC" ]]
+  then
+    UNPATCHED_AGW_KEXT_SHA=`shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }'`
+    PATCHED_AGW_KEXT_SHA=`shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }'`
+    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
+  fi
+  if [[ -s "$BACKUP_IOG" ]]
+  then
+    UNPATCHED_IOG_KEXT_SHA=`shasum -a 512 -b "$BACKUP_IOG_BIN" | awk '{ print $1 }'`
+    PATCHED_IOG_KEXT_SHA=`shasum -a 512 -b "$IOG_BIN" | awk '{ print $1 }'`
+    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
+  fi
+  echo "${MANIFEST_STR}" > "$MANIFEST"
 }
 
 # Primary procedure
@@ -396,6 +435,8 @@ execute_backup()
 {
   mkdir -p "$BACKUP_KEXT_DIR"
   rsync -r "$AGC_PATH" "$BACKUP_KEXT_DIR"
+  rsync -r "$IOG_PATH" "$BACKUP_KEXT_DIR"
+  rsync -r "$IONDRV_PATH" "$BACKUP_KEXT_DIR"
 }
 
 # Backup procedure
@@ -404,21 +445,23 @@ backup_system()
   echo "${BOLD}Backing up...${NORMAL}"
   if [[ -s "$BACKUP_AGC" && -s "$MANIFEST" ]]
   then
-    MANIFEST_MACOS_VER=`sed "3q;d" "$MANIFEST"`
-    MANIFEST_MACOS_BUILD=`sed "4q;d" "$MANIFEST"`
+    MANIFEST_MACOS_VER=`sed "1q;d" "$MANIFEST"`
+    MANIFEST_MACOS_BUILD=`sed "2q;d" "$MANIFEST"`
     if [[ "$MANIFEST_MACOS_VER" == "$MACOS_VER" && "$MANIFEST_MACOS_BUILD" == "$MACOS_BUILD" ]]
     then
       echo "Backup already exists."
     else
       echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
-      rm -r "$BACKUP_AGC"
+      rm -r "$AGC_PATH"
+      rm -r "$IOG_PATH"
+      rm -r "$IONDRV_PATH"
       if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
         echo "${BOLD}Re-running script...${NORMAL}"
         sleep 3
-        "$0" "$OPTION"
+        "$SCRIPT" "$OPTION"
         exit
       fi
       execute_backup
@@ -435,19 +478,35 @@ backup_system()
 # Start patching sequence
 begin_patch()
 {
+  TARGET_BIN="$1"
+  SCRATCH_HEX="$2"
   echo "${BOLD}Starting patch...${NORMAL}"
   backup_system
-  generate_agw_hex
+  generate_hex "$TARGET_BIN" "$SCRATCH_HEX"
 }
 
 # Conclude patching sequence
 end_patch()
 {
-  new_agw_bin
+  SCRATCH_HEX="$1"
+  SCRATCH_BIN="$2"
+  TARGET_BIN="$3"
+  generate_new_bin "$SCRATCH_HEX" "$SCRATCH_BIN" "$TARGET_BIN"
   repair_permissions
   write_manifest
   echo "${BOLD}Patch complete.\n"
   prompt_reboot
+}
+
+# Patch specified plist
+patch_plist()
+{
+  TARGET_PLIST="$1"
+  COMMAND="$2"
+  KEY="$3"
+  DATA_TYPE="$4"
+  VALUE="$5"
+  $PlistBuddy -c "${COMMAND} ${KEY} ${DATA_TYPE} ${VALUE}" "${TARGET_PLIST}"
 }
 
 # Patch TB1/2 block
@@ -464,9 +523,9 @@ patch_tb()
     echo "System has already been patched for AMD eGPUs.\n"
     return
   fi
-  begin_patch
-  generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
-  end_patch
+  begin_patch "$AGW_BIN" "$SCRATCH_AGW_HEX"
+  generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER" "$SCRATCH_AGW_HEX"
+  end_patch "$SCRATCH_AGW_HEX" "$SCRATCH_AGW_BIN" "$AGW_BIN"
 }
 
 # Patch for NVIDIA eGPUs
@@ -478,10 +537,16 @@ patch_nv()
     echo "System has already been patched for NVIDIA eGPUs.\n"
     return
   fi
-  begin_patch
-  generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER"
-  generic_patcher "$R13_TEST_REF" "$R13_TEST_PATCH"
-  end_patch
+  if [[ ! -e "$NVDA_PLIST_PATH" ]]
+  then
+    echo "Please install NVIDIA Web Drivers before proceeding.\n"
+    return
+  fi
+  begin_patch "$IOG_BIN" "$SCRATCH_IOG_HEX"
+  generic_patcher "$PCI_TUNNELLED_HEX" "$PATCHED_PCI_TUNNELLED_HEX" "$SCRATCH_IOG_HEX"
+  end_patch "$SCRATCH_IOG_HEX" "$SCRATCH_IOG_BIN" "$IOG_BIN"
+  patch_plist "$IONDRV_PLIST_PATH" "Add" "$NDRV_PCI_TUN_CP" "bool" "true"
+  patch_plist "$NVDA_PLIST_PATH" "Add" "$NVDA_PCI_TUN_CP" "bool" "true"
   echo "Please install ${BOLD}NVIDIAEGPUSupport + Web Drivers${NORMAL} for eGPU support.\n"
 }
 
@@ -497,10 +562,19 @@ uninstall()
       return
     fi
     echo "${BOLD}Uninstalling...${NORMAL}"
-    generate_agw_hex
-    generic_patcher "$SYS_TB_VER" "$TB_SWITCH_HEX"3
-    generic_patcher "$R13_TEST_PATCH" "$R13_TEST_REF"
-    new_agw_bin
+    if [[ "$TB_PATCH_STATUS" == 1 ]]
+    then
+      generate_hex "$AGW_BIN" "$SCRATCH_AGW_HEX"
+      generic_patcher "$SYS_TB_VER" "$TB_SWITCH_HEX"3 "$SCRATCH_AGW_HEX"
+      generate_new_bin "$SCRATCH_AGW_HEX" "$SCRATCH_AGW_BIN" "$AGW_BIN"
+    fi
+    if [[ "$NV_PATCH_STATUS" == 1 ]]
+    then
+      generate_hex "$IOG_BIN" "$SCRATCH_IOG_HEX"
+      generic_patcher "$PATCHED_PCI_TUNNELLED_HEX" "$PCI_TUNNELLED_HEX" "$SCRATCH_IOG_HEX"
+      # remove iopci keys too
+      generate_new_bin "$SCRATCH_IOG_HEX" "$SCRATCH_IOG_BIN" "$IOG_BIN"
+    fi
     repair_permissions
     write_manifest
     echo "Uninstallation Complete.\n"
@@ -560,10 +634,10 @@ first_time_setup()
 # Recovery logic
 recover_sys()
 {
-  if [[ -s "$BACKUP_AGC" && -s "$MANIFEST" ]]
+  if [[ -s "$BACKUP_KEXT_DIR" && -e "$MANIFEST" ]]
   then
-    MANIFEST_MACOS_VER=`sed "3q;d" "$MANIFEST"`
-    MANIFEST_MACOS_BUILD=`sed "4q;d" "$MANIFEST"`
+    MANIFEST_MACOS_VER=`sed "1q;d" "$MANIFEST"`
+    MANIFEST_MACOS_BUILD=`sed "2q;d" "$MANIFEST"`
     echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
     if [[ "$MANIFEST_MACOS_VER" != "$MACOS_VER" || "$MANIFEST_MACOS_BUILD" != "$MACOS_BUILD" ]]
     then
@@ -572,6 +646,8 @@ recover_sys()
     fi
     echo "${BOLD}Recovering...${NORMAL}"
     rm -r "$AGC_PATH"
+    rm -r "$IOG_PATH"
+    rm -r "$IONDRV_PATH"
     rsync -r "$BACKUP_KEXT_DIR"* "$EXT_PATH"
     rm -r "$SUPPORT_DIR"
     repair_permissions
