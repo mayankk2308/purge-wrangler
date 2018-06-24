@@ -482,17 +482,16 @@ usage() {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
   echo " purge-wrangler ${BOLD}-[OPTION]${NORMAL}"
   echo "
-    ${BOLD}-enable_amd${NORMAL}: Enable AMD eGPUs
-    ${BOLD}-enable_nvda${NORMAL}: Enable NVIDIA eGPUs
-    ${BOLD}-status${NORMAL}: Check Patch Status
-    ${BOLD}-uninstall${NORMAL}: Uninstall Patches
-    ${BOLD}-recover${NORMAL}: System Recovery
-    ${BOLD}-shortcuts${NORMAL}: Command Line Shortcuts
-    ${BOLD}-version${NORMAL}: Script Version
-    ${BOLD}-disable_hibernation${NORMAL}: Disable Hibernation
-    ${BOLD}-restore_sleep${NORMAL}: Reset Sleep Configuration
-    ${BOLD}-reboot${NORMAL}: Reboot System
-    ${BOLD}-quit${NORMAL}: Quit\n"
+    ${BOLD}-ea|--enable-amd${NORMAL}: Enable AMD eGPUs
+    ${BOLD}-en|--enable-nv${NORMAL}: Enable NVIDIA eGPUs
+    ${BOLD}-s|--status${NORMAL}: Check Patch Status
+    ${BOLD}-u|--uninstall${NORMAL}: Uninstall Patches
+    ${BOLD}-r|--recover${NORMAL}: System Recovery
+    ${BOLD}--shortcuts${NORMAL}: Command Line Shortcuts
+    ${BOLD}-v|--version${NORMAL}: Script Version
+    ${BOLD}-dh|--disable-hibernation${NORMAL}: Disable Hibernation
+    ${BOLD}-rs|--restore-sleep${NORMAL}: Reset Sleep Configuration
+    ${BOLD}-rb|--reboot${NORMAL}: Reboot System\n"
 }
 
 # Ask for main menu
