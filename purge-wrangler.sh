@@ -54,6 +54,7 @@ SIP_ON_ERR=1
 MACOS_VER_ERR=2
 TB_VER_ERR=3
 EXEC_ERR=4
+UNKNOWN_SYSTEM_ERR=5
 
 # System information
 MACOS_VER=`sw_vers -productVersion`
@@ -177,6 +178,11 @@ check_macos_version() {
   [[ ("$MACOS_MAJOR_VER" < 13) || ("$MACOS_MAJOR_VER" == 13 && "$MACOS_MINOR_VER" < 4) ]] && echo "\n${BOLD}macOS 10.13.4 or later${NORMAL} required.\n" && exit $MACOS_VER_ERR
 }
 
+# Ensure presence of system extensions
+check_sys_extensions() {
+  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo "\nTarget kexts unavailable. Unsupported system.\n" && exit $UNKNOWN_SYSTEM_ERR
+}
+
 # Retrieve thunderbolt version
 retrieve_tb_ver() {
   TB_VER=`ioreg | grep AppleThunderboltNHIType`
@@ -214,6 +220,7 @@ check_patch_status() {
 perform_sys_check() {
   check_sip
   check_macos_version
+  check_sys_extensions
   retrieve_tb_ver
   elevate_privileges
   check_patch
@@ -386,7 +393,7 @@ patch_tb() {
 patch_nv() {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for NVIDIA eGPUs.\n" && return
-  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "Please install NVIDIA Web Drivers before proceeding.\n" && return
+  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "Please install ${BOLD}NVIDIA Web Drivers${NORMAL} before proceeding.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
