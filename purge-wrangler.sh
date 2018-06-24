@@ -85,7 +85,9 @@ IONDRV_PLIST_PATH="${IONDRV_PATH}/Info.plist"
 IOG_PATH="${EXT_PATH}IOGraphicsFamily.kext"
 SUB_IOG_PATH="/IOGraphicsFamily"
 IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
-NVDA_STARTUP_PATH="/Library/Extensions/NVDAStartupWeb.kext"
+TP_EXT_PATH="/Library/Extensions/"
+NVDA_STARTUP_PATH="{${TP_EXT_PATH}NVDAStartupWeb.kext"
+NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
 
 # Backup paths
@@ -239,9 +241,7 @@ initiate_reboot() {
 # Disable hibernation
 disable_hibernation() {
   echo "\n>> ${BOLD}Disable Hibernation${NORMAL}\n\n${BOLD}Disabling hibernation...${NORMAL}"
-  pmset -a autopoweroff 0
-  pmset -a standby 0
-  pmset -a hibernatemode 0
+  pmset -a autopoweroff 0 && pmset -a standby 0 && pmset -a hibernatemode 0
   echo "Hibernation disabled.\n"
 }
 
@@ -255,7 +255,7 @@ restore_sleep() {
 # Rebuild kernel cache
 invoke_kext_caching() {
   echo "${BOLD}Rebuilding kext cache...${NORMAL}"
-  touch "${EXT_PATH}"
+  touch "${EXT_PATH}" && touch "${TP_EXT_PATH}"
   kextcache -q -update-volume /
   echo "Rebuild complete."
 }
@@ -263,11 +263,8 @@ invoke_kext_caching() {
 # Repair kext and binary permissions
 repair_permissions() {
   echo "${BOLD}Repairing permissions...${NORMAL}"
-  chmod 755 "${AGW_BIN}"
-  chmod 755 "${IOG_BIN}"
-  chown -R root:wheel "$AGC_PATH"
-  chown -R root:wheel "$IOG_PATH"
-  chown -R root:wheel "$IONDRV_PATH"
+  chmod 755 "${AGW_BIN}" && chmod 755 "${IOG_BIN}"
+  chown -R root:wheel "${AGC_PATH}" && chown -R root:wheel "${IOG_PATH}" && chown -R root:wheel "${IONDRV_PATH}"
   [[ -d "${NVDA_STARTUP_PATH}" ]] && chown -R root:wheel "${NVDA_STARTUP_PATH}"
   echo "Permissions set."
   invoke_kext_caching
@@ -306,14 +303,14 @@ write_manifest() {
   MANIFEST_STR="${MACOS_VER}\n${MACOS_BUILD}"
   if [[ -s "${BACKUP_AGC}" ]]
   then
-    UNPATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }')"
-    PATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }')"
+    UNPATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_AGW_BIN}" | awk '{ print $1 }')"
+    PATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${AGW_BIN}" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
   fi
   if [[ -s "${BACKUP_IOG}" ]]
   then
-    UNPATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "$BACKUP_IOG_BIN" | awk '{ print $1 }')"
-    PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "$IOG_BIN" | awk '{ print $1 }')"
+    UNPATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_IOG_BIN}" | awk '{ print $1 }')"
+    PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${IOG_BIN}" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
   fi
   echo "${MANIFEST_STR}" > "${MANIFEST}"
@@ -338,13 +335,13 @@ backup_system() {
       echo "Backup already exists."
     else
       echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
-      rm -r "$AGC_PATH" && rm -r "$IOG_PATH" && rm -r "$IONDRV_PATH"
+      rm -r "${AGC_PATH}" && rm -r "${IOG_PATH}" && rm -r "${IONDRV_PATH}"
       if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
         echo "${BOLD}Re-running script...${NORMAL}"
-        "$SCRIPT" "$OPTION"
+        "${SCRIPT}" "${OPTION}"
         exit
       fi
       execute_backup
@@ -421,6 +418,7 @@ patch_nv() {
   generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
   patch_plist "${IONDRV_PLIST_PATH}" "Add" "${NDRV_PCI_TUN_CP}" "true"
   patch_plist "${NVDA_PLIST_PATH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
+  [[ -d "${NVDA_EGPU_KEXT}" ]] && echo "${BOLD}NVDAEGPUSupport.kext${NORMAL} Detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo "Removal complete."
   end_patch
 }
 
