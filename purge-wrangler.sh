@@ -9,9 +9,9 @@
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
-#       @mac_editor, @fricorico at egpu.io
-# ----- NVIDIA eGPU Patch
-#       @goalque, @fr34k at egpu.io
+#       (c) @mac_editor, @fricorico at egpu.io
+# ----- New NVIDIA eGPU Patch
+#       (c) @goalque at egpu.io
 # ----- TB Detection
 #       @owenrw at egpu.io
 # ----- Testing
@@ -90,8 +90,6 @@ SYS_TB_VER=""
 
 # AppleGPUWrangler references
 TB_SWITCH_HEX="494F5468756E646572626F6C74537769746368547970653"
-R13_TEST_REF="3C24E81DBDFFFF41F7C500000001757F"
-R13_TEST_PATCH="3C24E81DBDFFFF41F7C500000000757F"
 
 # IOGraphicsFamily references
 PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6564"
@@ -111,7 +109,8 @@ IONDRV_PLIST_PATH="${IONDRV_PATH}/Info.plist"
 IOG_PATH="${EXT_PATH}IOGraphicsFamily.kext"
 SUB_IOG_PATH="/IOGraphicsFamily"
 IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
-NVDA_PLIST_PATH="/Library/Extensions/NVDAStartup.kext"
+NVDA_STARTUP_PATH="/Library/Extensions/NVDAStartupWeb.kext"
+NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
 
 # Backup paths
 SUPPORT_DIR="/Library/Application Support/Purge-Wrangler/"
@@ -129,7 +128,7 @@ SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
 # PlistBuddy Config
 PlistBuddy="/usr/libexec/PlistBuddy"
 NDRV_PCI_TUN_CP=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
-NVDA_PCI_TUN_CP=":IOKitPersonalities:IOPCITunnelCompatible bool"
+NVDA_PCI_TUN_CP=":IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible bool"
 
 # Installation Info
 MANIFEST_MACOS_VER=""
@@ -272,7 +271,8 @@ retrieve_tb_ver()
 # Patch check
 check_patch()
 {
-  if [[ `hexdump -ve '1/1 "%.2X"' "$AGW_BIN" | grep "$SYS_TB_VER"` && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]]
+  AGW_DUMP=`hexdump -ve '1/1 "%.2X"' "$AGW_BIN"`
+  if [[ `echo ${AGW_DUMP} | grep "$SYS_TB_VER"` && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]]
   then
     TB_PATCH_STATUS=1
   else
@@ -280,6 +280,7 @@ check_patch()
   fi
   if [[ `hexdump -ve '1/1 "%.2X"' "$IOG_BIN" | grep "$PATCHED_PCI_TUNNELLED_HEX"` ]]
   then
+    TB_PATCH_STATUS=1
     NV_PATCH_STATUS=1
   else
     NV_PATCH_STATUS=0
@@ -372,12 +373,14 @@ repair_permissions()
   chown -R root:wheel "$AGC_PATH"
   chown -R root:wheel "$IOG_PATH"
   chown -R root:wheel "$IONDRV_PATH"
+  [[ -d "${NVDA_STARTUP_PATH}" ]] && chown -R root:wheel "${NVDA_STARTUP_PATH}"
   echo "Permissions set."
   invoke_kext_caching
 }
 
 # ----- PATCHING SYSTEM
 
+# Generic hex file generator for given binary -> given destination file
 generate_hex()
 {
   TARGET_BIN="$1"
@@ -385,6 +388,7 @@ generate_hex()
   hexdump -ve '1/1 "%.2X"' "$TARGET_BIN" > "$SCRATCH_HEX"
 }
 
+# Generic binary generator for given hex file -> given destination file
 generate_new_bin()
 {
   SCRATCH_HEX="$1"
@@ -475,23 +479,9 @@ backup_system()
 
 # ----- CORE PATCH
 
-# Start patching sequence
-begin_patch()
-{
-  TARGET_BIN="$1"
-  SCRATCH_HEX="$2"
-  echo "${BOLD}Starting patch...${NORMAL}"
-  backup_system
-  generate_hex "$TARGET_BIN" "$SCRATCH_HEX"
-}
-
 # Conclude patching sequence
 end_patch()
 {
-  SCRATCH_HEX="$1"
-  SCRATCH_BIN="$2"
-  TARGET_BIN="$3"
-  generate_new_bin "$SCRATCH_HEX" "$SCRATCH_BIN" "$TARGET_BIN"
   repair_permissions
   write_manifest
   echo "${BOLD}Patch complete.\n"
@@ -504,50 +494,57 @@ patch_plist()
   TARGET_PLIST="$1"
   COMMAND="$2"
   KEY="$3"
-  DATA_TYPE="$4"
-  VALUE="$5"
-  $PlistBuddy -c "${COMMAND} ${KEY} ${DATA_TYPE} ${VALUE}" "${TARGET_PLIST}"
+  VALUE="$4"
+  $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}"
 }
 
 # Patch TB1/2 block
 patch_tb()
 {
+  echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n"
+  echo "${BOLD}Starting patch...${NORMAL}"
   if [[ "$SYS_TB_VER" == "$TB_SWITCH_HEX"3 ]]
   then
-    echo "\nThis mac does not require a thunderbolt patch.\n"
+    echo "This mac does not require a thunderbolt patch.\n"
     exit "$TB_VER_ERR"
   fi
-  echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n"
   if [[ "$TB_PATCH_STATUS" == 1 ]]
   then
     echo "System has already been patched for AMD eGPUs.\n"
     return
   fi
-  begin_patch "$AGW_BIN" "$SCRATCH_AGW_HEX"
+  backup_system
+  generate_hex "$AGW_BIN" "$SCRATCH_AGW_HEX"
   generic_patcher "$TB_SWITCH_HEX"3 "$SYS_TB_VER" "$SCRATCH_AGW_HEX"
-  end_patch "$SCRATCH_AGW_HEX" "$SCRATCH_AGW_BIN" "$AGW_BIN"
+  generate_new_bin "$SCRATCH_AGW_HEX" "$SCRATCH_AGW_BIN" "$AGW_BIN"
+  end_patch
 }
 
 # Patch for NVIDIA eGPUs
 patch_nv()
 {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n"
+  echo "${BOLD}Starting patch...${NORMAL}"
   if [[ "$NV_PATCH_STATUS" == 1 ]]
   then
     echo "System has already been patched for NVIDIA eGPUs.\n"
     return
   fi
-  if [[ ! -e "$NVDA_PLIST_PATH" ]]
+  if [[ ! -f "$NVDA_PLIST_PATH" ]]
   then
     echo "Please install NVIDIA Web Drivers before proceeding.\n"
     return
   fi
-  begin_patch "$IOG_BIN" "$SCRATCH_IOG_HEX"
+  backup_system
+  generate_hex "$AGW_BIN" "$SCRATCH_AGW_HEX"
+  generate_hex "$IOG_BIN" "$SCRATCH_IOG_HEX"
+  generic_patcher "$PCI_TUNNELLED_HEX" "$PATCHED_PCI_TUNNELLED_HEX" "$SCRATCH_AGW_HEX"
   generic_patcher "$PCI_TUNNELLED_HEX" "$PATCHED_PCI_TUNNELLED_HEX" "$SCRATCH_IOG_HEX"
-  end_patch "$SCRATCH_IOG_HEX" "$SCRATCH_IOG_BIN" "$IOG_BIN"
-  patch_plist "$IONDRV_PLIST_PATH" "Add" "$NDRV_PCI_TUN_CP" "bool" "true"
-  patch_plist "$NVDA_PLIST_PATH" "Add" "$NVDA_PCI_TUN_CP" "bool" "true"
-  echo "Please install ${BOLD}NVIDIAEGPUSupport + Web Drivers${NORMAL} for eGPU support.\n"
+  generate_new_bin "$SCRATCH_AGW_HEX" "$SCRATCH_AGW_BIN" "$AGW_BIN"
+  generate_new_bin "$SCRATCH_IOG_HEX" "$SCRATCH_IOG_BIN" "$IOG_BIN"
+  patch_plist "$IONDRV_PLIST_PATH" "Add" "$NDRV_PCI_TUN_CP" "true"
+  patch_plist "$NVDA_PLIST_PATH" "Add" "$NVDA_PCI_TUN_CP" "true"
+  end_patch
 }
 
 # In-place re-patcher
@@ -572,8 +569,9 @@ uninstall()
     then
       generate_hex "$IOG_BIN" "$SCRATCH_IOG_HEX"
       generic_patcher "$PATCHED_PCI_TUNNELLED_HEX" "$PCI_TUNNELLED_HEX" "$SCRATCH_IOG_HEX"
-      # remove iopci keys too
+      [[ -f "$NVDA_PLIST_PATH" && `cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible"` ]] && patch_plist "$NVDA_PLIST_PATH" "Delete" "$NVDA_PCI_TUN_CP"
       generate_new_bin "$SCRATCH_IOG_HEX" "$SCRATCH_IOG_BIN" "$IOG_BIN"
+      [[ `cat "$IONDRV_PLIST_PATH" | grep -i "IOPCITunnelCompatible"` ]] && patch_plist "$IONDRV_PLIST_PATH" "Delete" "$NDRV_PCI_TUN_CP"
     fi
     repair_permissions
     write_manifest
@@ -650,6 +648,10 @@ recover_sys()
     rm -r "$IONDRV_PATH"
     rsync -r "$BACKUP_KEXT_DIR"* "$EXT_PATH"
     rm -r "$SUPPORT_DIR"
+    if [[ -f "$NVDA_PLIST_PATH" && `cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible"` ]]
+    then
+      patch_plist "$NVDA_PLIST_PATH" "Delete" "$NVDA_PCI_TUN_CP"
+    fi
     repair_permissions
     echo "Recovery complete.\n"
     prompt_reboot
