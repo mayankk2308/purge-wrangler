@@ -558,6 +558,7 @@ process_args() {
     11)
     quit;;
     "")
+    fetch_latest_release
     first_time_setup
     clear && echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
     provide_menu_selection;;
@@ -572,7 +573,6 @@ process_args() {
 begin() {
   validate_caller "${1}" "${2}"
   perform_sys_check
-  fetch_latest_release
   process_args "${2}"
 }
 
