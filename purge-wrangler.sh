@@ -529,7 +529,7 @@ provide_menu_selection() {
    ${BOLD}11.${NORMAL} Quit
   "
   read -p "${BOLD}What next?${NORMAL} [1-11]: " INPUT
-  process_args "${INPUT}"
+  [[ ! -z "${INPUT}" ]] && process_args "${INPUT}" || echo "\nNo input provided.\n"
   ask_menu
 }
 
@@ -558,10 +558,11 @@ process_args() {
     11)
     quit;;
     "")
+    first_time_setup
     clear && echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
     provide_menu_selection;;
     *)
-    echo "Invalid argument.\n";;
+    echo "\nInvalid argument.\n";;
   esac
 }
 
@@ -572,7 +573,6 @@ begin() {
   validate_caller "${1}" "${2}"
   perform_sys_check
   fetch_latest_release
-  first_time_setup
   process_args "${2}"
 }
 
