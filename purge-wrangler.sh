@@ -162,7 +162,7 @@ elevate_privileges() {
   if [[ $(id -u) != 0 ]]
   then
     sudo sh "${SCRIPT}" "${OPTION}"
-    exit 0
+    exit
   fi
 }
 
@@ -173,9 +173,9 @@ check_sip() {
 
 # macOS Version check
 check_macos_version() {
-  MACOS_MAJOR_VER="$(echo "$MACOS_VER" | cut -d '.' -f2)"
-  MACOS_MINOR_VER="$(echo "$MACOS_VER" | cut -d '.' -f3)"
-  [[ ("$MACOS_MAJOR_VER" < 13) || ("$MACOS_MAJOR_VER" == 13 && "$MACOS_MINOR_VER" < 4) ]] && echo "\n${BOLD}macOS 10.13.4 or later${NORMAL} required.\n" && exit $MACOS_VER_ERR
+  MACOS_MAJOR_VER="$(echo "${MACOS_VER}" | cut -d '.' -f2)"
+  MACOS_MINOR_VER="$(echo "${MACOS_VER}" | cut -d '.' -f3)"
+  [[ ("${MACOS_MAJOR_VER}" < 13) || ("${MACOS_MAJOR_VER}" == 13 && "${MACOS_MINOR_VER}" < 4) ]] && echo "\n${BOLD}macOS 10.13.4 or later${NORMAL} required.\n" && exit $MACOS_VER_ERR
 }
 
 # Ensure presence of system extensions
@@ -186,34 +186,25 @@ check_sys_extensions() {
 # Retrieve thunderbolt version
 retrieve_tb_ver() {
   TB_VER=`ioreg | grep AppleThunderboltNHIType`
-  [[ "$TB_VER[@]" =~ "NHIType3" ]] && SYS_TB_VER="$TB_SWITCH_HEX"3 && return
-  [[ "$TB_VER[@]" =~ "NHIType2" ]] && SYS_TB_VER="$TB_SWITCH_HEX"2 && return
-  [[ "$TB_VER[@]" =~ "NHIType1" ]] && SYS_TB_VER="$TB_SWITCH_HEX"1 && return
+  [[ "${TB_VER}[@]" =~ "NHIType3" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"3 && return
+  [[ "${TB_VER}[@]" =~ "NHIType2" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"2 && return
+  [[ "${TB_VER}[@]" =~ "NHIType1" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"1 && return
   echo "\nUnsupported/Invalid version of Thunderbolt detected.\n" && exit $TB_VER_ERR
 }
 
 # Patch check
 check_patch() {
-  if [[ `hexdump -ve '1/1 "%.2X"' "$AGW_BIN" | grep "$SYS_TB_VER"` && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]]
-  then
-    TB_PATCH_STATUS=1
-  else
-    TB_PATCH_STATUS=0
-  fi
-  if [[ `hexdump -ve '1/1 "%.2X"' "$IOG_BIN" | grep "$PATCHED_PCI_TUNNELLED_HEX"` ]]
-  then
-    [[ "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1
-    NV_PATCH_STATUS=1
-  else
-    NV_PATCH_STATUS=0
-  fi
+  AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
+  IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
+  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
+  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
 check_patch_status() {
   echo "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  [[ "$TB_PATCH_STATUS" == 0 ]] && echo "${BOLD}Thunderbolt Override${NORMAL}: Not Detected" || echo "${BOLD}Thunderbolt Override${NORMAL}: Detected"
-  [[ "$NV_PATCH_STATUS" == 0 ]] && echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n" || echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n"
+  [[ $TB_PATCH_STATUS == 0 ]] && echo "${BOLD}Thunderbolt Override${NORMAL}: Not Detected" || echo "${BOLD}Thunderbolt Override${NORMAL}: Detected"
+  [[ $NV_PATCH_STATUS == 0 ]] && echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n" || echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n"
 }
 
 # Cumulative system check
@@ -473,17 +464,6 @@ recover_sys() {
 
 # ----- USER INTERFACE
 
-# Exit script
-quit() {
-  echo
-  exit
-}
-
-# Print script version
-show_script_version() {
-  echo "\nScript at ${BOLD}${SCRIPT_VER}${NORMAL}.\n"
-}
-
 # Print command line options
 usage() {
   echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
@@ -504,19 +484,10 @@ usage() {
 # Ask for main menu
 ask_menu() {
   read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
-  if [[ "${INPUT}" == "Y" ]]
-  then
-    perform_sys_check
-    echo "\n>> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
-    provide_menu_selection
-  elif [[ "${INPUT}" == "N" ]]
-  then
-    echo
-    exit
-  else
-    echo "\nInvalid choice. Try again.\n"
-    ask_menu
-  fi
+  [[ "${INPUT}" == "Y" ]] && perform_sys_check && echo "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
+  [[ "${INPUT}" == "N" ]] && echo && exit
+  echo "\nInvalid choice. Try again.\n"
+  ask_menu
 }
 
 # Menu
@@ -554,7 +525,7 @@ process_args() {
     --shortcuts|6)
     usage;;
     -v|--version|7)
-    show_script_version;;
+    echo "\nScript at ${BOLD}${SCRIPT_VER}${NORMAL}.\n";;
     -dh|--disable-hibernation|8)
     disable_hibernation;;
     -rs|--restore-sleep|9)
@@ -562,11 +533,11 @@ process_args() {
     -rb|--reboot|10)
     initiate_reboot;;
     11)
-    quit;;
+    echo && exit;;
     "")
     fetch_latest_release
     first_time_setup
-    clear && echo ">> ${BOLD}PurgeWrangler ($SCRIPT_VER)${NORMAL}"
+    clear && echo ">> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}"
     provide_menu_selection;;
     *)
     echo "\nInvalid argument.\n";;
