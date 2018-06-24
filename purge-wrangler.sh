@@ -340,7 +340,7 @@ backup_system() {
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
-        echo "${BOLD}Re-running script...${NORMAL}"
+        echo "${BOLD}Re-running script...${NORMAL}" && sleep 1
         "${SCRIPT}" "${OPTION}"
         exit
       fi
@@ -509,7 +509,7 @@ usage() {
 # Ask for main menu
 ask_menu() {
   read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && perform_sys_check && echo "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
+  [[ "${INPUT}" == "Y" ]] && perform_sys_check && clear && echo "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
   [[ "${INPUT}" == "N" ]] && echo && exit
   echo "\nInvalid choice. Try again.\n"
   ask_menu
@@ -550,7 +550,7 @@ process_args() {
     --shortcuts|6)
     usage;;
     -v|--version|7)
-    echo "\nScript at ${BOLD}${SCRIPT_VER}${NORMAL}.\n";;
+    echo "\n>> ${BOLD}Script Version${NORMAL}\n\n${SCRIPT_VER}\n";;
     -dh|--disable-hibernation|8)
     disable_hibernation;;
     -rs|--restore-sleep|9)
