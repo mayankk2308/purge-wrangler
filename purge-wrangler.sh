@@ -98,6 +98,9 @@ SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
 SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
 
+# Support script(s)
+WEBDRIVER_SH="/usr/local/bin/webdriver.sh"
+
 # PlistBuddy Configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
 NDRV_PCI_TUN_CP=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
@@ -380,11 +383,32 @@ patch_tb() {
   end_patch
 }
 
+# Run webdriver.sh
+run_webdriver_installer() {
+  echo "${BOLD}Downloading webdriver.sh${NORMAL}..."
+  LATEST_WD_SCRIPT_INFO="$(curl -s https://api.github.com/repos/vulgo/webdriver.sh/releases/latest)"
+  LATEST_WD_RELEASE_VER="$(echo "${LATEST_WD_SCRIPT_INFO}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
+  [[ -z "${LATEST_WD_RELEASE_VER}" ]] && echo "Unable to fetch installer." && return
+  curl -s "https://raw.githubusercontent.com/vulgo/webdriver.sh/${LATEST_WD_RELEASE_VER}/webdriver.sh" > "${WEBDRIVER_SH}"
+  echo "Download complete. ${BOLD}Running...${NORMAL}"
+  [[ -s "${WEBDRIVER_SH}" ]] && chmod +x "${WEBDRIVER_SH}" && bash "${WEBDRIVER_SH}" && rm "${WEBDRIVER_SH}"
+}
+
+# Install NVIDIA Web Drivers
+install_web_drivers() {
+  [[ -f "${NVDA_PLIST_PATH}" ]] && return
+  read -p "Install NVIDIA Web Drivers (${BOLD}webdriver.sh${NORMAL})? [Y/N]: " INPUT
+  [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
+  [[ "${INPUT}" == "N" ]] && return
+  echo "\nInvalid option.\n" && install_web_drivers
+}
+
 # Patch for NVIDIA eGPUs
 patch_nv() {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for NVIDIA eGPUs.\n" && return
-  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "Please install ${BOLD}NVIDIA Web Drivers${NORMAL} before proceeding.\n" && return
+  install_web_drivers
+  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "${BOLD}NVIDIA Web Drivers${NORMAL} required, not installed.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
