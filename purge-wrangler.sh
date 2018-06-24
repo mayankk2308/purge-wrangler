@@ -57,8 +57,8 @@ EXEC_ERR=4
 UNKNOWN_SYSTEM_ERR=5
 
 # System information
-MACOS_VER=`sw_vers -productVersion`
-MACOS_BUILD=`sw_vers -buildVersion`
+MACOS_VER="$(sw_vers -productVersion)"
+MACOS_BUILD="$(sw_vers -buildVersion)"
 SYS_TB_VER=""
 
 # AppleGPUWrangler references
@@ -188,7 +188,7 @@ check_sys_extensions() {
 
 # Retrieve thunderbolt version
 retrieve_tb_ver() {
-  TB_VER=`ioreg | grep AppleThunderboltNHIType`
+  TB_VER="$(ioreg | grep AppleThunderboltNHIType)"
   [[ "${TB_VER}[@]" =~ "NHIType3" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"3 && return
   [[ "${TB_VER}[@]" =~ "NHIType2" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"2 && return
   [[ "${TB_VER}[@]" =~ "NHIType1" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"1 && return
@@ -303,14 +303,14 @@ write_manifest() {
   MANIFEST_STR="${MACOS_VER}\n${MACOS_BUILD}"
   if [[ -s "${BACKUP_AGC}" ]]
   then
-    UNPATCHED_AGW_KEXT_SHA=`shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }'`
-    PATCHED_AGW_KEXT_SHA=`shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }'`
+    UNPATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "$BACKUP_AGW_BIN" | awk '{ print $1 }')"
+    PATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "$AGW_BIN" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
   fi
   if [[ -s "${BACKUP_IOG}" ]]
   then
-    UNPATCHED_IOG_KEXT_SHA=`shasum -a 512 -b "$BACKUP_IOG_BIN" | awk '{ print $1 }'`
-    PATCHED_IOG_KEXT_SHA=`shasum -a 512 -b "$IOG_BIN" | awk '{ print $1 }'`
+    UNPATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "$BACKUP_IOG_BIN" | awk '{ print $1 }')"
+    PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "$IOG_BIN" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
   fi
   echo "${MANIFEST_STR}" > "${MANIFEST}"
@@ -329,7 +329,7 @@ backup_system() {
   echo "${BOLD}Backing up...${NORMAL}"
   if [[ -s "${BACKUP_AGC}" && -s "${MANIFEST}" ]]
   then
-    MANIFEST_MACOS_VER=`sed "1q;d" "${MANIFEST}"` && MANIFEST_MACOS_BUILD=`sed "2q;d" "${MANIFEST}"`
+    MANIFEST_MACOS_VER="$(sed "1q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "2q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
       echo "Backup already exists."
@@ -434,9 +434,9 @@ uninstall() {
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_IOG_HEX}"
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
-    [[ -f "${NVDA_PLIST_PATH}" && `cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible"` ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    [[ -f "${NVDA_PLIST_PATH}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
-    [[ `cat "${IONDRV_PLIST_PATH}" | grep -i "IOPCITunnelCompatible"` ]] && patch_plist "${IONDRV_PLIST_PATH}" "Delete" "${NDRV_PCI_TUN_CP}"
+    [[ "$(cat "${IONDRV_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${IONDRV_PLIST_PATH}" "Delete" "${NDRV_PCI_TUN_CP}"
   fi
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
   repair_permissions
@@ -458,9 +458,9 @@ first_time_setup() {
   [[ $BIN_CALL == 1 ]] && return
   SCRIPT_FILE="$(pwd)/$(echo "${SCRIPT}")"
   [[ "${SCRIPT}" == "${0}" ]] && SCRIPT_FILE="$(echo "${SCRIPT_FILE}" | cut -c 1-)"
-  SCRIPT_SHA=`shasum -a 512 -b "${SCRIPT_FILE}" | awk '{ print $1 }'`
+  SCRIPT_SHA="$(shasum -a 512 -b "${SCRIPT_FILE}" | awk '{ print $1 }')"
   BIN_SHA=""
-  [[ -s "${SCRIPT_BIN}" ]] && BIN_SHA=`shasum -a 512 -b "${SCRIPT_BIN}" | awk '{ print $1 }'`
+  [[ -s "${SCRIPT_BIN}" ]] && BIN_SHA="$(shasum -a 512 -b "${SCRIPT_BIN}" | awk '{ print $1 }')"
   [[ "${BIN_SHA}" == "${SCRIPT_SHA}" ]] && return
   echo "\n>> ${BOLD}System Management${NORMAL}\n\n${BOLD}Installing...${NORMAL}"
   [[ ! -z "${BIN_SHA}" ]] && rm "${SCRIPT_BIN}"
@@ -473,7 +473,7 @@ first_time_setup() {
 # Recovery logic
 recover_sys() {
   [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
-  MANIFEST_MACOS_VER=`sed "1q;d" "${MANIFEST}"` && MANIFEST_MACOS_BUILD=`sed "2q;d" "${MANIFEST}"`
+  MANIFEST_MACOS_VER="$(sed "1q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "2q;d" "${MANIFEST}")"
   echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
   [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
   echo "${BOLD}Recovering...${NORMAL}"
@@ -481,7 +481,7 @@ recover_sys() {
   rm -r "${IOG_PATH}"
   rm -r "${IONDRV_PATH}"
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
-  [[ -f "${NVDA_PLIST_PATH}" && `cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible"` ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+  [[ -f "${NVDA_PLIST_PATH}" && "$(cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
   repair_permissions
   echo "Recovery complete.\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
