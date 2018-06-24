@@ -4,14 +4,17 @@
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
 # Version: 4.0.0
-# PurgeWrangler 4 introduces @goalque's sweet new NVIDIA eGPU patch
-# and makes important codebase refinements.
+# PurgeWrangler 4 adds significant improvements to NVIDIA eGPU support and
+# deprecates @yifanlu's NVDAEGPUSupport kext for the first time (thanks to
+# @goalque at egpu.io). Other improvements include a refined codebase, new
+# simplified arguments parsing mechanism, and more system checks for macOS
+# for graceful termination of the script in case files are unavailable.
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
-#       (c) @mac_editor (+ @fricorico) at egpu.io
+#       © @mac_editor (+ @fricorico) at egpu.io
 # ----- New NVIDIA eGPU Patch
-#       (c) @goalque at egpu.io
+#       © @goalque at egpu.io
 # ----- TB Detection
 #       @owenrw at egpu.io
 # ----- Testing
