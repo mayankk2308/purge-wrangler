@@ -408,7 +408,7 @@ patch_nv() {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for NVIDIA eGPUs.\n" && return
   install_web_drivers
-  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "${BOLD}NVIDIA Web Drivers${NORMAL} required, not installed.\n" && return
+  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
@@ -564,7 +564,7 @@ process_args() {
     clear && echo ">> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}"
     provide_menu_selection;;
     *)
-    echo "\nInvalid argument.\n";;
+    echo "\nInvalid option.\n";;
   esac
 }
 
