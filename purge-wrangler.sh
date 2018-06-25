@@ -471,6 +471,14 @@ first_time_setup() {
 
 # ----- RECOVERY SYSTEM
 
+# Remove NVIDIA Web Drivers
+remove_web_drivers() {
+  read -p "\nRemove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+  [[ "${INPUT}" == "Y" ]] && echo "${BOLD}\nRemoving...${NORMAL}" && rm -r "${TP_EXT_PATH}NVDA"* "${TP_EXT_PATH}GeForce"* && echo "Drivers removed.\n"
+  [[ "${INPUT}" == "N" ]] && return
+  echo "\nInvalid option.\n" && install_web_drivers
+}
+
 # Recovery logic
 recover_sys() {
   [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
@@ -482,7 +490,11 @@ recover_sys() {
   rm -r "${IOG_PATH}"
   rm -r "${IONDRV_PATH}"
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
-  [[ -f "${NVDA_PLIST_PATH}" && "$(cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+  if [[ -f "${NVDA_PLIST_PATH}" ]]
+  then
+    [[ "$(cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    remove_web_drivers
+  fi
   repair_permissions
   echo "Recovery complete.\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
