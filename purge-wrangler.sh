@@ -6,10 +6,9 @@
 # Version: 4.0.0
 # PurgeWrangler 4 adds significant improvements to NVIDIA eGPU support and
 # deprecates @yifanlu's NVDAEGPUSupport kext for the first time (thanks to
-# @goalque at egpu.io). Other improvements include web driver installation,
-# a refined codebase, new simplified arguments parsing mechanism, and more
-# system checks for macOS for graceful termination of the script in case
-# files are unavailable.
+# @goalque at egpu.io). Other improvements include a refined codebase, new
+# simplified arguments parsing mechanism, and more system checks for macOS
+# for graceful termination of the script in case files are unavailable.
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -395,7 +394,6 @@ run_webdriver_installer() {
   DRIVER_VER=""
   OLD_DRIVER_VER=""
   INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
-  DRIVERS_DIR_HINT="NVWebDrivers.pkg"
   while [[ ! -z "${DRIVER_MACOS_BUILD}" ]]
   do
     DRIVER_MACOS_BUILD="$($PlistBuddy -c "Print :updates:${INDEX}:OS" "${WEBDRIVER_PLIST}" 2>/dev/null)"
@@ -423,7 +421,7 @@ install_web_drivers() {
   echo
   read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
-  [[ "${INPUT}" == "N" ]] && echo && return
+  [[ "${INPUT}" == "N" ]] && return
   echo "\nInvalid option.\n" && install_web_drivers
 }
 
@@ -442,7 +440,7 @@ patch_nv() {
   generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
   patch_plist "${IONDRV_PLIST_PATH}" "Add" "${NDRV_PCI_TUN_CP}" "true"
   patch_plist "${NVDA_PLIST_PATH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
-  [[ -d "${NVDA_EGPU_KEXT}" ]] && echo "${BOLD}NVDAEGPUSupport.kext${NORMAL} Detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo "Removal complete."
+  [[ -d "${NVDA_EGPU_KEXT}" ]] && echo "${BOLD}NVDAEGPUSupport.kext${NORMAL} detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo "Removal complete."
   end_patch
 }
 
@@ -501,9 +499,11 @@ remove_web_drivers() {
   read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   if [[ "${INPUT}" == "Y" ]]
   then
-    echo "\n${BOLD}Removing...${NORMAL}"
-    rm -r "${TP_EXT_PATH}NVDA"* "${TP_EXT_PATH}GeForce"* "/Library/PreferencePanes/NVIDIA Driver Manager.prefPane" 2>/dev/null
-    nvram -d nvda_drv && echo "Drivers removed.\n" && return
+    echo "\n${BOLD}Uninstalling drivers...${NORMAL}"
+    WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
+    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo "Could not find NVIDIA uninstaller.\n" && return
+    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 1>/dev/null
+    echo "Drivers uninstalled.\n" && return
   fi
   [[ "${INPUT}" == "N" ]] && echo && return
   echo "\nInvalid option.\n" && remove_web_drivers
