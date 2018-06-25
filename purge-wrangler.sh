@@ -406,7 +406,6 @@ run_webdriver_installer() {
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
   echo "Download complete.\n${BOLD}Installing...${NORMAL}"
   installer -target "/" -pkg "${INSTALLER_PKG}" 1>/dev/null
-  [[ -f "${NVDA_PLIST_PATH}" ]] && ${PlistBuddy} "Set :IOKitPersonalities:NVDAStartup:NVDARequiredOS string ${MACOS_BUILD}" "${NVDA_PLIST_PATH}"
   echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}"
   rm -r "${INSTALLER_PKG}"
   rm "${WEBDRIVER_PLIST}"
