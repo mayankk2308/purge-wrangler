@@ -6,9 +6,10 @@
 # Version: 4.0.0
 # PurgeWrangler 4 adds significant improvements to NVIDIA eGPU support and
 # deprecates @yifanlu's NVDAEGPUSupport kext for the first time (thanks to
-# @goalque at egpu.io). Other improvements include a refined codebase, new
-# simplified arguments parsing mechanism, and more system checks for macOS
-# for graceful termination of the script in case files are unavailable.
+# @goalque at egpu.io). Other improvements include web driver installation,
+# a refined codebase, new simplified arguments parsing mechanism, and more
+# system checks for macOS for graceful termination of the script in case
+# files are unavailable.
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -86,7 +87,7 @@ IOG_PATH="${EXT_PATH}IOGraphicsFamily.kext"
 SUB_IOG_PATH="/IOGraphicsFamily"
 IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
 TP_EXT_PATH="/Library/Extensions/"
-NVDA_STARTUP_PATH="{${TP_EXT_PATH}NVDAStartupWeb.kext"
+NVDA_STARTUP_PATH="${TP_EXT_PATH}NVDAStartupWeb.kext"
 NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
 
@@ -102,9 +103,6 @@ SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
 SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
 SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
-
-# Support script(s)
-WEBDRIVER_SH="/usr/local/bin/webdriver.sh"
 
 # PlistBuddy Configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
@@ -205,7 +203,7 @@ check_patch() {
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
   [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
-  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
+  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
@@ -385,21 +383,47 @@ patch_tb() {
 
 # Run webdriver.sh
 run_webdriver_installer() {
-  echo "${BOLD}Downloading webdriver.sh${NORMAL}..."
-  LATEST_WD_SCRIPT_INFO="$(curl -s https://api.github.com/repos/vulgo/webdriver.sh/releases/latest)"
-  LATEST_WD_RELEASE_VER="$(echo "${LATEST_WD_SCRIPT_INFO}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
-  [[ -z "${LATEST_WD_RELEASE_VER}" ]] && echo "Unable to fetch installer." && return
-  curl -s "https://raw.githubusercontent.com/vulgo/webdriver.sh/${LATEST_WD_RELEASE_VER}/webdriver.sh" > "${WEBDRIVER_SH}"
-  echo "Download complete. ${BOLD}Running...${NORMAL}"
-  [[ -s "${WEBDRIVER_SH}" ]] && chmod +x "${WEBDRIVER_SH}" && bash "${WEBDRIVER_SH}" && rm "${WEBDRIVER_SH}"
+  echo "${BOLD}Fetching webdriver information...${NORMAL}"
+  WEBDRIVER_DATA="$(curl -s "https://gfe.nvidia.com/mac-update")"
+  WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
+  [[ -z "${WEBDRIVER_DATA}" ]] && echo "\nCould not install web drivers." && return
+  echo "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
+  [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo "\nCould not extract web driver information." && return
+  INDEX=0
+  DRIVER_MACOS_BUILD="${MACOS_BUILD}"
+  DRIVER_DL=""
+  DRIVER_VER=""
+  OLD_DRIVER_VER=""
+  INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
+  DRIVERS_DIR_HINT="NVWebDrivers.pkg"
+  while [[ ! -z "${DRIVER_MACOS_BUILD}" ]]
+  do
+    DRIVER_MACOS_BUILD="$($PlistBuddy -c "Print :updates:${INDEX}:OS" "${WEBDRIVER_PLIST}" 2>/dev/null)"
+    [[ "${DRIVER_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && INDEX=$(( $INDEX + 1 )) && continue
+    DRIVER_DL="$($PlistBuddy -c "Print :updates:${INDEX}:downloadURL" "${WEBDRIVER_PLIST}" 2>/dev/null)"
+    DRIVER_VER="$($PlistBuddy -c "Print :updates:${INDEX}:version" "${WEBDRIVER_PLIST}" 2>/dev/null)"
+    [[ ! -z "${DRIVER_DL}" ]] && break
+    INDEX=$(( $INDEX + 1 ))
+  done
+  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}]." && return
+  [[ -f "${NVDA_PLIST_PATH}" ]] && OLD_DRIVER_VER="$($PlistBuddy -c "Print :CFBundleGetInfoString" "${NVDA_PLIST_PATH}" | awk '{ print $3 }' 2>/dev/null)"
+  [[ "${OLD_DRIVER_VER}" == "${DRIVER_VER}" ]] && echo "Latest compatible webdriver already installed." && return
+  echo "Information retrieved.\n${BOLD}Downloading Drivers (${DRIVER_VER})...${NORMAL}"
+  curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
+  echo "Download complete.\n${BOLD}Installing...${NORMAL}"
+  installer -target "/" -pkg "${INSTALLER_PKG}" 1>/dev/null
+  echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}"
+  rm -r "${INSTALLER_PKG}"
+  rm "${WEBDRIVER_PLIST}"
 }
 
 # Install NVIDIA Web Drivers
 install_web_drivers() {
   [[ -f "${NVDA_PLIST_PATH}" ]] && return
-  read -p "Install NVIDIA Web Drivers (${BOLD}webdriver.sh${NORMAL})? [Y/N]: " INPUT
+  echo
+  read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
-  [[ "${INPUT}" == "N" ]] && return
+  [[ "${INPUT}" == "N" ]] && echo && return
   echo "\nInvalid option.\n" && install_web_drivers
 }
 
@@ -473,10 +497,16 @@ first_time_setup() {
 
 # Remove NVIDIA Web Drivers
 remove_web_drivers() {
-  read -p "\nRemove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && echo "${BOLD}\nRemoving...${NORMAL}" && rm -r "${TP_EXT_PATH}NVDA"* "${TP_EXT_PATH}GeForce"* && echo "Drivers removed.\n"
-  [[ "${INPUT}" == "N" ]] && return
-  echo "\nInvalid option.\n" && install_web_drivers
+  echo
+  read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+  if [[ "${INPUT}" == "Y" ]]
+  then
+    echo "\n${BOLD}Removing...${NORMAL}"
+    rm -r "${TP_EXT_PATH}NVDA"* "${TP_EXT_PATH}GeForce"* "/Library/PreferencePanes/NVIDIA Driver Manager.prefPane" 2>/dev/null
+    nvram -d nvda_drv && echo "Drivers removed.\n" && return
+  fi
+  [[ "${INPUT}" == "N" ]] && echo && return
+  echo "\nInvalid option.\n" && remove_web_drivers
 }
 
 # Recovery logic
@@ -492,7 +522,7 @@ recover_sys() {
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
   if [[ -f "${NVDA_PLIST_PATH}" ]]
   then
-    [[ "$(cat "$NVDA_PLIST_PATH" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
   repair_permissions
