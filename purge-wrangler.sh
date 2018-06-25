@@ -405,8 +405,8 @@ run_webdriver_installer() {
   echo "Information retrieved.\n${BOLD}Downloading Drivers (${DRIVER_VER})...${NORMAL}"
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
   echo "Download complete.\n${BOLD}Installing...${NORMAL}"
-  installer -target "/" -pkg "${INSTALLER_PKG}" 1>/dev/null
-  echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}"
+  INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
+  [[ -z "${INSTALLER_ERR}" ]] && echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo "Installation failed."
   rm -r "${INSTALLER_PKG}"
   rm "${WEBDRIVER_PLIST}"
 }
