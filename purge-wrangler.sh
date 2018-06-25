@@ -392,24 +392,21 @@ run_webdriver_installer() {
   DRIVER_MACOS_BUILD="${MACOS_BUILD}"
   DRIVER_DL=""
   DRIVER_VER=""
-  OLD_DRIVER_VER=""
   INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
   while [[ ! -z "${DRIVER_MACOS_BUILD}" ]]
   do
-    DRIVER_MACOS_BUILD="$($PlistBuddy -c "Print :updates:${INDEX}:OS" "${WEBDRIVER_PLIST}" 2>/dev/null)"
-    [[ "${DRIVER_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && INDEX=$(( $INDEX + 1 )) && continue
     DRIVER_DL="$($PlistBuddy -c "Print :updates:${INDEX}:downloadURL" "${WEBDRIVER_PLIST}" 2>/dev/null)"
     DRIVER_VER="$($PlistBuddy -c "Print :updates:${INDEX}:version" "${WEBDRIVER_PLIST}" 2>/dev/null)"
-    [[ ! -z "${DRIVER_DL}" ]] && break
-    INDEX=$(( $INDEX + 1 ))
+    DRIVER_MACOS_BUILD="$($PlistBuddy -c "Print :updates:${INDEX}:OS" "${WEBDRIVER_PLIST}" 2>/dev/null)"
+    [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
+    (( INDEX++ ))
   done
-  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}]." && return
-  [[ -f "${NVDA_PLIST_PATH}" ]] && OLD_DRIVER_VER="$($PlistBuddy -c "Print :CFBundleGetInfoString" "${NVDA_PLIST_PATH}" | awk '{ print $3 }' 2>/dev/null)"
-  [[ "${OLD_DRIVER_VER}" == "${DRIVER_VER}" ]] && echo "Latest compatible webdriver already installed." && return
+  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}].\n" && return
   echo "Information retrieved.\n${BOLD}Downloading Drivers (${DRIVER_VER})...${NORMAL}"
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
   echo "Download complete.\n${BOLD}Installing...${NORMAL}"
   installer -target "/" -pkg "${INSTALLER_PKG}" 1>/dev/null
+  [[ -f "${NVDA_PLIST_PATH}" ]] && ${PlistBuddy} "Set :IOKitPersonalities:NVDAStartup:NVDARequiredOS string ${MACOS_BUILD}" "${NVDA_PLIST_PATH}"
   echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}"
   rm -r "${INSTALLER_PKG}"
   rm "${WEBDRIVER_PLIST}"
