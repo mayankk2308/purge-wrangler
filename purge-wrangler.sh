@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.0.0
+# Version: 4.0.1
 # PurgeWrangler 4 adds significant improvements to NVIDIA eGPU support and
 # deprecates @yifanlu's NVDAEGPUSupport kext for the first time (thanks to
 # @goalque at egpu.io). Other improvements include a refined codebase, new
@@ -42,7 +42,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -283,7 +283,7 @@ generate_new_bin() {
   SCRATCH_BIN="${2}"
   TARGET_BIN="${3}"
   xxd -r -p "${SCRATCH_HEX}" "${SCRATCH_BIN}"
-  rm "${TARGET_BIN}" && rm "${SCRATCH_HEX}" && mv "${SCRATCH_BIN}" "${TARGET_BIN}"
+  rm "${TARGET_BIN}" "${SCRATCH_HEX}" && mv "${SCRATCH_BIN}" "${TARGET_BIN}"
 }
 
 # Primary patching mechanism
