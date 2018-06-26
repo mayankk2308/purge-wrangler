@@ -96,6 +96,7 @@ BACKUP_KEXT_DIR="${SUPPORT_DIR}Kexts/"
 BACKUP_AGC="${BACKUP_KEXT_DIR}AppleGraphicsControl.kext"
 BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
 BACKUP_IOG="${BACKUP_KEXT_DIR}IOGraphicsFamily.kext"
+BACKUP_IONDRV="${BACKUP_KEXT_DIR}IONDRVSupport.kext"
 BACKUP_IOG_BIN="${BACKUP_IOG}${SUB_IOG_PATH}"
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
 SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
@@ -332,8 +333,8 @@ backup_system() {
       echo "Backup already exists."
     else
       echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
-      rm -r "${AGC_PATH}" && rm -r "${IOG_PATH}" && rm -r "${IONDRV_PATH}"
-      if [[ "$TB_PATCH_STATUS" == 1 || "$NV_PATCH_STATUS" == 1 ]]
+      rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" 2>/dev/null
+      if [[ $TB_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
@@ -512,9 +513,7 @@ recover_sys() {
   echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
   [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
   echo "${BOLD}Recovering...${NORMAL}"
-  rm -r "${AGC_PATH}"
-  rm -r "${IOG_PATH}"
-  rm -r "${IONDRV_PATH}"
+  rm -r "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}"
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
   if [[ -f "${NVDA_PLIST_PATH}" ]]
   then
