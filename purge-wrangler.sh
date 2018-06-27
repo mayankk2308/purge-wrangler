@@ -3,12 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.0.1
-# PurgeWrangler 4 adds significant improvements to NVIDIA eGPU support and
-# deprecates @yifanlu's NVDAEGPUSupport kext for the first time (thanks to
-# @goalque at egpu.io). Other improvements include a refined codebase, new
-# simplified arguments parsing mechanism, and more system checks for macOS
-# for graceful termination of the script in case files are unavailable.
+# Version: 4.0.2
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -42,7 +37,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="1"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -298,13 +293,14 @@ generic_patcher() {
 
 # Write manifest file
 write_manifest() {
-  MANIFEST_STR="${MACOS_VER}\n${MACOS_BUILD}"
+  MANIFEST_STR=""
   if [[ -s "${BACKUP_AGC}" ]]
   then
     UNPATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_AGW_BIN}" | awk '{ print $1 }')"
     PATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${AGW_BIN}" | awk '{ print $1 }')"
-    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
+    MANIFEST_STR="${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
   fi
+  MANIFEST_STR="${MANIFEST_STR}\n${MACOS_VER}\n${MACOS_BUILD}"
   if [[ -s "${BACKUP_IOG}" ]]
   then
     UNPATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_IOG_BIN}" | awk '{ print $1 }')"
@@ -327,7 +323,7 @@ backup_system() {
   echo "${BOLD}Backing up...${NORMAL}"
   if [[ -s "${BACKUP_AGC}" && -s "${MANIFEST}" ]]
   then
-    MANIFEST_MACOS_VER="$(sed "1q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "2q;d" "${MANIFEST}")"
+    MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
       echo "Backup already exists."
@@ -509,7 +505,7 @@ remove_web_drivers() {
 # Recovery logic
 recover_sys() {
   [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
-  MANIFEST_MACOS_VER="$(sed "1q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "2q;d" "${MANIFEST}")"
+  MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
   [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
   echo "${BOLD}Recovering...${NORMAL}"
