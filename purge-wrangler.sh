@@ -103,8 +103,8 @@ AMD_PLIST_SUBPATH="/Contents/Info.plist"
 
 ## AMDRadeon4000HWServices Plist Data
 AMD_4000_SERVICES_TUN_KEY=":IOKitPersonalities:AMD\ Radeon\ X4000\ CI\ Services:IOPCITunnelCompatible bool"
-AMD_4000_SERVICES_PCI_MATCH_KEY=":IOKitPersonalities:AMD\ Radeon\ X4000\ CI\ Services:IOPCIMatch string"
-AMD_4000_SERVICE_PCI_MATCH_VAL="0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002 0x67B01002 0x67B11002"
+AMD_4000_SERVICES_PCI_MATCH_KEY=":IOKitPersonalities:AMD\ Radeon\ X4000\ CI\ Services:IOPCIMatch"
+AMD_4000_SERVICES_PCI_MATCH_VAL="0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002 0x67B01002 0x67B11002"
 
 ## AMDRadeonX4000 Plist Data
 AMD_X4000_ACCELERATORS=("Baffin" "Bonaire" "Fiji" "Hawaii" "Pitcairn" "Tahiti" "Tonga")
@@ -118,9 +118,9 @@ AMD_ATI_WRANGLER_PCI_MATCH_VALS=("0x67901002 0x67981002 0x679A1002 0x679E1002 0x
 "0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002 0x67B01002 0x67B11002" \
 "0x69201002 0x69211002 0x69301002 0x69381002 0x69391002 0x73001002 0x730F1002")
 AMD_ATI_WRANGLER_TUN_KEY=":IOKitPersonalities:AtiGpuWrangler:IOPCITunnelCompatible bool"
-AMD_ATI_WRANGLER_PCI_MATCH_KEY=":IOKitPersonalities:AtiGpuWrangler:IOPCIMatch string"
-AMD_CONTROLLER_TUN_KEY=":IOKitPersonalities:Controller:IOPCITunnelCompatible string"
-AMD_CONTROLLER_PCI_MATCH_KEY=":IOKitPersonalities:Controller:IOPCIMatch string"
+AMD_ATI_WRANGLER_PCI_MATCH_KEY=":IOKitPersonalities:AtiGpuWrangler:IOPCIMatch"
+AMD_CONTROLLER_TUN_KEY=":IOKitPersonalities:Controller:IOPCITunnelCompatible bool"
+AMD_CONTROLLER_PCI_MATCH_KEY=":IOKitPersonalities:Controller:IOPCIMatch"
 
 # Backup paths
 SUPPORT_DIR="/Library/Application Support/Purge-Wrangler/"
@@ -368,7 +368,7 @@ execute_backup() {
   rsync -r "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -r "${AMD_4000_SERVICES}" "${BACKUP_KEXT_DIR}"
   rsync -r "${AMD_4000_ACCELERATOR}" "${BACKUP_KEXT_DIR}"
-  for KEXT in ${AMD_LEGACY_DRV_KEXTS}
+  for KEXT in ${AMD_LEGACY_DRV_KEXTS[@]}
   do
     [[ ! -d "${KEXT}" ]] && continue
     rsync -r "${KEXT}" "${BACKUP_KEXT_DIR}"
@@ -410,7 +410,7 @@ backup_system() {
 end_patch() {
   repair_permissions
   write_manifest
-  echo "${BOLD}Patch complete.\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo "${BOLD}Patch complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # Patch specified plist
@@ -431,6 +431,20 @@ patch_tb() {
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
+  patch_plist "${AMD_4000_SERVICES}${AMD_PLIST_SUBPATH}" "Add" "${AMD_4000_SERVICES_TUN_KEY}" "true"
+  patch_plist "${AMD_4000_SERVICES}${AMD_PLIST_SUBPATH}" "Set" "${AMD_4000_SERVICES_PCI_MATCH_KEY}" "${AMD_4000_SERVICES_PCI_MATCH_VAL}"
+  for (( INDEX=0; INDEX<${#AMD_X4000_ACCELERATORS[@]}; INDEX++ ))
+  do
+    patch_plist "${AMD_4000_ACCELERATOR}${AMD_PLIST_SUBPATH}" "Add" ":IOKitPersonalities:AMD${AMD_X4000_ACCELERATORS[${INDEX}]}GraphicsAccelerator:IOPCITunnelCompatible bool" "true"
+    patch_plist "${AMD_4000_ACCELERATOR}${AMD_PLIST_SUBPATH}" "Set" ":IOKitPersonalities:AMD${AMD_X4000_ACCELERATORS[${INDEX}]}GraphicsAccelerator:IOPCIMatch" "${AMD_X4000_ACCELERATORS_PCI_MATCH_VALS[$INDEX]}"
+  done
+  for (( INDEX=0; INDEX<${#AMD_LEGACY_DRV_KEXTS[@]}; INDEX++ ))
+  do
+    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Add" "${AMD_ATI_WRANGLER_TUN_KEY}" "true"
+    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Set" "${AMD_ATI_WRANGLER_PCI_MATCH_KEY}" "${AMD_ATI_WRANGLER_PCI_MATCH_VALS[${INDEX}]}"
+    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Add" "${AMD_CONTROLLER_TUN_KEY}" "true"
+    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Set" "${AMD_CONTROLLER_PCI_MATCH_KEY}" "${AMD_ATI_WRANGLER_PCI_MATCH_VALS[${INDEX}]}"
+  done
   end_patch
 }
 
@@ -494,6 +508,16 @@ patch_nv() {
   end_patch
 }
 
+# Delete AMD drivers
+delete_amd_drivers() {
+  rm -r "${AMD_4000_SERVICES}" "${AMD_4000_ACCELERATOR}" 2>/dev/null
+  for KEXT in ${AMD_LEGACY_DRV_KEXTS[@]}
+  do
+    [[ ! -d "${KEXT}" ]] && continue
+    rm -r "${KEXT}" 2>/dev/null
+  done
+}
+
 # In-place re-patcher
 uninstall() {
   [[ ! -d "${SUPPORT_DIR}" ]] && echo "\n${BOLD}No installation found${NORMAL}. No action taken.\n" && return
@@ -501,7 +525,12 @@ uninstall() {
   [[ $TB_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo "No patches detected. Uninstallation aborted. System clean.\n" && return
   echo "${BOLD}Uninstalling...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
-  [[ $TB_PATCH_STATUS == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
+  if [[ $TB_PATCH_STATUS == 1 ]]
+  then
+    generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
+    [[ -d "${BACKUP_KEXT_DIR}" ]] && delete_amd_drivers
+    rsync -r "${BACKUP_KEXT_DIR}"AMD* "${EXT_PATH}"
+  fi
   if [[ $NV_PATCH_STATUS == 1 ]]
   then
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
@@ -514,7 +543,7 @@ uninstall() {
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
   repair_permissions
   write_manifest
-  echo "Uninstallation Complete.\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # ----- BINARY MANAGER
@@ -561,25 +590,21 @@ remove_web_drivers() {
 
 # Recovery logic
 recover_sys() {
-  [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
+  [[ ! -s "${BACKUP_KEXT_DIR}" && ! -e "${MANIFEST}" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
   [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
   echo "${BOLD}Recovering...${NORMAL}"
-  rm -r "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${AMD_4000_SERVICES}" "${AMD_4000_ACCELERATOR}"
-  for KEXT in ${AMD_LEGACY_DRV_KEXTS}
-  do
-    [[ ! -d "${KEXT}" ]] && continue
-    rm -r "${KEXT}"
-  fi
+  rm -r "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}"
+  delete_amd_drivers
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
-  if [[ -f "${NVDA_PLIST_PATH}" ]]
+  if [[ -f "${NVDA_PLIST_PATH}" && $NV_PATCH_STATUS == 1 ]]
   then
     [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
   repair_permissions
-  echo "Recovery complete.\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # ----- USER INTERFACE
