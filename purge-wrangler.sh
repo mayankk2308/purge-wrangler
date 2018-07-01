@@ -8,7 +8,7 @@
 # Invaluable Contributors
 # ----- TB1/2 Patch
 #       © @mac_editor (+ @fricorico) at egpu.io
-# ----- Legacy AMD GPUs
+# ----- Legacy AMD GPUs (automate-eGPU.kext)
 #       © @goalque at egpu.io
 # ----- New NVIDIA eGPU Patch
 #       © @goalque at egpu.io
@@ -72,7 +72,7 @@ PATCHED_PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6571"
 TB_PATCH_STATUS=""
 NV_PATCH_STATUS=""
 
-# Kext locations
+# General kext paths
 EXT_PATH="/System/Library/Extensions/"
 TP_EXT_PATH="/Library/Extensions/"
 
@@ -92,62 +92,39 @@ IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
 
 ## NVDAStartup
 NVDA_STARTUP_PATH="${TP_EXT_PATH}NVDAStartupWeb.kext"
-NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
 
-## AMD Legacy Drivers
-AMD_LEGACY_DRV_KEXTS=("${EXT_PATH}AMD7000Controller.kext" "${EXT_PATH}AMD8000Controller.kext" "${EXT_PATH}AMD9000Controller.kext")
-AMD_4000_SERVICES="${EXT_PATH}AMDRadeonX4000HWServices.kext"
-AMD_4000_ACCELERATOR="${EXT_PATH}AMDRadeonX4000.kext"
-AMD_PLIST_SUBPATH="/Contents/Info.plist"
+## NVDAEGPUSupport
+NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 
-## AMDRadeon4000HWServices Plist Data
-AMD_4000_SERVICES_TUN_KEY=":IOKitPersonalities:AMD\ Radeon\ X4000\ CI\ Services:IOPCITunnelCompatible bool"
-AMD_4000_SERVICES_PCI_MATCH_KEY=":IOKitPersonalities:AMD\ Radeon\ X4000\ CI\ Services:IOPCIMatch"
-AMD_4000_SERVICES_PCI_MATCH_VAL="0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002 0x67B01002 0x67B11002"
+## automate-eGPU
+AUTOMATE_EGPU_DL="https://egpu.io/wp-content/uploads/2018/04/automate-eGPU.kext_-1.zip"
+AUTOMATE_EGPU_ZIP="${TP_EXT_PATH}automate-eGPU.zip"
+AUTOMATE_EGPU_KEXT="${TP_EXT_PATH}automate-eGPU.kext"
 
-## AMDRadeonX4000 Plist Data
-AMD_X4000_ACCELERATORS=("Baffin" "Bonaire" "Fiji" "Hawaii" "Pitcairn" "Tahiti" "Tonga")
-AMD_X4000_ACCELERATORS_PCI_MATCH_VALS=("0x67E01002 0x67E31002 0x67E81002 0x67EB1002 0x67EF1002 0x67FF1002 0x67E11002 0x67E71002 0x67E91002" \
-"0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002" "0x73001002 0x730F1002" \
-"0x67B01002" "0x68001002 0x68011002 0x68061002 0x68081002 0x68101002 0x68181002 0x68191002" \
-"0x67901002 0x67981002 0x679A1002 0x679E1002 0x67801002" "0x69201002 0x69211002 0x69301002 0x69381002 0x69391002")
-
-## AMD Driver Plist Data (7000, 8000, 9000)
-AMD_ATI_WRANGLER_PCI_MATCH_VALS=("0x67901002 0x67981002 0x679A1002 0x679E1002 0x67801002 0x68201002 0x68211002 0x68231002 0x68251002 0x68271002 0x682B1002 0x682D1002 0x682F1002 0x68351002 0x68391002 0x683B1002 0x683D1002 0x683F1002 0x68001002 0x68011002 0x68061002 0x68081002 0x68101002 0x68181002 0x68191002" \
-"0x66401002 0x66411002 0x66461002 0x66471002 0x66501002 0x66511002 0x665C1002 0x665D1002 0x67B01002 0x67B11002" \
-"0x69201002 0x69211002 0x69301002 0x69381002 0x69391002 0x73001002 0x730F1002")
-AMD_ATI_WRANGLER_TUN_KEY=":IOKitPersonalities:AtiGpuWrangler:IOPCITunnelCompatible bool"
-AMD_ATI_WRANGLER_PCI_MATCH_KEY=":IOKitPersonalities:AtiGpuWrangler:IOPCIMatch"
-AMD_CONTROLLER_TUN_KEY=":IOKitPersonalities:Controller:IOPCITunnelCompatible bool"
-AMD_CONTROLLER_PCI_MATCH_KEY=":IOKitPersonalities:Controller:IOPCIMatch"
-
-# Backup paths
+# General backup path
 SUPPORT_DIR="/Library/Application Support/Purge-Wrangler/"
 BACKUP_KEXT_DIR="${SUPPORT_DIR}Kexts/"
 
 ## AppleGPUWrangler
 BACKUP_AGC="${BACKUP_KEXT_DIR}AppleGraphicsControl.kext"
 BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
-SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
-SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
 
 ## IOGraphicsFamily
 BACKUP_IOG="${BACKUP_KEXT_DIR}IOGraphicsFamily.kext"
 BACKUP_IOG_BIN="${BACKUP_IOG}${SUB_IOG_PATH}"
-SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
-SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
 
 ## IONDRVSupport
 BACKUP_IONDRV="${BACKUP_KEXT_DIR}IONDRVSupport.kext"
 
-## AMD Legacy Backup Drivers
-BACKUP_AMD_LEGACY_DRV_KEXTS=("${BACKUP_KEXT_DIR}AMD7000Controller.kext" "${BACKUP_KEXT_DIR}AMD8000Controller.kext" "${BACKUP_KEXT_DIR}AMD9000Controller.kext")
-BACKUP_AMD_4000_SERVICES="${BACKUP_KEXT_DIR}AMDRadeonX4000HWServices.kext"
-BACKUP_AMD_4000_ACCELERATOR="${BACKUP_KEXT_DIR}AMDRadeonX4000.kext"
-
 ## Manifest
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
+
+# Hexfiles & binaries
+SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
+SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
+SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
+SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
 
 # PlistBuddy Configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
@@ -247,8 +224,8 @@ retrieve_tb_ver() {
 check_patch() {
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
-  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
-  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && -f "${NVDA_PLIST_PATH}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
+  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
+  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
@@ -366,13 +343,6 @@ execute_backup() {
   rsync -r "${AGC_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -r "${IOG_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -r "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
-  rsync -r "${AMD_4000_SERVICES}" "${BACKUP_KEXT_DIR}"
-  rsync -r "${AMD_4000_ACCELERATOR}" "${BACKUP_KEXT_DIR}"
-  for KEXT in ${AMD_LEGACY_DRV_KEXTS[@]}
-  do
-    [[ ! -d "${KEXT}" ]] && continue
-    rsync -r "${KEXT}" "${BACKUP_KEXT_DIR}"
-  done
 }
 
 # Backup procedure
@@ -386,7 +356,7 @@ backup_system() {
       echo "Backup already exists."
     else
       echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
-      rm -r "${BACKUP_KEXT_DIR}"* 2>/dev/null
+      rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" 2>/dev/null
       if [[ $TB_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
@@ -419,38 +389,40 @@ patch_plist() {
   COMMAND="${2}"
   KEY="${3}"
   VALUE="${4}"
-  $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}" 2>/dev/null
+  $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}"
+}
+
+# Install automate-eGPU.kext
+run_legacy_kext_installer() {
+  echo "${BOLD}Downloading automate-eGPU...${NORMAL}"
+  curl -s -o "${AUTOMATE_EGPU_ZIP}" "${AUTOMATE_EGPU_DL}"
+  echo "Download complete.\n${BOLD}Installing...${NORMAL}"
+  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
+  unzip -d "${TP_EXT_PATH}" "${AUTOMATE_EGPU_ZIP}" 1>/dev/null 2>&1
+  rm "${AUTOMATE_EGPU_ZIP}"
+  echo "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
+}
+
+# Prompt automate-eGPU.kext install
+install_legacy_kext() {
+  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && return
+  echo
+  read -p "Enable ${BOLD}Legacy AMD eGPUs${NORMAL}? [Y/N]: " INPUT
+  [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
+  [[ "${INPUT}" == "N" ]] && echo && return
+  echo "\nInvalid option.\n" && install_legacy_kext
 }
 
 # Patch TB1/2 block
 patch_tb() {
   echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}"3 ]]
-  then
-    echo
-    read -p "Enable ${BOLD}legacy AMD eGPUs${NORMAL}? [Y/N]: " INPUT
-    echo
-    [[ "${INPUT}" != "Y" ]] && echo "Modern AMD eGPUs are already compatible with this Mac.\n" && return
-  fi
+  install_legacy_kext
+  [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]] && echo "No thunderbolt patch required for this Mac.\n" && return
   [[ $TB_PATCH_STATUS == 1 ]] && echo "System has already been patched for AMD eGPUs.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
-  patch_plist "${AMD_4000_SERVICES}${AMD_PLIST_SUBPATH}" "Add" "${AMD_4000_SERVICES_TUN_KEY}" "true"
-  patch_plist "${AMD_4000_SERVICES}${AMD_PLIST_SUBPATH}" "Set" "${AMD_4000_SERVICES_PCI_MATCH_KEY}" "${AMD_4000_SERVICES_PCI_MATCH_VAL}"
-  for (( INDEX=0; INDEX<${#AMD_X4000_ACCELERATORS[@]}; INDEX++ ))
-  do
-    patch_plist "${AMD_4000_ACCELERATOR}${AMD_PLIST_SUBPATH}" "Add" ":IOKitPersonalities:AMD${AMD_X4000_ACCELERATORS[${INDEX}]}GraphicsAccelerator:IOPCITunnelCompatible bool" "true"
-    patch_plist "${AMD_4000_ACCELERATOR}${AMD_PLIST_SUBPATH}" "Set" ":IOKitPersonalities:AMD${AMD_X4000_ACCELERATORS[${INDEX}]}GraphicsAccelerator:IOPCIMatch" "${AMD_X4000_ACCELERATORS_PCI_MATCH_VALS[$INDEX]}"
-  done
-  for (( INDEX=0; INDEX<${#AMD_LEGACY_DRV_KEXTS[@]}; INDEX++ ))
-  do
-    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Add" "${AMD_ATI_WRANGLER_TUN_KEY}" "true"
-    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Set" "${AMD_ATI_WRANGLER_PCI_MATCH_KEY}" "${AMD_ATI_WRANGLER_PCI_MATCH_VALS[${INDEX}]}"
-    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Add" "${AMD_CONTROLLER_TUN_KEY}" "true"
-    patch_plist "${AMD_LEGACY_DRV_KEXTS[${INDEX}]}${AMD_PLIST_SUBPATH}" "Set" "${AMD_CONTROLLER_PCI_MATCH_KEY}" "${AMD_ATI_WRANGLER_PCI_MATCH_VALS[${INDEX}]}"
-  done
   end_patch
 }
 
@@ -514,16 +486,6 @@ patch_nv() {
   end_patch
 }
 
-# Delete AMD drivers
-delete_amd_drivers() {
-  rm -r "${AMD_4000_SERVICES}" "${AMD_4000_ACCELERATOR}" 2>/dev/null
-  for KEXT in ${AMD_LEGACY_DRV_KEXTS[@]}
-  do
-    [[ ! -d "${KEXT}" ]] && continue
-    rm -r "${KEXT}" 2>/dev/null
-  done
-}
-
 # In-place re-patcher
 uninstall() {
   [[ ! -d "${SUPPORT_DIR}" ]] && echo "\n${BOLD}No installation found${NORMAL}. No action taken.\n" && return
@@ -534,8 +496,7 @@ uninstall() {
   if [[ $TB_PATCH_STATUS == 1 ]]
   then
     generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
-    [[ -d "${BACKUP_KEXT_DIR}" ]] && delete_amd_drivers
-    rsync -r "${BACKUP_KEXT_DIR}"AMD* "${EXT_PATH}"
+    [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   fi
   if [[ $NV_PATCH_STATUS == 1 ]]
   then
@@ -596,15 +557,15 @@ remove_web_drivers() {
 
 # Recovery logic
 recover_sys() {
-  [[ ! -s "${BACKUP_KEXT_DIR}" && ! -e "${MANIFEST}" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
+  [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
   [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
   echo "${BOLD}Recovering...${NORMAL}"
   rm -r "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}"
-  delete_amd_drivers
+  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
-  if [[ -f "${NVDA_PLIST_PATH}" && $NV_PATCH_STATUS == 1 ]]
+  if [[ -f "${NVDA_PLIST_PATH}" ]]
   then
     [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
