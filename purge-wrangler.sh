@@ -247,7 +247,7 @@ retrieve_tb_ver() {
 check_patch() {
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
-  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
+  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && -f "${NVDA_PLIST_PATH}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
@@ -425,7 +425,13 @@ patch_plist() {
 # Patch TB1/2 block
 patch_tb() {
   echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}"3 ]] && echo "This mac does not require a thunderbolt patch.\n" && return
+  if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}"3 ]]
+  then
+    echo
+    read -p "Enable ${BOLD}legacy AMD eGPUs${NORMAL}? [Y/N]: " INPUT
+    echo
+    [[ "${INPUT}" != "Y" ]] && echo "Modern AMD eGPUs are already compatible with this Mac.\n" && return
+  fi
   [[ $TB_PATCH_STATUS == 1 ]] && echo "System has already been patched for AMD eGPUs.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
