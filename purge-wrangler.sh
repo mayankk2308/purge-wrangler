@@ -3,11 +3,13 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.0.2
+# Version: 4.1.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
 #       © @mac_editor (+ @fricorico) at egpu.io
+# ----- Legacy AMD GPUs
+#       © @goalque at egpu.io
 # ----- New NVIDIA eGPU Patch
 #       © @goalque at egpu.io
 # ----- TB Detection
@@ -37,7 +39,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="2"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -198,7 +200,7 @@ check_patch() {
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
   [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
-  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
+  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
