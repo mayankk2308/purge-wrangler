@@ -69,7 +69,7 @@ PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6564"
 PATCHED_PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6571"
 
 # Patch status indicators
-TB_PATCH_STATUS=""
+AMD_PATCH_STATUS=""
 NV_PATCH_STATUS=""
 
 # General kext paths
@@ -101,6 +101,7 @@ NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 AUTOMATE_EGPU_DL="https://egpu.io/wp-content/uploads/2018/04/automate-eGPU.kext_-1.zip"
 AUTOMATE_EGPU_ZIP="${TP_EXT_PATH}automate-eGPU.zip"
 AUTOMATE_EGPU_KEXT="${TP_EXT_PATH}automate-eGPU.kext"
+DID_INSTALL_LEGACY_KEXT=0
 
 # General backup path
 SUPPORT_DIR="/Library/Application Support/Purge-Wrangler/"
@@ -121,10 +122,10 @@ BACKUP_IONDRV="${BACKUP_KEXT_DIR}IONDRVSupport.kext"
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
 
 # Hexfiles & binaries
-SCRATCH_AGW_HEX="${SUPPORT_DIR}AppleGPUWrangler.hex"
-SCRATCH_AGW_BIN="${SUPPORT_DIR}AppleGPUWrangler.bin"
-SCRATCH_IOG_HEX="${SUPPORT_DIR}IOGraphicsFamily.hex"
-SCRATCH_IOG_BIN="${SUPPORT_DIR}IOGraphicsFamily.bin"
+SCRATCH_AGW_HEX=".AppleGPUWrangler.hex"
+SCRATCH_AGW_BIN=".AppleGPUWrangler.bin"
+SCRATCH_IOG_HEX=".IOGraphicsFamily.hex"
+SCRATCH_IOG_BIN=".IOGraphicsFamily.bin"
 
 # PlistBuddy Configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
@@ -208,7 +209,7 @@ check_macos_version() {
 
 # Ensure presence of system extensions
 check_sys_extensions() {
-  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo "\nTarget kexts unavailable. Unsupported system.\n" && exit $UNKNOWN_SYSTEM_ERR
+  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
 }
 
 # Retrieve thunderbolt version
@@ -222,26 +223,41 @@ retrieve_tb_ver() {
 
 # Patch check
 check_patch() {
+  [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=-1 && NV_PATCH_STATUS=-1 && return
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
-  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
+  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 || -d "${AUTOMATE_EGPU_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
 check_patch_status() {
   echo "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  [[ $TB_PATCH_STATUS == 0 ]] && echo "${BOLD}Thunderbolt Override${NORMAL}: Not Detected" || echo "${BOLD}Thunderbolt Override${NORMAL}: Detected"
-  [[ $NV_PATCH_STATUS == 0 ]] && echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n" || echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n"
+  case $AMD_PATCH_STATUS in
+    0)
+    echo "${BOLD}AMD Patch${NORMAL}: Not Detected";;
+    1)
+    echo "${BOLD}AMD Patch${NORMAL}: Detected";;
+    -1)
+    echo "${BOLD}AMD Patch${NORMAL}: Unknown";;
+  esac
+  case $NV_PATCH_STATUS in
+    0)
+    echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n";;
+    1)
+    echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n";;
+    -1)
+    echo "${BOLD}NVIDIA Patch${NORMAL}: Unknown\n";;
+  esac
 }
 
 # Cumulative system check
 perform_sys_check() {
   check_sip
   check_macos_version
-  check_sys_extensions
   retrieve_tb_ver
   elevate_privileges
+  check_sys_extensions
   check_patch
 }
 
@@ -274,7 +290,7 @@ restore_sleep() {
 
 # Rebuild kernel cache
 invoke_kext_caching() {
-  echo "${BOLD}Rebuilding kext cache...${NORMAL}"
+  echo "${BOLD}Rebuilding caches...${NORMAL}"
   touch "${EXT_PATH}" && touch "${TP_EXT_PATH}"
   kextcache -q -update-volume /
   echo "Rebuild complete."
@@ -286,7 +302,7 @@ repair_permissions() {
   chmod 755 "${AGW_BIN}" && chmod 755 "${IOG_BIN}"
   chown -R root:wheel "${AGC_PATH}" && chown -R root:wheel "${IOG_PATH}" && chown -R root:wheel "${IONDRV_PATH}"
   [[ -d "${NVDA_STARTUP_PATH}" ]] && chown -R root:wheel "${NVDA_STARTUP_PATH}"
-  echo "Permissions set."
+  echo "Permissions repaired."
   invoke_kext_caching
 }
 
@@ -320,6 +336,7 @@ generic_patcher() {
 
 # Write manifest file
 write_manifest() {
+  [[ ! -d "${SUPPORT_DIR}" ]] && return
   MANIFEST_STR=""
   if [[ -s "${BACKUP_AGC}" ]]
   then
@@ -340,9 +357,9 @@ write_manifest() {
 # Primary procedure
 execute_backup() {
   mkdir -p "${BACKUP_KEXT_DIR}"
-  rsync -r "${AGC_PATH}" "${BACKUP_KEXT_DIR}"
-  rsync -r "${IOG_PATH}" "${BACKUP_KEXT_DIR}"
-  rsync -r "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
+  rsync -rt "${AGC_PATH}" "${BACKUP_KEXT_DIR}"
+  rsync -rt "${IOG_PATH}" "${BACKUP_KEXT_DIR}"
+  rsync -rt "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
 }
 
 # Backup procedure
@@ -355,9 +372,11 @@ backup_system() {
     then
       echo "Backup already exists."
     else
-      echo "Different build/version of macOS detected. ${BOLD}Updating backup...${NORMAL}"
+      echo "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
+      echo "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
+      echo "${BOLD}Updating backup...${NORMAL}"
       rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" 2>/dev/null
-      if [[ $TB_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
+      if [[ $AMD_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
         echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
@@ -401,6 +420,7 @@ run_legacy_kext_installer() {
   unzip -d "${TP_EXT_PATH}" "${AUTOMATE_EGPU_ZIP}" 1>/dev/null 2>&1
   rm "${AUTOMATE_EGPU_ZIP}"
   echo "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
+  DID_INSTALL_LEGACY_KEXT=1
 }
 
 # Prompt automate-eGPU.kext install
@@ -417,8 +437,13 @@ install_legacy_kext() {
 patch_tb() {
   echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   install_legacy_kext
-  [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]] && echo "No thunderbolt patch required for this Mac.\n" && return
-  [[ $TB_PATCH_STATUS == 1 ]] && echo "System has already been patched for AMD eGPUs.\n" && return
+  if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]]
+  then
+    echo "No thunderbolt patch required for this Mac.\n"
+    [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
+    return
+  fi
+  [[ $AMD_PATCH_STATUS == 1 ]] && echo "System has already been patched for AMD eGPUs.\n" && return
   backup_system
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
@@ -488,16 +513,18 @@ patch_nv() {
 
 # In-place re-patcher
 uninstall() {
-  [[ ! -d "${SUPPORT_DIR}" ]] && echo "\n${BOLD}No installation found${NORMAL}. No action taken.\n" && return
   echo "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ $TB_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo "No patches detected. Uninstallation aborted. System clean.\n" && return
+  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo "No patches detected. Uninstallation aborted. System clean.\n" && return
   echo "${BOLD}Uninstalling...${NORMAL}"
-  generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
-  if [[ $TB_PATCH_STATUS == 1 ]]
+  if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
   then
-    generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
-    [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
+    echo "${BOLD}Removing automate-eGPU...${NORMAL}"
+    rm -r "${AUTOMATE_EGPU_KEXT}"
+    echo "${BOLD}automate-eGPU${NORMAL} removed."
   fi
+  echo "${BOLD}Reverting binaries...${NORMAL}"
+  generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
+  [[ $AMD_PATCH_STATUS == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
   if [[ $NV_PATCH_STATUS == 1 ]]
   then
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
@@ -508,6 +535,7 @@ uninstall() {
     [[ "$(cat "${IONDRV_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${IONDRV_PLIST_PATH}" "Delete" "${NDRV_PCI_TUN_CP}"
   fi
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
+  echo "Binaries reverted."
   repair_permissions
   write_manifest
   echo "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
@@ -557,41 +585,37 @@ remove_web_drivers() {
 
 # Recovery logic
 recover_sys() {
-  [[ ! -s "$BACKUP_KEXT_DIR" && ! -e "$MANIFEST" ]] && echo "\n${BOLD}Could not find valid backup${NORMAL}. Recovery not possible.\n" && return
+  echo "\n>> ${BOLD}System Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
+  if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
+  then
+    echo "${BOLD}Removing automate-eGPU...${NORMAL}"
+    rm -r "${AUTOMATE_EGPU_KEXT}"
+    echo "${BOLD}automate-eGPU${NORMAL} removed."
+  fi
+  [[ ! -e "$MANIFEST" ]] && echo "${BOLD}Nothing to recover${NORMAL}.\n\nConsider ${BOLD}macOS Recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
-  echo "\n>> ${BOLD}System Recovery${NORMAL}\n"
-  [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]] && echo "System already clean. Recovery not required.\n" && return
-  echo "${BOLD}Recovering...${NORMAL}"
-  rm -r "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}"
-  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
-  rsync -r "${BACKUP_KEXT_DIR}"* "${EXT_PATH}" && rm -r "${SUPPORT_DIR}"
+  if [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]]
+  then
+    echo "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
+    echo "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
+    read -p "System may already be clean. Still ${BOLD}attempt recovery${NORMAL}? [Y/N]: " INPUT
+    [[ "${INPUT}" == "N" ]] && echo "Recovery ${BOLD}cancelled${NORMAL}.\n" && return
+    [[ "${INPUT}" != "Y" ]] && echo "Invalid choice. Recovery ${BOLD}safely aborted${NORMAL}.\n" && return
+    echo "\n${BOLD}Attempting recovery...${NORMAL}"
+  fi
+  echo "${BOLD}Restoring files from backup...${NORMAL}"
+  [[ -d "${BACKUP_KEXT_DIR}" ]] && rsync -rt "${BACKUP_KEXT_DIR}"* "${EXT_PATH}"
   if [[ -f "${NVDA_PLIST_PATH}" ]]
   then
     [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
+  echo "Files restored."
   repair_permissions
   echo "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # ----- USER INTERFACE
-
-# Print command line options
-usage() {
-  echo "\n>> ${BOLD}Command Line Shortcuts${NORMAL}\n"
-  echo " purge-wrangler ${BOLD}-[OPTION]${NORMAL}"
-  echo "
-    ${BOLD}-ea|--enable-amd${NORMAL}: Enable AMD eGPUs
-    ${BOLD}-en|--enable-nv${NORMAL}: Enable NVIDIA eGPUs
-    ${BOLD}-s|--status${NORMAL}: Check Patch Status
-    ${BOLD}-u|--uninstall${NORMAL}: Uninstall Patches
-    ${BOLD}-r|--recover${NORMAL}: System Recovery
-    ${BOLD}--shortcuts${NORMAL}: Command Line Shortcuts
-    ${BOLD}-v|--version${NORMAL}: Script Version
-    ${BOLD}-dh|--disable-hibernation${NORMAL}: Disable Hibernation
-    ${BOLD}-rs|--restore-sleep${NORMAL}: Reset Sleep Configuration
-    ${BOLD}-rb|--reboot${NORMAL}: Reboot System\n"
-}
 
 # Ask for main menu
 ask_menu() {
@@ -605,20 +629,21 @@ ask_menu() {
 # Menu
 provide_menu_selection() {
   echo "
-   ${BOLD}>> Patching System${NORMAL}               ${BOLD}>> Reverting & Recovery${NORMAL}
-   ${BOLD}1.${NORMAL}  Enable AMD eGPUs             ${BOLD}4.${NORMAL}  Uninstall Patches
-   ${BOLD}2.${NORMAL}  Enable NVIDIA eGPUs          ${BOLD}5.${NORMAL}  System Recovery
-   ${BOLD}3.${NORMAL}  Check Patch Status
+   ${BOLD}>> Patching System${NORMAL}           ${BOLD}>> System Management${NORMAL}
+   ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
+   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Disable Hibernation
+   ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Restore Power Settings
+   ${BOLD}4.${NORMAL} Uninstall Patches         ${BOLD}8.${NORMAL} Reboot System
 
-   ${BOLD}>> Additional Options${NORMAL}            ${BOLD}>> System Configuration${NORMAL}
-   ${BOLD}6.${NORMAL}  Command-Line Shortcuts       ${BOLD}8.${NORMAL}  Disable Hibernation
-   ${BOLD}7.${NORMAL}  Script Version               ${BOLD}9.${NORMAL}  Restore Sleep Configuration
-
-   ${BOLD}10.${NORMAL} Reboot System
-   ${BOLD}11.${NORMAL} Quit
+   ${BOLD}9.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [1-11]: " INPUT
-  [[ ! -z "${INPUT}" ]] && process_args "${INPUT}" || echo "\nNo input provided.\n"
+  read -p "${BOLD}What next?${NORMAL} [1-9]: " INPUT
+  if [[ ! -z "${INPUT}" ]]
+  then
+    process_args "${INPUT}"
+  else
+    echo && exit
+  fi
   ask_menu
 }
 
@@ -634,17 +659,13 @@ process_args() {
     uninstall;;
     -r|--recover|5)
     recover_sys;;
-    --shortcuts|6)
-    usage;;
-    -v|--version|7)
-    echo "\n>> ${BOLD}Script Version${NORMAL}\n\n${SCRIPT_VER}\n";;
-    -dh|--disable-hibernation|8)
+    -dh|--disable-hibernation|6)
     disable_hibernation;;
-    -rs|--restore-sleep|9)
+    -rs|--restore-sleep|7)
     restore_sleep;;
-    -rb|--reboot|10)
+    -rb|--reboot|8)
     initiate_reboot;;
-    11)
+    9)
     echo && exit;;
     "")
     fetch_latest_release
