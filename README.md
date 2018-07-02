@@ -62,19 +62,13 @@ In-place uninstaller for the patches.
 #### 5. System Recovery (`-r|--recover`)
 Recover original untouched macOS configuration prior to script modifications.
 
-#### 6. Command-Line Shortcuts (`--shortcuts`)
-Prints a list of command line options that may be passed to the script or binary to completely forgo the command-line user interface and directly perform actions.
-
-#### 7. Script Version (`-v|--version`)
-Prints the version of the script/binary.
-
-#### 8. Disable Hibernation (`-dh|--disable-hibernation`)
+#### 6. Disable Hibernation (`-dh|--disable-hibernation`)
 Disables hibernation mode and automatic power off as these settings may resolve wake-up failures with discrete graphics disabled.
 
-#### 9. Restore Sleep Configuration (`-rs|--restore-sleep`)
+#### 7. Restore Sleep Configuration (`-rs|--restore-sleep`)
 Restores the hibernation mode configurations to recommended settings.
 
-#### 10. Reboot System (`-rb|--reboot`)
+#### 8. Reboot System (`-rb|--reboot`)
 Reboots the system with a countdown.
 
 ## Troubleshooting

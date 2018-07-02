@@ -284,7 +284,7 @@ disable_hibernation() {
 # Revert hibernation settings
 restore_sleep() {
   echo "\n>> ${BOLD}Restore Sleep Configuration${NORMAL}\n\n${BOLD}Restoring default sleep settings...${NORMAL}"
-  pmset restoredefaults
+  pmset restoredefaults 1>/dev/null 2>&1
   echo "Restore complete.\n"
 }
 
