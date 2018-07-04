@@ -65,7 +65,7 @@ Recover original untouched macOS configuration prior to script modifications.
 #### 6. Disable Hibernation (`-dh|--disable-hibernation`)
 Disables hibernation mode and automatic power off as these settings may resolve wake-up failures with discrete graphics disabled.
 
-#### 7. Restore Sleep Configuration (`-rs|--restore-sleep`)
+#### 7. Restore Power Settings (`-rp|--restore-power`)
 Restores the hibernation mode configurations to recommended settings.
 
 #### 8. Reboot System (`-rb|--reboot`)

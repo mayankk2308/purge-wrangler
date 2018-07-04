@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.1.0
+# Version: 4.1.1
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -15,8 +15,8 @@
 # ----- TB Detection
 #       @owenrw at egpu.io
 # ----- Testing
-#       @techyowl at egpu.io
-#       @itsage at egpu.io
+#       @itsage for most up-to-date releases, at egpu.io
+#       @techyowl for early versions, at egpu.io
 
 # ----- COMMAND LINE ARGS
 
@@ -39,7 +39,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -147,6 +147,7 @@ perform_software_update() {
   rm "${SCRIPT}" && mv "${TMP_SCRIPT}" "${SCRIPT}"
   chown "${SUDO_USER}" "${SCRIPT}"
   echo "Update complete. ${BOLD}Relaunching...${NORMAL}"
+  sleep 1
   "${SCRIPT}"
   exit 0
 }
@@ -223,32 +224,19 @@ retrieve_tb_ver() {
 
 # Patch check
 check_patch() {
-  [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=-1 && NV_PATCH_STATUS=-1 && return
+  [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=2 && NV_PATCH_STATUS=2 && return
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
-  [[ ("${AGW_HEX}" =~ "${SYS_TB_VER}" || "${AGW_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}") && "$SYS_TB_VER" != "$TB_SWITCH_HEX"3 || -d "${AUTOMATE_EGPU_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
+  [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AUTOMATE_EGPU_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
 check_patch_status() {
+  PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
   echo "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  case $AMD_PATCH_STATUS in
-    0)
-    echo "${BOLD}AMD Patch${NORMAL}: Not Detected";;
-    1)
-    echo "${BOLD}AMD Patch${NORMAL}: Detected";;
-    -1)
-    echo "${BOLD}AMD Patch${NORMAL}: Unknown";;
-  esac
-  case $NV_PATCH_STATUS in
-    0)
-    echo "${BOLD}NVIDIA Patch${NORMAL}: Not Detected\n";;
-    1)
-    echo "${BOLD}NVIDIA Patch${NORMAL}: Detected\n";;
-    -1)
-    echo "${BOLD}NVIDIA Patch${NORMAL}: Unknown\n";;
-  esac
+  echo "${BOLD}AMD Patch${NORMAL}: ${PATCH_STATUSES[$AMD_PATCH_STATUS]}"
+  echo "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}\n"
 }
 
 # Cumulative system check
@@ -263,27 +251,18 @@ perform_sys_check() {
 
 # ----- OS MANAGEMENT
 
-# Reboot sequence
-initiate_reboot() {
-  echo
-  for time in {5..0}
-  do
-    printf "Restarting in ${BOLD}${time}s${NORMAL}...\r"
-    sleep 1
-  done
-  reboot
-}
-
 # Disable hibernation
 disable_hibernation() {
-  echo "\n>> ${BOLD}Disable Hibernation${NORMAL}\n\n${BOLD}Disabling hibernation...${NORMAL}"
-  pmset -a autopoweroff 0 && pmset -a standby 0 && pmset -a hibernatemode 0
+  echo "\n>> ${BOLD}Disable Hibernation${NORMAL}\n"
+  echo "${BOLD}Disabling hibernation...${NORMAL}"
+  pmset -a autopoweroff 0 standby 0 hibernatemode 0
   echo "Hibernation disabled.\n"
 }
 
 # Revert hibernation settings
-restore_sleep() {
-  echo "\n>> ${BOLD}Restore Sleep Configuration${NORMAL}\n\n${BOLD}Restoring default sleep settings...${NORMAL}"
+restore_power_settings() {
+  echo "\n>> ${BOLD}Restore Power Settings${NORMAL}\n"
+  echo "${BOLD}Restoring power settings...${NORMAL}"
   pmset restoredefaults 1>/dev/null 2>&1
   echo "Restore complete.\n"
 }
@@ -291,17 +270,15 @@ restore_sleep() {
 # Rebuild kernel cache
 invoke_kext_caching() {
   echo "${BOLD}Rebuilding caches...${NORMAL}"
-  touch "${EXT_PATH}" && touch "${TP_EXT_PATH}"
-  kextcache -q -update-volume /
+  kextcache -i / 1>/dev/null 2>&1
   echo "Rebuild complete."
 }
 
 # Repair kext and binary permissions
 repair_permissions() {
   echo "${BOLD}Repairing permissions...${NORMAL}"
-  chmod 755 "${AGW_BIN}" && chmod 755 "${IOG_BIN}"
-  chown -R root:wheel "${AGC_PATH}" && chown -R root:wheel "${IOG_PATH}" && chown -R root:wheel "${IONDRV_PATH}"
-  [[ -d "${NVDA_STARTUP_PATH}" ]] && chown -R root:wheel "${NVDA_STARTUP_PATH}"
+  chown -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
+  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   echo "Permissions repaired."
   invoke_kext_caching
 }
@@ -635,9 +612,9 @@ provide_menu_selection() {
    ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Restore Power Settings
    ${BOLD}4.${NORMAL} Uninstall Patches         ${BOLD}8.${NORMAL} Reboot System
 
-   ${BOLD}9.${NORMAL} Quit
+   ${BOLD}0.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [1-9]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [0-8]: " INPUT
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -647,6 +624,7 @@ provide_menu_selection() {
   ask_menu
 }
 
+# Process user input
 process_args() {
   case "${1}" in
     -ea|--enable-amd|1)
@@ -661,11 +639,14 @@ process_args() {
     recover_sys;;
     -dh|--disable-hibernation|6)
     disable_hibernation;;
-    -rs|--restore-sleep|7)
-    restore_sleep;;
+    -rp|--restore-power|7)
+    restore_power_settings;;
     -rb|--reboot|8)
-    initiate_reboot;;
-    9)
+    echo "\n>> ${BOLD}Reboot System${NORMAL}\n"
+    read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
+    [[ "${INPUT}" == "Y" ]] && echo "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
+    [[ "${INPUT}" == "N" ]] && echo "\nReboot aborted.\n" && ask_menu;;
+    0)
     echo && exit;;
     "")
     fetch_latest_release
