@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.1.1
+# Version: 4.1.2
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -39,7 +39,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="1"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -247,6 +247,7 @@ perform_sys_check() {
   elevate_privileges
   check_sys_extensions
   check_patch
+  DID_INSTALL_LEGACY_KEXT=0
 }
 
 # ----- OS MANAGEMENT
@@ -267,20 +268,13 @@ restore_power_settings() {
   echo "Restore complete.\n"
 }
 
-# Rebuild kernel cache
-invoke_kext_caching() {
-  echo "${BOLD}Rebuilding caches...${NORMAL}"
-  kextcache -i / 1>/dev/null 2>&1
-  echo "Rebuild complete."
-}
-
-# Repair kext and binary permissions
-repair_permissions() {
-  echo "${BOLD}Repairing permissions...${NORMAL}"
+# Sanitize system permissions and caches
+sanitize_system() {
+  echo "${BOLD}Sanitizing system...${NORMAL}"
   chown -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
-  echo "Permissions repaired."
-  invoke_kext_caching
+  kextcache -i / 1>/dev/null 2>&1
+  echo "System sanitized."
 }
 
 # ----- PATCHING SYSTEM
@@ -374,7 +368,7 @@ backup_system() {
 
 # Conclude patching sequence
 end_patch() {
-  repair_permissions
+  sanitize_system
   write_manifest
   echo "${BOLD}Patch complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
@@ -404,7 +398,7 @@ run_legacy_kext_installer() {
 install_legacy_kext() {
   [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && return
   echo
-  read -p "Enable ${BOLD}Legacy AMD eGPUs${NORMAL}? [Y/N]: " INPUT
+  read -p "Enable ${BOLD}legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
   [[ "${INPUT}" == "N" ]] && echo && return
   echo "\nInvalid option.\n" && install_legacy_kext
@@ -413,6 +407,7 @@ install_legacy_kext() {
 # Patch TB1/2 block
 patch_tb() {
   echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
+  [[ $NV_PATCH_STATUS == 1 ]] && echo "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   install_legacy_kext
   if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]]
   then
@@ -420,11 +415,18 @@ patch_tb() {
     [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
     return
   fi
-  [[ $AMD_PATCH_STATUS == 1 ]] && echo "System has already been patched for AMD eGPUs.\n" && return
+  if [[ $AMD_PATCH_STATUS == 1 ]]
+  then
+    echo "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
+    [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
+    return
+  fi
   backup_system
+  echo "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
+  echo "Components patched."
   end_patch
 }
 
@@ -433,9 +435,9 @@ run_webdriver_installer() {
   echo "${BOLD}Fetching webdriver information...${NORMAL}"
   WEBDRIVER_DATA="$(curl -s "https://gfe.nvidia.com/mac-update")"
   WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
-  [[ -z "${WEBDRIVER_DATA}" ]] && echo "\nCould not install web drivers." && return
+  [[ -z "${WEBDRIVER_DATA}" ]] && echo "Could not install web drivers." && return
   echo "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
-  [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo "\nCould not extract web driver information." && return
+  [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo "Could not extract web driver information." && return
   INDEX=0
   DRIVER_MACOS_BUILD="${MACOS_BUILD}"
   DRIVER_DL=""
@@ -449,8 +451,8 @@ run_webdriver_installer() {
     [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
     (( INDEX++ ))
   done
-  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}].\n" && return
-  echo "Information retrieved.\n${BOLD}Downloading Drivers (${DRIVER_VER})...${NORMAL}"
+  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}]." && return
+  echo "Information retrieved.\n${BOLD}Downloading drivers (${DRIVER_VER})...${NORMAL}"
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
   echo "Download complete.\n${BOLD}Installing...${NORMAL}"
   INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
@@ -472,10 +474,12 @@ install_web_drivers() {
 # Patch for NVIDIA eGPUs
 patch_nv() {
   echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for NVIDIA eGPUs.\n" && return
+  [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
+  [[ $AMD_PATCH_STATUS == 1 ]] && echo "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   install_web_drivers
   [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
   backup_system
+  echo "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
   generic_patcher "${PCI_TUNNELLED_HEX}" "${PATCHED_PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
@@ -485,6 +489,7 @@ patch_nv() {
   patch_plist "${IONDRV_PLIST_PATH}" "Add" "${NDRV_PCI_TUN_CP}" "true"
   patch_plist "${NVDA_PLIST_PATH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
   [[ -d "${NVDA_EGPU_KEXT}" ]] && echo "${BOLD}NVDAEGPUSupport.kext${NORMAL} detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo "Removal complete."
+  echo "Components patched."
   end_patch
 }
 
@@ -513,7 +518,7 @@ uninstall() {
   fi
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
   echo "Binaries reverted."
-  repair_permissions
+  sanitize_system
   write_manifest
   echo "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
@@ -588,7 +593,7 @@ recover_sys() {
     remove_web_drivers
   fi
   echo "Files restored."
-  repair_permissions
+  sanitize_system
   echo "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
