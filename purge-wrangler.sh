@@ -158,7 +158,7 @@ prompt_software_update() {
   read -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && perform_software_update && return
   [[ "${INPUT}" == "N" ]] && echo -e "\n${BOLD}Proceeding without updating...${NORMAL}" && sleep 1 && return
-  echo -e "\nInvalid choice. Try again.\n"
+  echo -e "\nInvalid choice. Try again."
   prompt_software_update
 }
 
