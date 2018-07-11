@@ -45,7 +45,11 @@ $ purge-wrangler
 This is supported on **3.0.0** or later. Automatic updates are supported from **3.1.0** or later.
 
 ## Options
-The script provides users with a variety of options in an attempt to be as user-friendly as possible - as a numbered menu. Advanced users may pass arguments to bypass the menu.
+PurgeWrangler makes it super-easy to perform actions with an interactive menu, and is recommended for most users. Providing no arguments to the script defaults to the menu.
+
+![PurgeWrangler Menu](https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/purge-wrangler-menu.png)
+
+For advanced users that may sometimes prefer bypassing the menu, the script provides convenient arguments in an attempt to be as user-friendly as possible.
 
 #### 1. Enable AMD eGPUs (`-ea|--enable-amd`)
 Enables default eGPU support on **Thunderbolt 1/2** macs.
