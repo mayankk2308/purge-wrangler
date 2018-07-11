@@ -154,9 +154,10 @@ perform_software_update() {
 
 # Prompt for update
 prompt_software_update() {
+  echo
   read -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && perform_software_update && return
-  [[ "${INPUT}" == "N" ]] && echo -e "\n${BOLD}Proceeding without updating...${NORMAL}" && return
+  [[ "${INPUT}" == "N" ]] && echo -e "\n${BOLD}Proceeding without updating...${NORMAL}" && sleep 1 && return
   echo -e "\nInvalid choice. Try again.\n"
   prompt_software_update
 }
@@ -191,7 +192,7 @@ validate_caller() {
 elevate_privileges() {
   if [[ $(id -u) != 0 ]]
   then
-    sudo sh "${SCRIPT}" "${OPTION}"
+    sudo bash "${SCRIPT}" "${OPTION}"
     exit
   fi
 }
@@ -496,7 +497,7 @@ patch_nv() {
 # In-place re-patcher
 uninstall() {
   echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo -e "No patches detected. Uninstallation aborted. System clean.\n" && return
+  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
   then
@@ -574,7 +575,7 @@ recover_sys() {
     rm -r "${AUTOMATE_EGPU_KEXT}"
     echo -e "${BOLD}automate-eGPU${NORMAL} removed."
   fi
-  [[ ! -e "$MANIFEST" ]] && echo -e "${BOLD}Nothing to recover${NORMAL}.\n\nConsider ${BOLD}macOS Recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
+  [[ ! -e "$MANIFEST" ]] && echo -e "Nothing to recover.\n\nConsider ${BOLD}system recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   if [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]]
   then
@@ -611,7 +612,7 @@ ask_menu() {
 # Menu
 provide_menu_selection() {
   echo -e "
-   ${BOLD}>> Patching System${NORMAL}           ${BOLD}>> System Management${NORMAL}
+   >> ${BOLD}Patching System${NORMAL}           >> ${BOLD}System Management${NORMAL}
    ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
    ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Disable Hibernation
    ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Restore Power Settings
