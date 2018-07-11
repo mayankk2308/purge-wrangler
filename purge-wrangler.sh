@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
@@ -140,13 +140,13 @@ MANIFEST_MACOS_BUILD=""
 
 # Perform software update
 perform_software_update() {
-  echo "${BOLD}Downloading...${NORMAL}"
+  echo -e "${BOLD}Downloading...${NORMAL}"
   curl -L -s "${LATEST_RELEASE_DWLD}" > "${TMP_SCRIPT}"
-  echo "Download complete.\n${BOLD}Updating...${NORMAL}"
+  echo -e "Download complete.\n${BOLD}Updating...${NORMAL}"
   chmod 700 "${TMP_SCRIPT}" && chmod +x "${TMP_SCRIPT}"
   rm "${SCRIPT}" && mv "${TMP_SCRIPT}" "${SCRIPT}"
   chown "${SUDO_USER}" "${SCRIPT}"
-  echo "Update complete. ${BOLD}Relaunching...${NORMAL}"
+  echo -e "Update complete. ${BOLD}Relaunching...${NORMAL}"
   sleep 1
   "${SCRIPT}"
   exit 0
@@ -156,8 +156,8 @@ perform_software_update() {
 prompt_software_update() {
   read -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && perform_software_update && return
-  [[ "${INPUT}" == "N" ]] && echo "\n${BOLD}Proceeding without updating...${NORMAL}" && return
-  echo "\nInvalid choice. Try again.\n"
+  [[ "${INPUT}" == "N" ]] && echo -e "\n${BOLD}Proceeding without updating...${NORMAL}" && return
+  echo -e "\nInvalid choice. Try again.\n"
   prompt_software_update
 }
 
@@ -166,14 +166,14 @@ fetch_latest_release() {
   mkdir -p -m 775 "${LOCAL_BIN}"
   [[ "${BIN_CALL}" == 0 ]] && return
   LATEST_SCRIPT_INFO="$(curl -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest")"
-  LATEST_RELEASE_VER="$(echo "${LATEST_SCRIPT_INFO}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
-  LATEST_RELEASE_DWLD="$(echo "${LATEST_SCRIPT_INFO}" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/')"
-  LATEST_MAJOR_VER="$(echo "${LATEST_RELEASE_VER}" | cut -d '.' -f1)"
-  LATEST_MINOR_VER="$(echo "${LATEST_RELEASE_VER}" | cut -d '.' -f2)"
-  LATEST_PATCH_VER="$(echo "${LATEST_RELEASE_VER}" | cut -d '.' -f3)"
+  LATEST_RELEASE_VER="$(echo -e "${LATEST_SCRIPT_INFO}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
+  LATEST_RELEASE_DWLD="$(echo -e "${LATEST_SCRIPT_INFO}" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/')"
+  LATEST_MAJOR_VER="$(echo -e "${LATEST_RELEASE_VER}" | cut -d '.' -f1)"
+  LATEST_MINOR_VER="$(echo -e "${LATEST_RELEASE_VER}" | cut -d '.' -f2)"
+  LATEST_PATCH_VER="$(echo -e "${LATEST_RELEASE_VER}" | cut -d '.' -f3)"
   if [[ $LATEST_MAJOR_VER > $SCRIPT_MAJOR_VER || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER > $SCRIPT_MINOR_VER) || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER == $SCRIPT_MINOR_VER && $LATEST_PATCH_VER > $SCRIPT_PATCH_VER) && "$LATEST_RELEASE_DWLD" ]]
   then
-    echo "\n>> ${BOLD}Software Update${NORMAL}\n\nA script update (${BOLD}${LATEST_RELEASE_VER}${NORMAL}) is available.\nYou are currently on ${BOLD}${SCRIPT_VER}${NORMAL}."
+    echo -e "\n>> ${BOLD}Software Update${NORMAL}\n\nA script update (${BOLD}${LATEST_RELEASE_VER}${NORMAL}) is available.\nYou are currently on ${BOLD}${SCRIPT_VER}${NORMAL}."
     prompt_software_update
   fi
 }
@@ -182,7 +182,7 @@ fetch_latest_release() {
 
 # Check caller
 validate_caller() {
-  [[ "$1" == "sh" && ! "$2" ]] && echo "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
+  [[ "$1" == "sh" && ! "$2" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
   [[ "$1" != "$SCRIPT" ]] && OPTION="$3" || OPTION="$2"
   [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]] && BIN_CALL=1
 }
@@ -198,19 +198,19 @@ elevate_privileges() {
 
 # System integrity protection check
 check_sip() {
-  [[ $(csrutil status | grep -i enabled) ]] && echo "\nPlease disable ${BOLD}System Integrity Protection${NORMAL}.\n" && exit $SIP_ON_ERR
+  [[ $(csrutil status | grep -i enabled) ]] && echo -e "\nPlease disable ${BOLD}System Integrity Protection${NORMAL}.\n" && exit $SIP_ON_ERR
 }
 
 # macOS Version check
 check_macos_version() {
-  MACOS_MAJOR_VER="$(echo "${MACOS_VER}" | cut -d '.' -f2)"
-  MACOS_MINOR_VER="$(echo "${MACOS_VER}" | cut -d '.' -f3)"
-  [[ ("${MACOS_MAJOR_VER}" < 13) || ("${MACOS_MAJOR_VER}" == 13 && "${MACOS_MINOR_VER}" < 4) ]] && echo "\n${BOLD}macOS 10.13.4 or later${NORMAL} required.\n" && exit $MACOS_VER_ERR
+  MACOS_MAJOR_VER="$(echo -e "${MACOS_VER}" | cut -d '.' -f2)"
+  MACOS_MINOR_VER="$(echo -e "${MACOS_VER}" | cut -d '.' -f3)"
+  [[ ("${MACOS_MAJOR_VER}" < 13) || ("${MACOS_MAJOR_VER}" == 13 && "${MACOS_MINOR_VER}" < 4) ]] && echo -e "\n${BOLD}macOS 10.13.4 or later${NORMAL} required.\n" && exit $MACOS_VER_ERR
 }
 
 # Ensure presence of system extensions
 check_sys_extensions() {
-  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
+  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo -e "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
 }
 
 # Retrieve thunderbolt version
@@ -219,7 +219,7 @@ retrieve_tb_ver() {
   [[ "${TB_VER}[@]" =~ "NHIType3" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"3 && return
   [[ "${TB_VER}[@]" =~ "NHIType2" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"2 && return
   [[ "${TB_VER}[@]" =~ "NHIType1" ]] && SYS_TB_VER="${TB_SWITCH_HEX}"1 && return
-  echo "\nUnsupported/Invalid version of Thunderbolt detected.\n" && exit $TB_VER_ERR
+  echo -e "\nUnsupported/Invalid version of Thunderbolt detected.\n" && exit $TB_VER_ERR
 }
 
 # Patch check
@@ -234,9 +234,9 @@ check_patch() {
 # Patch status check
 check_patch_status() {
   PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
-  echo "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  echo "${BOLD}AMD Patch${NORMAL}: ${PATCH_STATUSES[$AMD_PATCH_STATUS]}"
-  echo "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}\n"
+  echo -e "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
+  echo -e "${BOLD}AMD Patch${NORMAL}: ${PATCH_STATUSES[$AMD_PATCH_STATUS]}"
+  echo -e "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}\n"
 }
 
 # Cumulative system check
@@ -254,27 +254,27 @@ perform_sys_check() {
 
 # Disable hibernation
 disable_hibernation() {
-  echo "\n>> ${BOLD}Disable Hibernation${NORMAL}\n"
-  echo "${BOLD}Disabling hibernation...${NORMAL}"
+  echo -e "\n>> ${BOLD}Disable Hibernation${NORMAL}\n"
+  echo -e "${BOLD}Disabling hibernation...${NORMAL}"
   pmset -a autopoweroff 0 standby 0 hibernatemode 0
-  echo "Hibernation disabled.\n"
+  echo -e "Hibernation disabled.\n"
 }
 
 # Revert hibernation settings
 restore_power_settings() {
-  echo "\n>> ${BOLD}Restore Power Settings${NORMAL}\n"
-  echo "${BOLD}Restoring power settings...${NORMAL}"
+  echo -e "\n>> ${BOLD}Restore Power Settings${NORMAL}\n"
+  echo -e "${BOLD}Restoring power settings...${NORMAL}"
   pmset restoredefaults 1>/dev/null 2>&1
-  echo "Restore complete.\n"
+  echo -e "Restore complete.\n"
 }
 
 # Sanitize system permissions and caches
 sanitize_system() {
-  echo "${BOLD}Sanitizing system...${NORMAL}"
+  echo -e "${BOLD}Sanitizing system...${NORMAL}"
   chown -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
-  echo "System sanitized."
+  echo -e "System sanitized."
 }
 
 # ----- PATCHING SYSTEM
@@ -322,7 +322,7 @@ write_manifest() {
     PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${IOG_BIN}" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
   fi
-  echo "${MANIFEST_STR}" > "${MANIFEST}"
+  echo -e "${MANIFEST_STR}" > "${MANIFEST}"
 }
 
 # Primary procedure
@@ -335,32 +335,32 @@ execute_backup() {
 
 # Backup procedure
 backup_system() {
-  echo "${BOLD}Backing up...${NORMAL}"
+  echo -e "${BOLD}Backing up...${NORMAL}"
   if [[ -s "${BACKUP_AGC}" && -s "${MANIFEST}" ]]
   then
     MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
-      echo "Backup already exists."
+      echo -e "Backup already exists."
     else
-      echo "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
-      echo "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
-      echo "${BOLD}Updating backup...${NORMAL}"
+      echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
+      echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
+      echo -e "${BOLD}Updating backup...${NORMAL}"
       rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" 2>/dev/null
       if [[ $AMD_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
-        echo "${BOLD}Uninstalling patch before backup update...${NORMAL}"
+        echo -e "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
-        echo "${BOLD}Re-running script...${NORMAL}" && sleep 1
+        echo -e "${BOLD}Re-running script...${NORMAL}" && sleep 1
         "${SCRIPT}" "${OPTION}"
         exit
       fi
       execute_backup
-      echo "Update complete."
+      echo -e "Update complete."
     fi
   else
     execute_backup
-    echo "Backup complete."
+    echo -e "Backup complete."
   fi
 }
 
@@ -370,7 +370,7 @@ backup_system() {
 end_patch() {
   sanitize_system
   write_manifest
-  echo "${BOLD}Patch complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo -e "${BOLD}Patch complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # Patch specified plist
@@ -384,13 +384,13 @@ patch_plist() {
 
 # Install automate-eGPU.kext
 run_legacy_kext_installer() {
-  echo "${BOLD}Downloading automate-eGPU...${NORMAL}"
+  echo -e "${BOLD}Downloading automate-eGPU...${NORMAL}"
   curl -s -o "${AUTOMATE_EGPU_ZIP}" "${AUTOMATE_EGPU_DL}"
-  echo "Download complete.\n${BOLD}Installing...${NORMAL}"
+  echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
   [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   unzip -d "${TP_EXT_PATH}" "${AUTOMATE_EGPU_ZIP}" 1>/dev/null 2>&1
   rm "${AUTOMATE_EGPU_ZIP}"
-  echo "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
+  echo -e "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
   DID_INSTALL_LEGACY_KEXT=1
 }
 
@@ -401,43 +401,43 @@ install_legacy_kext() {
   read -p "Enable ${BOLD}legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
   [[ "${INPUT}" == "N" ]] && echo && return
-  echo "\nInvalid option.\n" && install_legacy_kext
+  echo -e "\nInvalid option.\n" && install_legacy_kext
 }
 
 # Patch TB1/2 block
 patch_tb() {
-  echo "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ $NV_PATCH_STATUS == 1 ]] && echo "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  echo -e "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
+  [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   install_legacy_kext
   if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]]
   then
-    echo "No thunderbolt patch required for this Mac.\n"
+    echo -e "No thunderbolt patch required for this Mac.\n"
     [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
     return
   fi
   if [[ $AMD_PATCH_STATUS == 1 ]]
   then
-    echo "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
+    echo -e "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
     [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
     return
   fi
   backup_system
-  echo "${BOLD}Patching components...${NORMAL}"
+  echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
-  echo "Components patched."
+  echo -e "Components patched."
   end_patch
 }
 
 # Run webdriver.sh
 run_webdriver_installer() {
-  echo "${BOLD}Fetching webdriver information...${NORMAL}"
+  echo -e "${BOLD}Fetching webdriver information...${NORMAL}"
   WEBDRIVER_DATA="$(curl -s "https://gfe.nvidia.com/mac-update")"
   WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
-  [[ -z "${WEBDRIVER_DATA}" ]] && echo "Could not install web drivers." && return
-  echo "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
-  [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo "Could not extract web driver information." && return
+  [[ -z "${WEBDRIVER_DATA}" ]] && echo -e "Could not install web drivers." && return
+  echo -e "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
+  [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo -e "Could not extract web driver information." && return
   INDEX=0
   DRIVER_MACOS_BUILD="${MACOS_BUILD}"
   DRIVER_DL=""
@@ -451,12 +451,12 @@ run_webdriver_installer() {
     [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
     (( INDEX++ ))
   done
-  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo "Could not find webdriver for [${MACOS_BUILD}]." && return
-  echo "Information retrieved.\n${BOLD}Downloading drivers (${DRIVER_VER})...${NORMAL}"
+  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo -e "Could not find webdriver for [${MACOS_BUILD}]." && return
+  echo -e "Information retrieved.\n${BOLD}Downloading drivers (${DRIVER_VER})...${NORMAL}"
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
-  echo "Download complete.\n${BOLD}Installing...${NORMAL}"
+  echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
   INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
-  [[ -z "${INSTALLER_ERR}" ]] && echo "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo "Installation failed."
+  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo -e "Installation failed."
   rm -r "${INSTALLER_PKG}"
   rm "${WEBDRIVER_PLIST}"
 }
@@ -468,18 +468,18 @@ install_web_drivers() {
   read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
   [[ "${INPUT}" == "N" ]] && return
-  echo "\nInvalid option.\n" && install_web_drivers
+  echo -e "\nInvalid option.\n" && install_web_drivers
 }
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ $NV_PATCH_STATUS == 1 ]] && echo "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
-  [[ $AMD_PATCH_STATUS == 1 ]] && echo "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
+  [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
+  [[ $AMD_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   install_web_drivers
-  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
+  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
   backup_system
-  echo "${BOLD}Patching components...${NORMAL}"
+  echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
   generic_patcher "${PCI_TUNNELLED_HEX}" "${PATCHED_PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
@@ -488,23 +488,23 @@ patch_nv() {
   generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
   patch_plist "${IONDRV_PLIST_PATH}" "Add" "${NDRV_PCI_TUN_CP}" "true"
   patch_plist "${NVDA_PLIST_PATH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
-  [[ -d "${NVDA_EGPU_KEXT}" ]] && echo "${BOLD}NVDAEGPUSupport.kext${NORMAL} detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo "Removal complete."
-  echo "Components patched."
+  [[ -d "${NVDA_EGPU_KEXT}" ]] && echo -e "${BOLD}NVDAEGPUSupport.kext${NORMAL} detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo -e "Removal complete."
+  echo -e "Components patched."
   end_patch
 }
 
 # In-place re-patcher
 uninstall() {
-  echo "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo "No patches detected. Uninstallation aborted. System clean.\n" && return
-  echo "${BOLD}Uninstalling...${NORMAL}"
+  echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
+  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo -e "No patches detected. Uninstallation aborted. System clean.\n" && return
+  echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
   then
-    echo "${BOLD}Removing automate-eGPU...${NORMAL}"
+    echo -e "${BOLD}Removing automate-eGPU...${NORMAL}"
     rm -r "${AUTOMATE_EGPU_KEXT}"
-    echo "${BOLD}automate-eGPU${NORMAL} removed."
+    echo -e "${BOLD}automate-eGPU${NORMAL} removed."
   fi
-  echo "${BOLD}Reverting binaries...${NORMAL}"
+  echo -e "${BOLD}Reverting binaries...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   [[ $AMD_PATCH_STATUS == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
   if [[ $NV_PATCH_STATUS == 1 ]]
@@ -517,10 +517,10 @@ uninstall() {
     [[ "$(cat "${IONDRV_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${IONDRV_PLIST_PATH}" "Delete" "${NDRV_PCI_TUN_CP}"
   fi
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
-  echo "Binaries reverted."
+  echo -e "Binaries reverted."
   sanitize_system
   write_manifest
-  echo "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo -e "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # ----- BINARY MANAGER
@@ -535,16 +535,16 @@ install_bin() {
 # Bin first-time setup
 first_time_setup() {
   [[ $BIN_CALL == 1 ]] && return
-  SCRIPT_FILE="$(pwd)/$(echo "${SCRIPT}")"
-  [[ "${SCRIPT}" == "${0}" ]] && SCRIPT_FILE="$(echo "${SCRIPT_FILE}" | cut -c 1-)"
+  SCRIPT_FILE="$(pwd)/$(echo -e "${SCRIPT}")"
+  [[ "${SCRIPT}" == "${0}" ]] && SCRIPT_FILE="$(echo -e "${SCRIPT_FILE}" | cut -c 1-)"
   SCRIPT_SHA="$(shasum -a 512 -b "${SCRIPT_FILE}" | awk '{ print $1 }')"
   BIN_SHA=""
   [[ -s "${SCRIPT_BIN}" ]] && BIN_SHA="$(shasum -a 512 -b "${SCRIPT_BIN}" | awk '{ print $1 }')"
   [[ "${BIN_SHA}" == "${SCRIPT_SHA}" ]] && return
-  echo "\n>> ${BOLD}System Management${NORMAL}\n\n${BOLD}Installing...${NORMAL}"
+  echo -e "\n>> ${BOLD}System Management${NORMAL}\n\n${BOLD}Installing...${NORMAL}"
   [[ ! -z "${BIN_SHA}" ]] && rm "${SCRIPT_BIN}"
   install_bin
-  echo "Installation successful. ${BOLD}Proceeding...${NORMAL}\n" && sleep 1
+  echo -e "Installation successful. ${BOLD}Proceeding...${NORMAL}\n" && sleep 1
 }
 
 # ----- RECOVERY SYSTEM
@@ -555,46 +555,46 @@ remove_web_drivers() {
   read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   if [[ "${INPUT}" == "Y" ]]
   then
-    echo "\n${BOLD}Uninstalling drivers...${NORMAL}"
+    echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
     WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
-    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo "Could not find NVIDIA uninstaller.\n" && return
+    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
     installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 1>/dev/null
-    echo "Drivers uninstalled.\n" && return
+    echo -e "Drivers uninstalled.\n" && return
   fi
   [[ "${INPUT}" == "N" ]] && echo && return
-  echo "\nInvalid option.\n" && remove_web_drivers
+  echo -e "\nInvalid option.\n" && remove_web_drivers
 }
 
 # Recovery logic
 recover_sys() {
-  echo "\n>> ${BOLD}System Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
+  echo -e "\n>> ${BOLD}System Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
   if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
   then
-    echo "${BOLD}Removing automate-eGPU...${NORMAL}"
+    echo -e "${BOLD}Removing automate-eGPU...${NORMAL}"
     rm -r "${AUTOMATE_EGPU_KEXT}"
-    echo "${BOLD}automate-eGPU${NORMAL} removed."
+    echo -e "${BOLD}automate-eGPU${NORMAL} removed."
   fi
-  [[ ! -e "$MANIFEST" ]] && echo "${BOLD}Nothing to recover${NORMAL}.\n\nConsider ${BOLD}macOS Recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
+  [[ ! -e "$MANIFEST" ]] && echo -e "${BOLD}Nothing to recover${NORMAL}.\n\nConsider ${BOLD}macOS Recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   if [[ "${MANIFEST_MACOS_VER}" != "${MACOS_VER}" || "${MANIFEST_MACOS_BUILD}" != "${MACOS_BUILD}" ]]
   then
-    echo "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
-    echo "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
+    echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
+    echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
     read -p "System may already be clean. Still ${BOLD}attempt recovery${NORMAL}? [Y/N]: " INPUT
-    [[ "${INPUT}" == "N" ]] && echo "Recovery ${BOLD}cancelled${NORMAL}.\n" && return
-    [[ "${INPUT}" != "Y" ]] && echo "Invalid choice. Recovery ${BOLD}safely aborted${NORMAL}.\n" && return
-    echo "\n${BOLD}Attempting recovery...${NORMAL}"
+    [[ "${INPUT}" == "N" ]] && echo -e "Recovery ${BOLD}cancelled${NORMAL}.\n" && return
+    [[ "${INPUT}" != "Y" ]] && echo -e "Invalid choice. Recovery ${BOLD}safely aborted${NORMAL}.\n" && return
+    echo -e "\n${BOLD}Attempting recovery...${NORMAL}"
   fi
-  echo "${BOLD}Restoring files from backup...${NORMAL}"
+  echo -e "${BOLD}Restoring files from backup...${NORMAL}"
   [[ -d "${BACKUP_KEXT_DIR}" ]] && rsync -rt "${BACKUP_KEXT_DIR}"* "${EXT_PATH}"
   if [[ -f "${NVDA_PLIST_PATH}" ]]
   then
     [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
-  echo "Files restored."
+  echo -e "Files restored."
   sanitize_system
-  echo "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
 # ----- USER INTERFACE
@@ -602,15 +602,15 @@ recover_sys() {
 # Ask for main menu
 ask_menu() {
   read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && perform_sys_check && clear && echo "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
+  [[ "${INPUT}" == "Y" ]] && perform_sys_check && clear && echo -e "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
   [[ "${INPUT}" == "N" ]] && echo && exit
-  echo "\nInvalid choice. Try again.\n"
+  echo -e "\nInvalid choice. Try again.\n"
   ask_menu
 }
 
 # Menu
 provide_menu_selection() {
-  echo "
+  echo -e "
    ${BOLD}>> Patching System${NORMAL}           ${BOLD}>> System Management${NORMAL}
    ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
    ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Disable Hibernation
@@ -647,19 +647,19 @@ process_args() {
     -rp|--restore-power|7)
     restore_power_settings;;
     -rb|--reboot|8)
-    echo "\n>> ${BOLD}Reboot System${NORMAL}\n"
+    echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
-    [[ "${INPUT}" == "Y" ]] && echo "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
-    [[ "${INPUT}" == "N" ]] && echo "\nReboot aborted.\n" && ask_menu;;
+    [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
+    [[ "${INPUT}" == "N" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
     0)
     echo && exit;;
     "")
     fetch_latest_release
     first_time_setup
-    clear && echo ">> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}"
+    clear && echo -e ">> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}"
     provide_menu_selection;;
     *)
-    echo "\nInvalid option.\n";;
+    echo -e "\nInvalid option.\n";;
   esac
 }
 
