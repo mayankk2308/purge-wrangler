@@ -1,6 +1,6 @@
 ![Header](https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/header.png)
 
-![macOS Support](https://img.shields.io/badge/macOS-10.13.4+-orange.svg?style=for-the-badge) ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge)
+![macOS Support](https://img.shields.io/badge/macOS-10.13.4+-orange.svg?style=for-the-badge) ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge) [![paypal][image-1]][1]
 # PurgeWrangler
 Allows you to use external GPUs with older macs, and also enables NVIDIA eGPUs on all macs.
 
