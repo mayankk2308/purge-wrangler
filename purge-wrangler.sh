@@ -402,7 +402,7 @@ run_legacy_kext_installer() {
 # Prompt automate-eGPU.kext install
 install_legacy_kext() {
   [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && return
-  echo
+  echo -e "\nIt is possible to use unofficial AMD GPUs if needed.\nUnofficial AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
   read -p "Enable ${BOLD}legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
   [[ "${INPUT}" == "N" ]] && echo && return
