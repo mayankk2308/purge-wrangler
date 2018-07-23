@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.1.2
+# Version: 4.1.3
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -39,7 +39,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="2"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="3"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -127,14 +127,18 @@ SCRATCH_AGW_BIN=".AppleGPUWrangler.bin"
 SCRATCH_IOG_HEX=".IOGraphicsFamily.hex"
 SCRATCH_IOG_BIN=".IOGraphicsFamily.bin"
 
-# PlistBuddy Configuration
+# PlistBuddy configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
 NDRV_PCI_TUN_CP=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
 NVDA_PCI_TUN_CP=":IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible bool"
+NVDA_REQUIRED_OS=":IOKitPersonalities:NVDAStartup:NVDARequiredOS"
 
-# Installation Info
+# Installation information
 MANIFEST_MACOS_VER=""
 MANIFEST_MACOS_BUILD=""
+
+# Webdriver information
+WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
 
 # ----- SCRIPT SOFTWARE UPDATE SYSTEM
 
@@ -431,45 +435,100 @@ patch_tb() {
   end_patch
 }
 
-# Run webdriver.sh
+# Download and install NVIDIA Web Drivers
+install_web_drivers() {
+  INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
+  INSTALLER_PKG_EXPANDED="/usr/local/NVDAInstall"
+  DRIVER_VERSION="${1}"
+  DOWNLOAD_URL="${2}"
+  rm - r "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
+  echo -e "Data retrieved.\n${BOLD}Downloading drivers (${DRIVER_VERSION})...${NORMAL}"
+  curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DOWNLOAD_URL}"
+  echo -e "Download complete.\n${BOLD}Sanitizing package...${NORMAL}"
+  pkgutil --expand-full "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
+  sed -i "" -e "/installation-check/d" "${INSTALLER_PKG_EXPANDED}/Distribution"
+  NVDA_STARTUP_PKG_KEXT="$(find "${INSTALLER_PKG_EXPANDED}" -maxdepth 1 | grep -i NVWebDrivers)/Payload/Library/Extensions/NVDAStartupWeb.kext"
+  if [[ ! -d "${NVDA_STARTUP_PKG_KEXT}" ]]
+  then
+    rm -r "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}" 2>/dev/null 1>&2
+    echo "Unable to patch driver."
+    return
+  fi
+  $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" #2>/dev/null 1>&2
+  chown -R root:wheel "${NVDA_STARTUP_PKG_KEXT}"
+  rm -r "${INSTALLER_PKG}"
+  pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}"
+  echo -e "Package sanitized.\n${BOLD}Installing...${NORMAL}"
+  INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
+  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo -e "Installation failed."
+  rm -r "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
+  rm "${WEBDRIVER_PLIST}"
+}
+
+# Run Webdriver installation procedure
 run_webdriver_installer() {
   echo -e "${BOLD}Fetching webdriver information...${NORMAL}"
   WEBDRIVER_DATA="$(curl -s "https://gfe.nvidia.com/mac-update")"
-  WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
   [[ -z "${WEBDRIVER_DATA}" ]] && echo -e "Could not install web drivers." && return
   echo -e "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
   [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo -e "Could not extract web driver information." && return
   INDEX=0
   DRIVER_MACOS_BUILD="${MACOS_BUILD}"
+  LATEST_DRIVER_MACOS_BUILD=""
   DRIVER_DL=""
+  LATEST_DRIVER_DL=""
   DRIVER_VER=""
-  INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
+  LATEST_DRIVER_VER=""
   while [[ ! -z "${DRIVER_MACOS_BUILD}" ]]
   do
     DRIVER_DL="$($PlistBuddy -c "Print :updates:${INDEX}:downloadURL" "${WEBDRIVER_PLIST}" 2>/dev/null)"
     DRIVER_VER="$($PlistBuddy -c "Print :updates:${INDEX}:version" "${WEBDRIVER_PLIST}" 2>/dev/null)"
     DRIVER_MACOS_BUILD="$($PlistBuddy -c "Print :updates:${INDEX}:OS" "${WEBDRIVER_PLIST}" 2>/dev/null)"
+    if [[ ${INDEX} == 0 ]]
+    then
+      LATEST_DRIVER_DL="${DRIVER_DL}"
+      LATEST_DRIVER_VER="${DRIVER_VER}"
+      LATEST_DRIVER_MACOS_BUILD="${DRIVER_MACOS_BUILD}"
+    fi
     [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
     (( INDEX++ ))
   done
-  [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]] && echo -e "Could not find webdriver for [${MACOS_BUILD}]." && return
-  echo -e "Information retrieved.\n${BOLD}Downloading drivers (${DRIVER_VER})...${NORMAL}"
-  curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DRIVER_DL}"
-  echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
-  INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
-  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo -e "Installation failed."
-  rm -r "${INSTALLER_PKG}"
-  rm "${WEBDRIVER_PLIST}"
+  if [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]]
+  then
+    echo -e "Latest Available Driver: ${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL}\nYour macOS Build: ${BOLD}${MACOS_BUILD}${NORMAL}\n"
+    echo -e "Patching ${BOLD}minor${NORMAL} macOS version differences is ${BOLD}usually safe${NORMAL},\nbut does not necessarily imply guaranteed functionality.\n"
+    read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
+    [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && return
+    [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
+    echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
+  fi
+  install_web_drivers "${DRIVER_VER}" "${DRIVER_DL}"
 }
 
-# Install NVIDIA Web Drivers
-install_web_drivers() {
-  [[ -f "${NVDA_PLIST_PATH}" ]] && return
+# Prompt NVIDIA Web Driver installation
+prompt_web_driver_install() {
+  if [[ -f "${NVDA_PLIST_PATH}" ]]
+  then
+    if [[ ! -z "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_PLIST_PATH}" 2>/dev/null)" ]]
+    then
+      echo -e "\nInstalled ${BOLD}NVIDIA Web Drivers${NORMAL} are specifying macOS build.\n"
+      read -p "${BOLD}Remove limitation${NORMAL}? [Y/N]: " INPUT
+      if [[ "${INPUT}" != "Y" ]]
+      then
+        echo -e "\nDrivers unchanged.\n"
+      else
+        echo -e "\n${BOLD}Patching drivers...${NORMAL}"
+        $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" 2>/dev/null 1>&2
+        echo -e "Drivers patched.\n"
+      fi
+    fi
+    return
+  fi
   echo
   read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
   [[ "${INPUT}" == "N" ]] && return
-  echo -e "\nInvalid option.\n" && install_web_drivers
+  echo -e "\nInvalid option.\n" && prompt_web_driver_install
 }
 
 # Patch for NVIDIA eGPUs
@@ -477,8 +536,9 @@ patch_nv() {
   echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
   [[ $AMD_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
-  install_web_drivers
+  prompt_web_driver_install
   [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
+  nvram nvda_drv=1
   backup_system
   echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
@@ -559,8 +619,9 @@ remove_web_drivers() {
     echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
     WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
     [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
-    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 1>/dev/null
-    echo -e "Drivers uninstalled.\n" && return
+    INSTALLER_ERR="$(installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null)"
+    nvram -d nvda_drv
+    echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
   fi
   [[ "${INPUT}" == "N" ]] && echo && return
   echo -e "\nInvalid option.\n" && remove_web_drivers
@@ -651,7 +712,7 @@ process_args() {
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
-    [[ "${INPUT}" == "N" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
+    [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
     0)
     echo && exit;;
     "")
