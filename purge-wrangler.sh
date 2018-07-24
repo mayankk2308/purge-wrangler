@@ -3,14 +3,18 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.1.3
+# Version: 4.2.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
+#       - AppleGPUWrangler Thunderbolt
 #       © @mac_editor (+ @fricorico) at egpu.io
-# ----- Legacy AMD GPUs (automate-eGPU.kext)
+# ----- Legacy AMD GPUs
+#       - automate-eGPU.kext
 #       © @goalque at egpu.io
 # ----- New NVIDIA eGPU Patch
+#       - AppleGPUWrangler Discrete
+#       - IOGraphicsFamily
 #       © @goalque at egpu.io
 # ----- TB Detection
 #       @owenrw at egpu.io
@@ -39,7 +43,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="3"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -145,7 +149,8 @@ WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
 # Perform software update
 perform_software_update() {
   echo -e "${BOLD}Downloading...${NORMAL}"
-  curl -L -s "${LATEST_RELEASE_DWLD}" > "${TMP_SCRIPT}"
+  curl -L -s -o "${TMP_SCRIPT}" "${LATEST_RELEASE_DWLD}"
+  [[ "$(cat "${TMP_SCRIPT}")" == "Not Found" ]] && echo -e "Download failed.\n${BOLD}Continuing without updating...${NORMAL}" && sleep 1 && rm "${TMP_SCRIPT}" && return
   echo -e "Download complete.\n${BOLD}Updating...${NORMAL}"
   chmod 700 "${TMP_SCRIPT}" && chmod +x "${TMP_SCRIPT}"
   rm "${SCRIPT}" && mv "${TMP_SCRIPT}" "${SCRIPT}"
@@ -187,9 +192,9 @@ fetch_latest_release() {
 
 # Check caller
 validate_caller() {
-  [[ "$1" == "sh" && ! "$2" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
-  [[ "$1" != "$SCRIPT" ]] && OPTION="$3" || OPTION="$2"
-  [[ "$SCRIPT" == "$SCRIPT_BIN" || "$SCRIPT" == "purge-wrangler" ]] && BIN_CALL=1
+  [[ "${1}" == "bash" && ! "${2}" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
+  [[ "${1}" != "${SCRIPT}" ]] && OPTION="${3}" || OPTION="${2}"
+  [[ "${SCRIPT}" == "${SCRIPT_BIN}" || "${SCRIPT}" == "purge-wrangler" ]] && BIN_CALL=1
 }
 
 # Elevate privileges
@@ -257,26 +262,10 @@ perform_sys_check() {
 
 # ----- OS MANAGEMENT
 
-# Disable hibernation
-disable_hibernation() {
-  echo -e "\n>> ${BOLD}Disable Hibernation${NORMAL}\n"
-  echo -e "${BOLD}Disabling hibernation...${NORMAL}"
-  pmset -a autopoweroff 0 standby 0 hibernatemode 0
-  echo -e "Hibernation disabled.\n"
-}
-
-# Revert hibernation settings
-restore_power_settings() {
-  echo -e "\n>> ${BOLD}Restore Power Settings${NORMAL}\n"
-  echo -e "${BOLD}Restoring power settings...${NORMAL}"
-  pmset restoredefaults 1>/dev/null 2>&1
-  echo -e "Restore complete.\n"
-}
-
 # Sanitize system permissions and caches
 sanitize_system() {
   echo -e "${BOLD}Sanitizing system...${NORMAL}"
-  chown -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
+  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
   echo -e "System sanitized."
@@ -403,7 +392,7 @@ run_legacy_kext_installer() {
 install_legacy_kext() {
   [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && return
   echo -e "\nIt is possible to use unofficial AMD GPUs if needed.\nUnofficial AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
-  read -p "Enable ${BOLD}legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
+  read -p "Enable ${BOLD}Unofficial${NORMAL} AMD eGPUs? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
   [[ "${INPUT}" == "N" ]] && echo && return
   echo -e "\nInvalid option.\n" && install_legacy_kext
@@ -454,10 +443,10 @@ install_web_drivers() {
     echo "Unable to patch driver."
     return
   fi
-  $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" #2>/dev/null 1>&2
+  $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" 2>/dev/null 1>&2
   chown -R root:wheel "${NVDA_STARTUP_PKG_KEXT}"
   rm -r "${INSTALLER_PKG}"
-  pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}"
+  pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
   echo -e "Package sanitized.\n${BOLD}Installing...${NORMAL}"
   INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
   [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo -e "Installation failed."
@@ -498,7 +487,7 @@ run_webdriver_installer() {
     echo -e "Latest Available Driver: ${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL}\nYour macOS Build: ${BOLD}${MACOS_BUILD}${NORMAL}\n"
     echo -e "Patching ${BOLD}minor${NORMAL} macOS version differences is ${BOLD}usually safe${NORMAL},\nbut does not necessarily imply guaranteed functionality.\n"
     read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
-    [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && return
+    [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
     echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
   fi
@@ -619,7 +608,7 @@ remove_web_drivers() {
     echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
     WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
     [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
-    INSTALLER_ERR="$(installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null)"
+    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
     nvram -d nvda_drv
     echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
   fi
@@ -675,13 +664,13 @@ provide_menu_selection() {
   echo -e "
    >> ${BOLD}Patching System${NORMAL}           >> ${BOLD}System Management${NORMAL}
    ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
-   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Disable Hibernation
-   ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Restore Power Settings
-   ${BOLD}4.${NORMAL} Uninstall Patches         ${BOLD}8.${NORMAL} Reboot System
+   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Sanitize System
+   ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Reboot System
+   ${BOLD}4.${NORMAL} Uninstall Patches
 
    ${BOLD}0.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-8]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [0-7]: " INPUT
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -704,11 +693,11 @@ process_args() {
     uninstall;;
     -r|--recover|5)
     recover_sys;;
-    -dh|--disable-hibernation|6)
-    disable_hibernation;;
-    -rp|--restore-power|7)
-    restore_power_settings;;
-    -rb|--reboot|8)
+    -ss|--sanitize-system|6)
+    echo -e "\n>> ${BOLD}Sanitize System${NORMAL}\n"
+    sanitize_system
+    echo;;
+    -rb|--reboot|7)
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
