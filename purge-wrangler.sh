@@ -52,6 +52,7 @@ INPUT=""
 # Text management
 BOLD="$(tput bold)"
 NORMAL="$(tput sgr0)"
+UNDERLINE="$(tput smul)"
 
 # Errors
 SIP_ON_ERR=1
@@ -645,7 +646,7 @@ recover_sys() {
   fi
   echo -e "Files restored."
   sanitize_system
-  echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
+  echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n\nRefer to the ${BOLD}macOS eGPU Troubleshooting Guide${NORMAL} in the ${BOLD}How-To's${NORMAL}\nsection of ${UNDERLINE}egpu.io${NORMAL} for further troubleshooting if needed.\n"
 }
 
 # ----- USER INTERFACE
