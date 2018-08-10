@@ -386,7 +386,7 @@ run_legacy_kext_installer() {
   echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
   [[ -d "${AMD_LEGACY_KEXT}" ]] && rm -r "${AMD_LEGACY_KEXT}"
   unzip -d "${TP_EXT_PATH}" "${AMD_LEGACY_ZIP}" 1>/dev/null 2>&1
-  rm -r "${AMD_LEGACY_ZIP}" "${TP_EXT_PATH}/__MACOSX"
+  rm -r "${AMD_LEGACY_ZIP}" "${TP_EXT_PATH}/__MACOSX" 1>/dev/null 2>&1
   echo -e "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
   DID_INSTALL_LEGACY_KEXT=1
 }
