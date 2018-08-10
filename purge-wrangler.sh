@@ -3,14 +3,15 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.0
+# Version: 4.3.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
 #       - AppleGPUWrangler Thunderbolt
 #       © @mac_editor (+ @fricorico) at egpu.io
 # ----- Legacy AMD GPUs
-#       - automate-eGPU.kext
+#       - automate-eGPU.kext -> AMDLegacySupport.kext
+#       - Updated & Simplified to AMDLegacySupport @mac_editor
 #       © @goalque at egpu.io
 # ----- New NVIDIA eGPU Patch
 #       - AppleGPUWrangler Discrete
@@ -43,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="3" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -102,10 +103,14 @@ NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
 ## NVDAEGPUSupport
 NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 
-## automate-eGPU
-AUTOMATE_EGPU_DL="https://egpu.io/wp-content/uploads/2018/04/automate-eGPU.kext_-1.zip"
-AUTOMATE_EGPU_ZIP="${TP_EXT_PATH}automate-eGPU.zip"
+## AMDLegacySupport
+# AUTOMATE_EGPU_DL="https://egpu.io/wp-content/uploads/2018/04/automate-eGPU.kext_-1.zip"
+# AUTOMATE_EGPU_ZIP="${TP_EXT_PATH}automate-eGPU.zip"
 AUTOMATE_EGPU_KEXT="${TP_EXT_PATH}automate-eGPU.kext"
+AMD_LEGACY_PLIST_DATA=""
+AMD_LEGACY_KEXT="${TP_EXT_PATH}AMDLegacySupport.kext"
+AMD_LEGACY_KEXT_MAKE="${AMD_LEGACY_KEXT}/Contents/"
+AMD_LEGACY_KEXT_PLIST="${AMD_LEGACY_KEXT_MAKE}Info.plist"
 DID_INSTALL_LEGACY_KEXT=0
 
 # General backup path
@@ -238,7 +243,7 @@ check_patch() {
   [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=2 && NV_PATCH_STATUS=2 && return
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
-  [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AUTOMATE_EGPU_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
+  [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AMD_LEGACY_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
@@ -266,8 +271,8 @@ perform_sys_check() {
 # Sanitize system permissions and caches
 sanitize_system() {
   echo -e "${BOLD}Sanitizing system...${NORMAL}"
-  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
-  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AUTOMATE_EGPU_KEXT}" 1>/dev/null 2>&1
+  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
+  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
   echo -e "System sanitized."
 }
@@ -377,23 +382,21 @@ patch_plist() {
   $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}"
 }
 
-# Install automate-eGPU.kext
+# Install AMDLegacySupport.kext
 run_legacy_kext_installer() {
-  echo -e "${BOLD}Downloading automate-eGPU...${NORMAL}"
-  curl -s -o "${AUTOMATE_EGPU_ZIP}" "${AUTOMATE_EGPU_DL}"
-  echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
-  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
-  unzip -d "${TP_EXT_PATH}" "${AUTOMATE_EGPU_ZIP}" 1>/dev/null 2>&1
-  rm "${AUTOMATE_EGPU_ZIP}"
+  echo -e "${BOLD}Installing legacy support...${NORMAL}"
+  [[ -d "${AMD_LEGACY_KEXT}" ]] && rm -r "${AMD_LEGACY_KEXT}"
+  mkdir -p "${AMD_LEGACY_KEXT_MAKE}"
+  echo "${AMD_LEGACY_PLIST_DATA}" > "${AMD_LEGACY_KEXT_PLIST}"
   echo -e "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
   DID_INSTALL_LEGACY_KEXT=1
 }
 
-# Prompt automate-eGPU.kext install
+# Prompt AMDLegacySupport.kext install
 install_legacy_kext() {
-  [[ -d "${AUTOMATE_EGPU_KEXT}" ]] && return
-  echo -e "\nIt is possible to use unofficial AMD GPUs if needed.\nUnofficial AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
-  read -p "Enable ${BOLD}Unofficial${NORMAL} AMD eGPUs? [Y/N]: " INPUT
+  [[ -d "${AMD_LEGACY_KEXT}" ]] && return
+  echo -e "\nIt is possible to use legacy AMD GPUs if needed.\Legacy AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
+  read -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
   [[ "${INPUT}" == "N" ]] && echo && return
   echo -e "\nInvalid option.\n" && install_legacy_kext
@@ -402,18 +405,19 @@ install_legacy_kext() {
 # Patch TB1/2 block
 patch_tb() {
   echo -e "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  [[ -e "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
+  [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   install_legacy_kext
   if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]]
   then
     echo -e "No thunderbolt patch required for this Mac.\n"
-    [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
+    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 ]] && end_patch
     return
   fi
-  if [[ $AMD_PATCH_STATUS == 1 ]]
+  if [[ ${AMD_PATCH_STATUS} == 1 ]]
   then
     echo -e "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
-    [[ $DID_INSTALL_LEGACY_KEXT == 1 ]] && end_patch
+    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 ]] && end_patch
     return
   fi
   backup_system
@@ -549,10 +553,10 @@ uninstall() {
   echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
   [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
-  if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
+  if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
     echo -e "${BOLD}Removing automate-eGPU...${NORMAL}"
-    rm -r "${AUTOMATE_EGPU_KEXT}"
+    rm -r "${AMD_LEGACY_KEXT}"
     echo -e "${BOLD}automate-eGPU${NORMAL} removed."
   fi
   echo -e "${BOLD}Reverting binaries...${NORMAL}"
@@ -620,11 +624,11 @@ remove_web_drivers() {
 # Recovery logic
 recover_sys() {
   echo -e "\n>> ${BOLD}System Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
-  if [[ -d "${AUTOMATE_EGPU_KEXT}" ]]
+  if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
-    echo -e "${BOLD}Removing automate-eGPU...${NORMAL}"
-    rm -r "${AUTOMATE_EGPU_KEXT}"
-    echo -e "${BOLD}automate-eGPU${NORMAL} removed."
+    echo -e "${BOLD}Removing legacy support...${NORMAL}"
+    rm -r "${AMD_LEGACY_KEXT}"
+    echo -e "Removal successful."
   fi
   [[ ! -e "$MANIFEST" ]] && echo -e "Nothing to recover.\n\nConsider ${BOLD}system recovery${NORMAL} or ${BOLD}rebooting${NORMAL}.\n" && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
