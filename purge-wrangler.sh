@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.3.0
+# Version: 4.2.1
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -44,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="3" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -105,7 +105,7 @@ NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 
 ## AMDLegacySupport
 AUTOMATE_EGPU_KEXT="${TP_EXT_PATH}automate-eGPU.kext"
-AMD_LEGACY_DL="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/AMDLegacySupport.kext.zip"
+AMD_LEGACY_DL="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/4.2.1/resources/AMDLegacySupport.kext.zip"
 AMD_LEGACY_ZIP="${TP_EXT_PATH}AMDLegacySupport.kext.zip"
 AMD_LEGACY_KEXT="${TP_EXT_PATH}AMDLegacySupport.kext"
 DID_INSTALL_LEGACY_KEXT=0
