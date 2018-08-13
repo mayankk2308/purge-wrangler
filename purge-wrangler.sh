@@ -105,7 +105,7 @@ NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
 
 ## AMDLegacySupport
 AUTOMATE_EGPU_KEXT="${TP_EXT_PATH}automate-eGPU.kext"
-AMD_LEGACY_DL="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/4.2.1/resources/AMDLegacySupport.kext.zip"
+AMD_LEGACY_DL="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${SCRIPT_VER}/resources/AMDLegacySupport.kext.zip"
 AMD_LEGACY_ZIP="${TP_EXT_PATH}AMDLegacySupport.kext.zip"
 AMD_LEGACY_KEXT="${TP_EXT_PATH}AMDLegacySupport.kext"
 DID_INSTALL_LEGACY_KEXT=0
