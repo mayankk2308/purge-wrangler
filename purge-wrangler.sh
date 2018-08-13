@@ -381,8 +381,9 @@ patch_plist() {
 
 # Install AMDLegacySupport.kext
 run_legacy_kext_installer() {
-	echo -e "${BOLD}Downloading AMDLegacySupport...${NORMAL}"
+  echo -e "${BOLD}Downloading AMDLegacySupport...${NORMAL}"
   curl -L -s -o "${AMD_LEGACY_ZIP}" "${AMD_LEGACY_DL}"
+  [[ ! -e "${AMD_LEGACY_ZIP}" ]] && echo -e "Could not download.\n\n${BOLD}Continuing...${NORMAL}" && return
   echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
   [[ -d "${AMD_LEGACY_KEXT}" ]] && rm -r "${AMD_LEGACY_KEXT}"
   unzip -d "${TP_EXT_PATH}" "${AMD_LEGACY_ZIP}" 1>/dev/null 2>&1
