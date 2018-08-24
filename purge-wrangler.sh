@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.1
+# Version: 4.2.2
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -44,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="1"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -97,8 +97,12 @@ SUB_IOG_PATH="/IOGraphicsFamily"
 IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
 
 ## NVDAStartup
-NVDA_STARTUP_PATH="${TP_EXT_PATH}NVDAStartupWeb.kext"
-NVDA_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
+NVDA_STARTUP_PATH="${EXT_PATH}NVDAStartup.kext"
+NVDA_STARTUP_PLIST_PATH="${NVDA_STARTUP_PATH}/Contents/Info.plist"
+
+## NVDAStartupWeb
+NVDA_STARTUP_WEB_PATH="${TP_EXT_PATH}NVDAStartupWeb.kext"
+NVDA_STARTUP_WEB_PLIST_PATH="${NVDA_STARTUP_WEB_PATH}/Contents/Info.plist"
 
 ## NVDAEGPUSupport
 NVDA_EGPU_KEXT="${TP_EXT_PATH}NVDAEGPUSupport.kext"
@@ -125,6 +129,9 @@ BACKUP_IOG_BIN="${BACKUP_IOG}${SUB_IOG_PATH}"
 ## IONDRVSupport
 BACKUP_IONDRV="${BACKUP_KEXT_DIR}IONDRVSupport.kext"
 
+## NVDAStartup
+BACKUP_NVDA_STARTUP_PATH="${BACKUP_KEXT_DIR}NVDAStartup.kext"
+
 ## Manifest
 MANIFEST="${SUPPORT_DIR}manifest.wglr"
 
@@ -146,6 +153,7 @@ MANIFEST_MACOS_BUILD=""
 
 # Webdriver information
 WEBDRIVER_PLIST="/usr/local/bin/webdriver.plist"
+USING_WEB_DRV=0
 
 # ----- SCRIPT SOFTWARE UPDATE SYSTEM
 
@@ -241,7 +249,7 @@ check_patch() {
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
   [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AMD_LEGACY_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
-  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" && "$([[ -f "${NVDA_PLIST_PATH}" ]] && cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
+  [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
 }
 
 # Patch status check
@@ -261,6 +269,7 @@ perform_sys_check() {
   check_sys_extensions
   check_patch
   DID_INSTALL_LEGACY_KEXT=0
+  USING_WEB_DRV=0
 }
 
 # ----- OS MANAGEMENT
@@ -268,8 +277,8 @@ perform_sys_check() {
 # Sanitize system permissions and caches
 sanitize_system() {
   echo -e "${BOLD}Sanitizing system...${NORMAL}"
-  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
-  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
+  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
+  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
   echo -e "System sanitized."
 }
@@ -328,6 +337,7 @@ execute_backup() {
   rsync -rt "${AGC_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -rt "${IOG_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -rt "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
+  rsync -rt "${NVDA_STARTUP_PATH}" "${BACKUP_KEXT_DIR}"
 }
 
 # Backup procedure
@@ -343,7 +353,7 @@ backup_system() {
       echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
       echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
       echo -e "${BOLD}Updating backup...${NORMAL}"
-      rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" 2>/dev/null
+      rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" "${BACKUP_NVDA_STARTUP_PATH}" 2>/dev/null
       if [[ $AMD_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
         echo -e "${BOLD}Uninstalling patch before backup update...${NORMAL}"
@@ -501,9 +511,9 @@ run_webdriver_installer() {
 
 # Prompt NVIDIA Web Driver installation
 prompt_web_driver_install() {
-  if [[ -f "${NVDA_PLIST_PATH}" ]]
+  if [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]]
   then
-    if [[ ! -z "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_PLIST_PATH}" 2>/dev/null)" ]]
+    if [[ ! -z "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null)" ]]
     then
       echo -e "\nInstalled ${BOLD}NVIDIA Web Drivers${NORMAL} are specifying macOS build.\n"
       read -p "${BOLD}Remove limitation${NORMAL}? [Y/N]: " INPUT
@@ -518,10 +528,10 @@ prompt_web_driver_install() {
     fi
     return
   fi
-  echo
+  echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} are required for ${BOLD}NVIDIA 9xx${NORMAL} GPUs or newer.\nIf you are using an older macOS-supported NVIDIA GPU,\nweb drivers are not needed.\n"
   read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && echo && run_webdriver_installer && return
-  [[ "${INPUT}" == "N" ]] && return
+  [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
+  [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
   echo -e "\nInvalid option.\n" && prompt_web_driver_install
 }
 
@@ -531,8 +541,15 @@ patch_nv() {
   [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
   [[ $AMD_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   prompt_web_driver_install
-  [[ ! -f "${NVDA_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} required, but not installed.\n" && return
-  nvram nvda_drv=1
+  [[ $USING_WEB_DRV == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
+  if [[ $USING_WEB_DRV == 1 ]]
+  then
+    nvram nvda_drv=1
+    NVDA_STARTUP_PLIST_TO_PATCH="${NVDA_STARTUP_WEB_PLIST_PATH}"
+  else
+    nvram -d nvda_drv 2>/dev/null
+    NVDA_STARTUP_PLIST_TO_PATCH="${NVDA_STARTUP_PLIST_PATH}"
+  fi
   backup_system
   echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
@@ -542,7 +559,8 @@ patch_nv() {
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
   generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
   patch_plist "${IONDRV_PLIST_PATH}" "Add" "${NDRV_PCI_TUN_CP}" "true"
-  patch_plist "${NVDA_PLIST_PATH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
+  patch_plist "${NVDA_STARTUP_PLIST_TO_PATCH}" "Add" "${NVDA_PCI_TUN_CP}" "true"
+  [[ -e "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   [[ -d "${NVDA_EGPU_KEXT}" ]] && echo -e "${BOLD}NVDAEGPUSupport.kext${NORMAL} detected. ${BOLD}Removing...${NORMAL}" && rm -r "${NVDA_EGPU_KEXT}" && echo -e "Removal complete."
   echo -e "Components patched."
   end_patch
@@ -567,7 +585,8 @@ uninstall() {
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_IOG_HEX}"
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
-    [[ -f "${NVDA_PLIST_PATH}" && "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" && "$(cat "${NVDA_STARTUP_WEB_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_WEB_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    [[ "$(cat "${NVDA_STARTUP_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     generate_new_bin "${SCRATCH_IOG_HEX}" "${SCRATCH_IOG_BIN}" "${IOG_BIN}"
     [[ "$(cat "${IONDRV_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${IONDRV_PLIST_PATH}" "Delete" "${NDRV_PCI_TUN_CP}"
   fi
@@ -643,9 +662,10 @@ recover_sys() {
   fi
   echo -e "${BOLD}Restoring files from backup...${NORMAL}"
   [[ -d "${BACKUP_KEXT_DIR}" ]] && rsync -rt "${BACKUP_KEXT_DIR}"* "${EXT_PATH}"
-  if [[ -f "${NVDA_PLIST_PATH}" ]]
+  [[ "$(cat "${NVDA_STARTUP_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+  if [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]]
   then
-    [[ "$(cat "${NVDA_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
+    [[ "$(cat "${NVDA_STARTUP_WEB_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_WEB_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
   echo -e "Files restored."
