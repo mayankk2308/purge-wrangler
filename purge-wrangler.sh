@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.2
+# Version: 4.2.3
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -44,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="2"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="3"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -526,6 +526,7 @@ prompt_web_driver_install() {
         echo -e "Drivers patched.\n"
       fi
     fi
+    USING_WEB_DRV=1
     return
   fi
   echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} are required for ${BOLD}NVIDIA 9xx${NORMAL} GPUs or newer.\nIf you are using an older macOS-supported NVIDIA GPU,\nweb drivers are not needed.\n"
