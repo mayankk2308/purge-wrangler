@@ -631,10 +631,10 @@ remove_web_drivers() {
   if [[ "${INPUT}" == "Y" ]]
   then
     echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
+    nvram -d nvda_drv
     WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
     [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
     installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
-    nvram -d nvda_drv
     echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
   fi
   [[ "${INPUT}" == "N" ]] && echo && return
