@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.3
+# Version: 4.2.4
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -44,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="3"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="4"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -458,7 +458,7 @@ install_web_drivers() {
     echo "Unable to patch driver."
     return
   fi
-  $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" 2>/dev/null 1>&2
+  $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"${MACOS_BUILD}\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" 2>/dev/null 1>&2
   chown -R root:wheel "${NVDA_STARTUP_PKG_KEXT}"
   rm -r "${INSTALLER_PKG}"
   pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
@@ -513,16 +513,16 @@ run_webdriver_installer() {
 prompt_web_driver_install() {
   if [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]]
   then
-    if [[ ! -z "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null)" ]]
+    if [[ "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null)" != "${MACOS_BUILD}" ]]
     then
-      echo -e "\nInstalled ${BOLD}NVIDIA Web Drivers${NORMAL} are specifying macOS build.\n"
-      read -p "${BOLD}Remove limitation${NORMAL}? [Y/N]: " INPUT
+      echo -e "\nInstalled ${BOLD}NVIDIA Web Drivers${NORMAL} are specifying incorrect macOS build.\n"
+      read -p "${BOLD}Rectify${NORMAL}? [Y/N]: " INPUT
       if [[ "${INPUT}" != "Y" ]]
       then
         echo -e "\nDrivers unchanged.\n"
       else
         echo -e "\n${BOLD}Patching drivers...${NORMAL}"
-        $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"\"" 2>/dev/null 1>&2
+        $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"${MACOS_BUILD}\"" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null 1>&2
         echo -e "Drivers patched.\n"
       fi
     fi
