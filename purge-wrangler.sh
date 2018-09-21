@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.4
+# Version: 4.2.5
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -44,7 +44,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="4"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="5"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # User input
@@ -445,9 +445,15 @@ install_web_drivers() {
   INSTALLER_PKG_EXPANDED="/usr/local/NVDAInstall"
   DRIVER_VERSION="${1}"
   DOWNLOAD_URL="${2}"
-  rm - r "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
+  rm -r "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
   echo -e "Data retrieved.\n${BOLD}Downloading drivers (${DRIVER_VERSION})...${NORMAL}"
   curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DOWNLOAD_URL}"
+  if [[ ! -s "${INSTALLER_PKG}" ]]
+  then
+    rm -r "${INSTALLER_PKG}" 2>/dev/null 1>&2
+    echo "Unable to download."
+    return
+  fi
   echo -e "Download complete.\n${BOLD}Sanitizing package...${NORMAL}"
   pkgutil --expand-full "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
   sed -i "" -e "/installation-check/d" "${INSTALLER_PKG_EXPANDED}/Distribution"
@@ -555,6 +561,11 @@ patch_nv() {
   echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
+  if [[ ! -e "${SCRATCH_AGW_HEX}" || ! -e "${SCRATCH_IOG_HEX}" ]]
+  then
+    echo -e "Unable to patch. Use ${BOLD}System Recovery${NORMAL} and retry."
+    return
+  fi
   generic_patcher "${PCI_TUNNELLED_HEX}" "${PATCHED_PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${PCI_TUNNELLED_HEX}" "${PATCHED_PCI_TUNNELLED_HEX}" "${SCRATCH_IOG_HEX}"
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
@@ -567,10 +578,29 @@ patch_nv() {
   end_patch
 }
 
+# Remove NVIDIA Web Drivers
+remove_web_drivers() {
+  [[ ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && return
+  echo
+  read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+  if [[ "${INPUT}" == "Y" ]]
+  then
+    echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
+    nvram -d nvda_drv
+    WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
+    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
+    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
+    echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
+  fi
+  [[ "${INPUT}" == "N" ]] && echo && return
+  echo -e "\nInvalid option.\n" && remove_web_drivers
+}
+
+
 # In-place re-patcher
 uninstall() {
   echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
+  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
@@ -578,12 +608,23 @@ uninstall() {
     rm -r "${AMD_LEGACY_KEXT}"
     echo -e "Removal successful."
   fi
+  remove_web_drivers
   echo -e "${BOLD}Reverting binaries...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
+  if [[ ! -e "${SCRATCH_AGW_HEX}" ]]
+  then
+    echo -e "Unable to uninstall. Use ${BOLD}System Recovery${NORMAL}."
+    return
+  fi
   [[ $AMD_PATCH_STATUS == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
   if [[ $NV_PATCH_STATUS == 1 ]]
   then
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
+    if [[ ! -e "${SCRATCH_IOG_HEX}" ]]
+    then
+      echo -e "Unable to uninstall. Use ${BOLD}System Recovery${NORMAL}."
+      return
+    fi
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_IOG_HEX}"
     generic_patcher "${PATCHED_PCI_TUNNELLED_HEX}" "${PCI_TUNNELLED_HEX}" "${SCRATCH_AGW_HEX}"
     [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" && "$(cat "${NVDA_STARTUP_WEB_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_WEB_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
@@ -623,23 +664,6 @@ first_time_setup() {
 }
 
 # ----- RECOVERY SYSTEM
-
-# Remove NVIDIA Web Drivers
-remove_web_drivers() {
-  echo
-  read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-  if [[ "${INPUT}" == "Y" ]]
-  then
-    echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
-    nvram -d nvda_drv
-    WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
-    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
-    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
-    echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
-  fi
-  [[ "${INPUT}" == "N" ]] && echo && return
-  echo -e "\nInvalid option.\n" && remove_web_drivers
-}
 
 # Recovery logic
 recover_sys() {
