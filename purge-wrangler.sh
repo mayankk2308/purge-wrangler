@@ -546,7 +546,7 @@ prompt_web_driver_install() {
   read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
   [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
   [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
-  echo -e "\nInvalid option.\n" && prompt_web_driver_install
+  echo -e "\nInvalid option." && prompt_web_driver_install
 }
 
 # Patch for NVIDIA eGPUs
