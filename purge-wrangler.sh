@@ -11,7 +11,7 @@
 #       © @mac_editor (+ @fricorico) at egpu.io
 # ----- Legacy AMD GPUs
 #       - automate-eGPU.kext -> AMDLegacySupport.kext
-#       - Updated & Simplified to AMDLegacySupport @mac_editor
+#       - Updated & Simplified to AMDLegacySupport by @mac_editor
 #       © @goalque at egpu.io
 # ----- New NVIDIA eGPU Patch
 #       - AppleGPUWrangler Discrete
@@ -506,7 +506,14 @@ run_webdriver_installer() {
   if [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]]
   then
     echo -e "Latest Available Driver: ${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL}\nYour macOS Build: ${BOLD}${MACOS_BUILD}${NORMAL}\n"
-    echo -e "Patching ${BOLD}minor${NORMAL} macOS version differences is ${BOLD}usually safe${NORMAL},\nbut does not necessarily imply guaranteed functionality.\n"
+    DRIVER_MAJOR_BUILD="${LATEST_DRIVER_MACOS_BUILD:0:2}"
+    MACOS_MAJOR_BUILD="${MACOS_BUILD:0:2}"
+    if (( ${DRIVER_MAJOR_BUILD} - ${MACOS_MAJOR_BUILD} != 0 ))
+    then
+      echo -e "${BOLD}Recommendation${NORMAL}: Major OS version discrepancy detected.\n\t\tPatching ${BOLD}not recommended${NORMAL}.\n"
+    else
+      echo -e "${BOLD}Recommendation${NORMAL}: Minor OS version discrepancy detected.\n\t\tPatching ${BOLD}may be safe${NORMAL}.\n"
+    fi
     read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
     [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
