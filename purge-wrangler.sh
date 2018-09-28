@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.3.0
+# Version: 5.0.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -19,7 +19,6 @@
 #       © @goalque at egpu.io
 # ----- Ti82 Controller Support
 #       - IOThunderboltFamily patch
-#       - Enhancements by @itsage
 #       © @khaosT at github.com
 # ----- TB Detection
 #       @owenrw at egpu.io
@@ -48,7 +47,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="3" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -242,6 +241,34 @@ fetch_latest_release() {
 
 # ----- SYSTEM CONFIGURATION MANAGER
 
+# Create LaunchAgent
+create_launchagent() {
+  AGENT="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>io.egpu.purge-wrangler-agent</string>
+    <key>OnDemand</key>
+    <false/>
+    <key>LaunchOnlyOnce</key>
+    <true/>
+    <key>UserName</key>
+    <string>${SUDO_USER}</string>
+    <key>RunAtLoad</key>
+		<true/>
+    <key>ProgramArguments</key>
+    <array>
+      <string>${SCRIPT_BIN}</string>
+      <string>-1</string>
+    </array>
+</dict>
+</plist>"
+  AGENT_PLIST="${HOME}/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
+  echo "${AGENT}" > "${AGENT_PLIST}"
+  chown "${SUDO_USER}" "${AGENT_PLIST}"
+}
+
 # Write preferences
 write_preferences() {
   PREF_RESULT=3
@@ -322,7 +349,7 @@ check_patch() {
   IOT_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOT_BIN}")"
   [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AMD_LEGACY_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
-  [[ "${IOT_HEX}" =~ "${PATCHED_SKIPNUM_HEX}" && "${IOT_HEX}" =~ "${PATCHED_BLOCK_HEX}" ]] && TI82_PATCH_STATUS=1 || TI82_PATCH_STATUS=0
+  [[ "${IOT_HEX}" =~ "${PATCHED_SKIPNUM_HEX}" ]] && TI82_PATCH_STATUS=1 || TI82_PATCH_STATUS=0
 }
 
 # Patch status check
@@ -343,6 +370,7 @@ perform_sys_check() {
   prepare_preferences
   check_sys_extensions
   check_patch
+  create_launchagent
   DID_INSTALL_LEGACY_KEXT=0
   DID_INSTALL_TI82=0
   USING_WEB_DRV=0
@@ -519,7 +547,6 @@ patch_ti82() {
   echo "${BOLD}Enabling Ti82 support...${NORMAL}"
   generate_hex "${IOT_BIN}" "${SCRATCH_IOT_HEX}"
   generic_patcher "${SKIPNUM_HEX}" "${PATCHED_SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
-  generic_patcher "${BLOCK_HEX}" "${PATCHED_BLOCK_HEX}" "${SCRATCH_IOT_HEX}"
   generate_new_bin "${SCRATCH_IOT_HEX}" "${SCRATCH_IOT_BIN}" "${IOT_BIN}"
   echo -e "Ti82 support enabled.\n\n${BOLD}Continuing...${NORMAL}\n"
 }
@@ -759,10 +786,7 @@ remove_web_drivers() {
   if [[ ${NVDA_WEB_UNINSTALLS} != 1 && ${NVDA_WEB_UNINSTALLS} != 2 ]]
   then
     read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-    if [[ "${INPUT}" == "Y" ]]
-    then
-      run_webdriver_uninstaller
-    fi
+    [[ "${INPUT}" == "Y" ]] && run_webdriver_uninstaller && return
     [[ "${INPUT}" == "N" ]] && echo && return
     echo -e "\nInvalid option.\n" && remove_web_drivers
   elif [[ ${NVDA_WEB_UNINSTALLS} == 1 ]]
@@ -779,7 +803,6 @@ uninstall_ti82() {
   echo -e "${BOLD}Removing Ti82 support...${NORMAL}"
   generate_hex "${IOT_BIN}" "${SCRATCH_IOT_HEX}"
   generic_patcher "${PATCHED_SKIPNUM_HEX}" "${SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
-  generic_patcher "${PATCHED_BLOCK_HEX}" "${BLOCK_HEX}" "${SCRATCH_IOT_HEX}"
   generate_new_bin "${SCRATCH_IOT_HEX}" "${SCRATCH_IOT_BIN}" "${IOT_BIN}"
   echo -e "Ti82 support disabled."
 }
@@ -888,6 +911,24 @@ recover_sys() {
 }
 
 # ----- USER INTERFACE
+
+# Show update prompt
+show_update_prompt() {
+  check_patch
+  [[ ! -e "${MANIFEST}" ]] && return
+  MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
+  [[ ${AMD_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 || ("${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}") ]] && return
+  osascript -e '
+  set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated. Re-apply patches to restore eGPU functionality?"
+  set outcome to (display dialog theDialogText buttons {"Later", "Re-apply"} default button "Re-apply" cancel button "Later" with icon caution)
+  if outcome = {button returned:"Re-apply"} then
+	   tell application "Terminal"
+		   activate
+		     do script "purge-wrangler"
+	    end tell
+  end if' 2>/dev/null 1>&2
+  sleep 10
+}
 
 # Present preference menu
 present_pref() {
@@ -1014,6 +1055,7 @@ process_args() {
     then
       echo "${BOLD}Enabling...${NORMAL}"
       patch_ti82 1>/dev/null
+      write_manifest
       echo "Ti82 Enabled."
       sanitize_system
     else
@@ -1053,6 +1095,7 @@ process_args() {
 
 # Primary execution routine
 begin() {
+  [[ "${2}" == "-1" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
   process_args "${2}"
