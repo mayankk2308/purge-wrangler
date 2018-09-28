@@ -18,7 +18,7 @@
 #       - IOGraphicsFamily
 #       © @goalque at egpu.io
 # ----- Ti82 Controller Support
-#       - Generalized by @mac_editor
+#       - IOThunderboltFamily patch
 #       © @khaosT at github.com
 # ----- TB Detection
 #       @owenrw at egpu.io
@@ -95,9 +95,16 @@ TB_SWITCH_HEX="494F5468756E646572626F6C74537769746368547970653"
 PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6564"
 PATCHED_PCI_TUNNELLED_HEX="494F50434954756E6E656C6C6571"
 
+# IOThunderboltFamily references
+SKIPNUM_HEX="554889E54157415641554154534881EC2801"
+PATCHED_SKIPNUM_HEX="554889E531C05DC341554154534881EC2801"
+BLOCK_HEX="554889E54157415641554154534881EC9801"
+PATCHED_BLOCK_HEX="554889E531C05DC341554154534881EC9801"
+
 # Patch status indicators
 AMD_PATCH_STATUS=""
 NV_PATCH_STATUS=""
+TI82_PATCH_STATUS=""
 
 # General kext paths
 EXT_PATH="/System/Library/Extensions/"
@@ -120,7 +127,8 @@ IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
 ## IOThunderboltFamily
 IOT_FAM="${EXT_PATH}IOThunderboltFamily.kext"
 SUB_IOT_PATH="/Contents/MacOS/IOThunderboltFamily"
-IOT_BIN="${IOT_FAM}/Contents/MacOS/IOThunderboltFamily"
+IOT_BIN="${IOT_FAM}${SUB_IOT_PATH}"
+DID_INSTALL_TI82=0
 
 ## NVDAStartup
 NVDA_STARTUP_PATH="${EXT_PATH}NVDAStartup.kext"
@@ -170,6 +178,8 @@ SCRATCH_AGW_HEX=".AppleGPUWrangler.hex"
 SCRATCH_AGW_BIN=".AppleGPUWrangler.bin"
 SCRATCH_IOG_HEX=".IOGraphicsFamily.hex"
 SCRATCH_IOG_BIN=".IOGraphicsFamily.bin"
+SCRATCH_IOT_HEX=".IOThunderboltFamily.hex"
+SCRATCH_IOT_BIN=".IOThunderboltFamily.bin"
 
 # PlistBuddy configuration
 PlistBuddy="/usr/libexec/PlistBuddy"
@@ -291,7 +301,7 @@ check_macos_version() {
 
 # Ensure presence of system extensions
 check_sys_extensions() {
-  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" ]] && echo -e "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
+  [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" || ! -s "${IOT_FAM}" || ! -s "${IOT_BIN}" ]] && echo -e "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
 }
 
 # Retrieve thunderbolt version
@@ -308,8 +318,10 @@ check_patch() {
   [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=2 && NV_PATCH_STATUS=2 && return
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
+  IOT_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOT_BIN}")"
   [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AMD_LEGACY_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
+  [[ "${IOT_HEX}" =~ "${PATCHED_SKIPNUM_HEX}" && "${IOT_HEX}" =~ "${PATCHED_BLOCK_HEX}" ]] && TI82_PATCH_STATUS=1 || TI82_PATCH_STATUS=0
 }
 
 # Patch status check
@@ -317,7 +329,8 @@ check_patch_status() {
   PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
   echo -e "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
   echo -e "${BOLD}AMD Patch${NORMAL}: ${PATCH_STATUSES[$AMD_PATCH_STATUS]}"
-  echo -e "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}\n"
+  echo -e "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}"
+  echo -e "${BOLD}Ti82 Patch${NORMAL}: ${PATCH_STATUSES[${TI82_PATCH_STATUS}]}\n"
 }
 
 # Cumulative system check
@@ -330,6 +343,7 @@ perform_sys_check() {
   check_sys_extensions
   check_patch
   DID_INSTALL_LEGACY_KEXT=0
+  DID_INSTALL_TI82=0
   USING_WEB_DRV=0
 }
 
@@ -338,8 +352,8 @@ perform_sys_check() {
 # Sanitize system permissions and caches
 sanitize_system() {
   echo -e "${BOLD}Sanitizing system...${NORMAL}"
-  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
-  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" 1>/dev/null 2>&1
+  chmod -R 755 "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" "${IOT_FAM}" 1>/dev/null 2>&1
+  chown -R root:wheel "${AGC_PATH}" "${IOG_PATH}" "${IONDRV_PATH}" "${NVDA_STARTUP_WEB_PATH}" "${NVDA_STARTUP_PATH}" "${AMD_LEGACY_KEXT}" "${IOT_FAM}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
   echo -e "System sanitized."
 }
@@ -416,7 +430,7 @@ backup_system() {
     MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
-      if [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]]
+      if [[ ${AMD_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 ]]
       then
         execute_backup
         echo -e "Backup refreshed."
@@ -427,7 +441,7 @@ backup_system() {
       echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
       echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
       echo -e "${BOLD}Updating backup...${NORMAL}"
-      if [[ $AMD_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
+      if [[ ${AMD_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 ]]
       then
         echo -e "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
@@ -444,7 +458,7 @@ backup_system() {
   fi
 }
 
-# ----- CORE PATCH
+# ----- CORE PATCHING SYSTEM
 
 # Conclude patching sequence
 end_patch() {
@@ -476,7 +490,7 @@ run_legacy_kext_installer() {
   [[ -d "${AMD_LEGACY_KEXT}" ]] && rm -r "${AMD_LEGACY_KEXT}"
   unzip -d "${TP_EXT_PATH}" "${AMD_LEGACY_ZIP}" 1>/dev/null 2>&1
   rm -r "${AMD_LEGACY_ZIP}" "${TP_EXT_PATH}/__MACOSX" 1>/dev/null 2>&1
-  echo -e "Installation complete.\n\n${BOLD}Continuing patch....${NORMAL}"
+  echo -e "Installation complete.\n\n${BOLD}Continuing...${NORMAL}"
   DID_INSTALL_LEGACY_KEXT=1
 }
 
@@ -488,7 +502,7 @@ install_legacy_kext() {
   then
     read -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
     [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
-    [[ "${INPUT}" == "N" ]] && echo && return
+    [[ "${INPUT}" == "N" ]] && return
     echo -e "\nInvalid option.\n" && install_legacy_kext
   elif [[ ${AMD_LEGACY_INSTALLS} == 1 ]]
   then
@@ -499,25 +513,55 @@ install_legacy_kext() {
   fi
 }
 
+# Patch for Ti82 support
+patch_ti82() {
+  echo "${BOLD}Enabling Ti82 support...${NORMAL}"
+  generate_hex "${IOT_BIN}" "${SCRATCH_IOT_HEX}"
+  generic_patcher "${SKIPNUM_HEX}" "${PATCHED_SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
+  generic_patcher "${BLOCK_HEX}" "${PATCHED_BLOCK_HEX}" "${SCRATCH_IOT_HEX}"
+  generate_new_bin "${SCRATCH_IOT_HEX}" "${SCRATCH_IOT_BIN}" "${IOT_BIN}"
+  echo -e "Ti82 support enabled.\n\n${BOLD}Continuing...${NORMAL}\n"
+}
+
+# Prompt for Ti82 patch
+install_ti82() {
+  [[ ${TI82_PATCH_STATUS} == 1 ]] && return
+  echo -e "\nTo use certain TB3 eGPU enclosures that have ${BOLD}Ti82 controllers${NORMAL},\nit is necessary to patch macOS to allow them to mount properly.\n"
+  if [[ ${TI82_INSTALLS} != 1 && ${TI82_INSTALLS} != 2 ]]
+  then
+    read -p "Enable ${BOLD}Ti82${NORMAL}? [Y/N]: " INPUT
+    [[ "${INPUT}" == "Y" ]] && echo && DID_INSTALL_TI82=1 && patch_ti82 && return
+    [[ "${INPUT}" == "N" ]] && echo && return
+    echo -e "\nInvalid option.\n" && install_ti82
+  elif [[ ${TI82_INSTALLS} == 1 ]]
+  then
+    echo -e "Your preferences are set to ${BOLD}always${NORMAL} install Ti82 support.\n${BOLD}Proceeding...${NORMAL}\n"
+    DID_INSTALL_TI82=1 && patch_ti82
+  else
+    echo -e "Your preferences are set to ${BOLD}never${NORMAL} install Ti82 support.\n${BOLD}Proceeding...${NORMAL}\n"
+  fi
+}
+
 # Patch TB1/2 block
 patch_tb() {
   echo -e "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ -e "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  backup_system
   install_legacy_kext
+  install_ti82
   if [[ "${SYS_TB_VER}" == "${TB_SWITCH_HEX}3" ]]
   then
     echo -e "No thunderbolt patch required for this Mac.\n"
-    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 ]] && end_patch
+    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 || ${DID_INSTALL_TI82} == 1 ]] && end_patch
     return
   fi
   if [[ ${AMD_PATCH_STATUS} == 1 ]]
   then
     echo -e "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
-    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 ]] && end_patch
+    [[ ${DID_INSTALL_LEGACY_KEXT} == 1 || ${DID_INSTALL_TI82} == 1 ]] && end_patch
     return
   fi
-  backup_system
   echo -e "${BOLD}Patching components...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generic_patcher "${TB_SWITCH_HEX}"3 "${SYS_TB_VER}" "${SCRATCH_AGW_HEX}"
@@ -663,11 +707,11 @@ prompt_web_driver_install() {
 # Patch for NVIDIA eGPUs
 patch_nv() {
   echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
-  [[ $NV_PATCH_STATUS == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
-  [[ $AMD_PATCH_STATUS == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
+  [[ ${AMD_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   prompt_web_driver_install
-  [[ $USING_WEB_DRV == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
-  if [[ $USING_WEB_DRV == 1 ]]
+  [[ ${USING_WEB_DRV} == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
+  if [[ ${USING_WEB_DRV} == 1 ]]
   then
     nvram nvda_drv=1
     NVDA_STARTUP_PLIST_TO_PATCH="${NVDA_STARTUP_WEB_PLIST_PATH}"
@@ -677,6 +721,7 @@ patch_nv() {
   fi
   backup_system
   echo -e "${BOLD}Patching components...${NORMAL}"
+  install_ti82
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
   if [[ ! -e "${SCRATCH_AGW_HEX}" || ! -e "${SCRATCH_IOG_HEX}" ]]
@@ -728,11 +773,20 @@ remove_web_drivers() {
   fi
 }
 
+# Uninstall Ti82
+uninstall_ti82() {
+  echo -e "${BOLD}Removing Ti82 support...${NORMAL}"
+  generate_hex "${IOT_BIN}" "${SCRATCH_IOT_HEX}"
+  generic_patcher "${PATCHED_SKIPNUM_HEX}" "${SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
+  generic_patcher "${PATCHED_BLOCK_HEX}" "${BLOCK_HEX}" "${SCRATCH_IOT_HEX}"
+  generate_new_bin "${SCRATCH_IOT_HEX}" "${SCRATCH_IOT_BIN}" "${IOT_BIN}"
+  echo -e "Ti82 support disabled."
+}
 
 # In-place re-patcher
 uninstall() {
   echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
+  [[ ${AMD_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
@@ -741,6 +795,7 @@ uninstall() {
     echo -e "Removal successful."
   fi
   remove_web_drivers
+  uninstall_ti82
   echo -e "${BOLD}Reverting binaries...${NORMAL}"
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
   if [[ ! -e "${SCRATCH_AGW_HEX}" ]]
@@ -748,8 +803,8 @@ uninstall() {
     echo -e "Unable to uninstall. Use ${BOLD}System Recovery${NORMAL}."
     return
   fi
-  [[ $AMD_PATCH_STATUS == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
-  if [[ $NV_PATCH_STATUS == 1 ]]
+  [[ ${AMD_PATCH_STATUS} == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
+  if [[ ${NV_PATCH_STATUS} == 1 ]]
   then
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
     if [[ ! -e "${SCRATCH_IOG_HEX}" ]]
@@ -817,7 +872,7 @@ recover_sys() {
     [[ "${INPUT}" != "Y" ]] && echo -e "Invalid choice. Recovery ${BOLD}safely aborted${NORMAL}.\n" && return
     echo -e "\n${BOLD}Attempting recovery...${NORMAL}"
   fi
-  echo -e "${BOLD}Restoring files from backup...${NORMAL}"
+  echo -e "${BOLD}Restoring system...${NORMAL}"
   [[ -d "${BACKUP_KEXT_DIR}" ]] && rsync -rt "${BACKUP_KEXT_DIR}"* "${EXT_PATH}"
   [[ "$(cat "${NVDA_STARTUP_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
   if [[ -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]]
@@ -825,7 +880,7 @@ recover_sys() {
     [[ "$(cat "${NVDA_STARTUP_WEB_PLIST_PATH}" | grep -i "IOPCITunnelCompatible")" ]] && patch_plist "${NVDA_STARTUP_WEB_PLIST_PATH}" "Delete" "${NVDA_PCI_TUN_CP}"
     remove_web_drivers
   fi
-  echo -e "Files restored."
+  echo -e "System restored."
   write_manifest
   sanitize_system
   echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n\nRefer to the ${BOLD}macOS eGPU Troubleshooting Guide${NORMAL} in the ${BOLD}How-To's${NORMAL}\nsection of ${UNDERLINE}egpu.io${NORMAL} for further troubleshooting if needed.\n"
