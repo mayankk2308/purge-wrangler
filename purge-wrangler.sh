@@ -63,6 +63,8 @@ AMD_LEGACY_INSTALLS=0
 AMD_LEGACY_INSTALLS_KEY="AMDLegacyInstall"
 TI82_INSTALLS=0
 TI82_INSTALLS_KEY="TI82Install"
+NVDA_WEB_UNINSTALLS=0
+NVDA_WEB_UNINSTALLS_KEY="NVDAWebUninstall"
 
 # Preference intermediate
 PREF_RESULT=3
@@ -230,16 +232,23 @@ write_preferences() {
   PREF_RESULT=3
   defaults write "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}" -int ${NVDA_WEB_INSTALLS}
   defaults write "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}" -int ${NVDA_WEB_PATCH_INSTALLS}
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_UNINSTALLS_KEY}" -int ${NVDA_WEB_UNINSTALLS}
   defaults write "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}" -int ${AMD_LEGACY_INSTALLS}
   defaults write "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}" -int ${TI82_INSTALLS}
 }
 
 # Read preferences
 read_preferences() {
-  NVDA_WEB_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}")"
-  NVDA_WEB_PATCH_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}")"
-  AMD_LEGACY_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}")"
-  TI82_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}")"
+  NVDA_WEB_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}" 2>/dev/null)"
+  NVDA_WEB_PATCH_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}" 2>/dev/null)"
+  NVDA_WEB_UNINSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_UNINSTALLS_KEY}" 2>/dev/null)"
+  AMD_LEGACY_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}" 2>/dev/null)"
+  TI82_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}" 2>/dev/null)"
+  [[ -z "${NVDA_WEB_INSTALLS}" || (( ${NVDA_WEB_INSTALLS} < 0 )) ]] && NVDA_WEB_INSTALLS=3
+  [[ -z "${NVDA_WEB_PATCH_INSTALLS}" || (( ${NVDA_WEB_PATCH_INSTALLS} < 0 )) ]] && NVDA_WEB_INSTALLS=3
+  [[ -z "${NVDA_WEB_UNINSTALLS}" || (( ${NVDA_WEB_UNINSTALLS} < 0 )) ]] && NVDA_WEB_UNINSTALLS=3
+  [[ -z "${AMD_LEGACY_INSTALLS}" || (( ${AMD_LEGACY_INSTALLS} < 0 )) ]] && AMD_LEGACY_INSTALLS=3
+  [[ -z "${TI82_INSTALLS}" || (( ${TI82_INSTALLS} < 0 )) ]] && TI82_INSTALLS=3
 }
 
 # Read & prepare preferences
@@ -309,10 +318,10 @@ check_patch_status() {
 
 # Cumulative system check
 perform_sys_check() {
-  elevate_privileges
   check_sip
   check_macos_version
   retrieve_tb_ver
+  elevate_privileges
   prepare_preferences
   check_sys_extensions
   check_patch
@@ -441,7 +450,12 @@ patch_plist() {
 run_legacy_kext_installer() {
   echo -e "${BOLD}Downloading AMDLegacySupport...${NORMAL}"
   curl -L -s -o "${AMD_LEGACY_ZIP}" "${AMD_LEGACY_DL}"
-  [[ ! -e "${AMD_LEGACY_ZIP}" ]] && echo -e "Could not download.\n\n${BOLD}Continuing...${NORMAL}" && return
+  if [[ ! -e "${AMD_LEGACY_ZIP}" || ! -s "${AMD_LEGACY_ZIP}" || "$(cat "${AMD_LEGACY_ZIP}")" == "404: Not Found" ]]
+  then
+    echo -e "Could not download.\n\n${BOLD}Continuing...${NORMAL}"
+    rm -rf "${AMD_LEGACY_ZIP}" 2>/dev/null
+    return
+  fi
   echo -e "Download complete.\n${BOLD}Installing...${NORMAL}"
   [[ -d "${AMD_LEGACY_KEXT}" ]] && rm -r "${AMD_LEGACY_KEXT}"
   unzip -d "${TP_EXT_PATH}" "${AMD_LEGACY_ZIP}" 1>/dev/null 2>&1
@@ -453,11 +467,20 @@ run_legacy_kext_installer() {
 # Prompt AMDLegacySupport.kext install
 install_legacy_kext() {
   [[ -d "${AMD_LEGACY_KEXT}" ]] && return
-  echo -e "\nIt is possible to use legacy AMD GPUs if needed.\Legacy AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
-  read -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
-  [[ "${INPUT}" == "N" ]] && echo && return
-  echo -e "\nInvalid option.\n" && install_legacy_kext
+  echo -e "\nIt is possible to use legacy AMD GPUs if needed.\nLegacy AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
+  if [[ ${AMD_LEGACY_INSTALLS} != 1 && ${AMD_LEGACY_INSTALLS} != 2 ]]
+  then
+    read -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
+    [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
+    [[ "${INPUT}" == "N" ]] && echo && return
+    echo -e "\nInvalid option.\n" && install_legacy_kext
+  elif [[ ${AMD_LEGACY_INSTALLS} == 1 ]]
+  then
+    echo -e "Your preferences are set to ${BOLD}always${NORMAL} install legacy support.\n${BOLD}Proceeding...${NORMAL}\n"
+    run_legacy_kext_installer
+  else
+    echo -e "Your preferences are set to ${BOLD}never${NORMAL} install legacy support.\n${BOLD}Proceeding...${NORMAL}\n"
+  fi
 }
 
 # Patch TB1/2 block
@@ -551,7 +574,7 @@ run_webdriver_installer() {
     [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
     (( INDEX++ ))
   done
-  if [[ -z "${DRIVER_DL}" || -z "${DRIVER_VER}" ]]
+  if [[ (-z "${DRIVER_DL}" || -z "${DRIVER_VER}") && ${NVDA_WEB_PATCH_INSTALLS} != 2 ]]
   then
     echo -e "Latest Available Driver: ${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL}\nYour macOS Build: ${BOLD}${MACOS_BUILD}${NORMAL}\n"
     DRIVER_MAJOR_BUILD="${LATEST_DRIVER_MACOS_BUILD:0:2}"
@@ -562,10 +585,22 @@ run_webdriver_installer() {
     else
       echo -e "${BOLD}Recommendation${NORMAL}: Minor OS version discrepancy detected.\n\t\tPatching ${BOLD}may be safe${NORMAL}.\n"
     fi
-    read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
-    [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
-    [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
-    echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
+    INPUT=""
+    if [[ ${NVDA_WEB_PATCH_INSTALLS} != 1 ]]
+    then
+      read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
+      [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
+      [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
+      echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
+    else
+      echo -e "Your preference is set to ${BOLD}always${NORMAL} patch web drivers.\n${BOLD}Proceeding...${NORMAL}\n"
+      sleep 1
+      install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}"
+      return
+    fi
+  else
+    echo -e "\nNo web driver available for your system at this time.\nYour preference ${BOLD}disables${NORMAL} web driver patching."
+    return
   fi
   install_web_drivers "${DRIVER_VER}" "${DRIVER_DL}"
 }
@@ -591,10 +626,22 @@ prompt_web_driver_install() {
     return
   fi
   echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} are required for ${BOLD}NVIDIA 9xx${NORMAL} GPUs or newer.\nIf you are using an older macOS-supported NVIDIA GPU,\nweb drivers are not needed.\n"
-  read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-  [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
-  [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
-  echo -e "\nInvalid option." && prompt_web_driver_install
+  if [[ ${NVDA_WEB_INSTALLS} != 1 && ${NVDA_WEB_INSTALLS} != 2 ]]
+  then
+    read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
+    [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
+    echo -e "\nInvalid option." && prompt_web_driver_install
+  elif [[ ${NVDA_WEB_INSTALLS} == 1 ]]
+  then
+    echo -e "Your preferences are set to ${BOLD}always${NORMAL} install web drivers.\n${BOLD}Proceeding...${NORMAL}"
+    sleep 1
+    USING_WEB_DRV=1 && echo && run_webdriver_installer && return
+  else
+    echo -e "Your preferences are set to ${BOLD}never${NORMAL} install web drivers.\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n"
+    sleep 1
+    return
+  fi
 }
 
 # Patch for NVIDIA eGPUs
@@ -633,22 +680,36 @@ patch_nv() {
   end_patch
 }
 
+# Run webdriver uninstallation process
+run_webdriver_uninstaller() {
+  echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
+  nvram -d nvda_drv
+  WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
+  [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
+  installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
+  echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
+}
+
 # Remove NVIDIA Web Drivers
 remove_web_drivers() {
   [[ ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && return
   echo
-  read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
-  if [[ "${INPUT}" == "Y" ]]
+  if [[ ${NVDA_WEB_UNINSTALLS} != 1 && ${NVDA_WEB_UNINSTALLS} != 2 ]]
   then
-    echo -e "\n${BOLD}Uninstalling drivers...${NORMAL}"
-    nvram -d nvda_drv
-    WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
-    [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
-    installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
-    echo -e "Drivers uninstalled.\nIf in ${BOLD}Single User Mode${NORMAL}, only driver selection changed.\n" && return
+    read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    if [[ "${INPUT}" == "Y" ]]
+    then
+      run_webdriver_uninstaller
+    fi
+    [[ "${INPUT}" == "N" ]] && echo && return
+    echo -e "\nInvalid option.\n" && remove_web_drivers
+  elif [[ ${NVDA_WEB_UNINSTALLS} == 1 ]]
+  then
+    echo -e "Your preferences are set to ${BOLD}always${NORMAL} uninstall web drivers.\n${BOLD}Proceeding...${NORMAL}"
+    run_webdriver_uninstaller
+  else
+    echo -e "Your preferences are set to ${BOLD}never${NORMAL} uninstall web drivers.\n${BOLD}No action taken.${NORMAL}\n"
   fi
-  [[ "${INPUT}" == "N" ]] && echo && return
-  echo -e "\nInvalid option.\n" && remove_web_drivers
 }
 
 
@@ -758,7 +819,7 @@ recover_sys() {
 # Present preference menu
 present_pref() {
   MENU_TITLE="${1}"
-  echo -e "\n>> ${BOLD}AMD Legacy Support${NORMAL}"
+  echo -e "\n>> ${BOLD}${MENU_TITLE}${NORMAL}"
   echo "
   ${BOLD}1.${NORMAL} Ask
   ${BOLD}2.${NORMAL} Always (Yes)
@@ -775,15 +836,17 @@ present_pref() {
     return
   fi
   echo
-  [[ ${INPUT} != 0 ]] && echo -e "Preference updated.\n"
+  [[ ${INPUT} == 0 ]] && return
+  echo -e "Preference updated.\n"
   PREF_RESULT=$(( ${INPUT} - 1 ))
+  (( ${PREF_RESULT} < 0 )) && PREF_RESULT=3
   sleep 1
 }
 
 # Manage specific preferences
 manage_pw_preference() {
   CHOICE=${1}
-  if [[ (( ${CHOICE} < 0 )) || (( ${INPUT} > 4 )) ]]
+  if [[ (( ${CHOICE} < 0 )) || (( ${INPUT} > 5 )) ]]
   then
     echo -e "\nInvalid choice. Please try again."
     sleep 1
@@ -793,16 +856,19 @@ manage_pw_preference() {
   case ${CHOICE} in
     1)
     present_pref "AMD Legacy Support"
-    AMD_LEGACY_INSTALLS=${PREF_RESULT};;
+    (( ${PREF_RESULT} < 3 && ${PREF_RESULT} >= 0 )) && AMD_LEGACY_INSTALLS=${PREF_RESULT};;
     2)
     present_pref "Web Driver Installations"
-    NVDA_WEB_INSTALLS=${PREF_RESULT};;
+    (( ${PREF_RESULT} < 3 && ${PREF_RESULT} >= 0 )) && NVDA_WEB_INSTALLS=${PREF_RESULT};;
     3)
     present_pref "Web Driver Version Patching"
-    NVDA_WEB_PATCH_INSTALLS=${PREF_RESULT};;
+    (( ${PREF_RESULT} < 3 && ${PREF_RESULT} >= 0 )) && NVDA_WEB_PATCH_INSTALLS=${PREF_RESULT};;
     4)
+    present_pref "Web Driver Uninstallations"
+    (( ${PREF_RESULT} < 3 && ${PREF_RESULT} >= 0 )) && NVDA_WEB_UNINSTALLS=${PREF_RESULT};;
+    5)
     present_pref "TI82 Patching"
-    TI82_INSTALLS=${PREF_RESULT};;
+    (( ${PREF_RESULT} < 3 && ${PREF_RESULT} >= 0 )) && TI82_INSTALLS=${PREF_RESULT};;
     0)
     echo && return;;
   esac
@@ -820,15 +886,16 @@ manage_pw_preferences() {
   ${BOLD}1.${NORMAL} AMD Legacy Support: ${BOLD}${PREFS[${AMD_LEGACY_INSTALLS}]}${NORMAL}
   ${BOLD}2.${NORMAL} Web Driver Installations: ${BOLD}${PREFS[${NVDA_WEB_INSTALLS}]}${NORMAL}
   ${BOLD}3.${NORMAL} Web Driver Version Patching: ${BOLD}${PREFS[${NVDA_WEB_PATCH_INSTALLS}]}${NORMAL}
-  ${BOLD}4.${NORMAL} TI82 Patching: ${BOLD}${PREFS[${TI82_INSTALLS}]}${NORMAL}
+  ${BOLD}4.${NORMAL} Web Driver Uninstallations: ${BOLD}${PREFS[${NVDA_WEB_UNINSTALLS}]}${NORMAL}
+  ${BOLD}5.${NORMAL} TI82 Patching: ${BOLD}${PREFS[${TI82_INSTALLS}]}${NORMAL}
 
   ${BOLD}0.${NORMAL} Cancel
 
   Setting a preference for the above options will allow you to
-  forego the ${BOLD}Y/N${NORMAL} questions that don't apply to your setup.
+  forego the ${BOLD}Y/N${NORMAL} questions relative to your setup.
 
   Choose an option to change your preference.\n"
-  read -p "${BOLD}Modify${NORMAL} [0-4]: " INPUT
+  read -p "${BOLD}Modify${NORMAL} [0-5]: " INPUT
   manage_pw_preference ${INPUT}
 }
 
