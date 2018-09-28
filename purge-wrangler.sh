@@ -919,13 +919,15 @@ show_update_prompt() {
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
   [[ ${AMD_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 || ("${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}") ]] && return
   osascript -e '
-  set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated. Re-apply patches to restore eGPU functionality?"
-  set outcome to (display dialog theDialogText buttons {"Later", "Re-apply"} default button "Re-apply" cancel button "Later" with icon caution)
-  if outcome = {button returned:"Re-apply"} then
+  set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \"Never\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?"
+  set outcome to (display dialog theDialogText buttons {"Never", "Later", "Apply"} default button "Apply" cancel button "Later" with icon caution)
+  if (outcome = {button returned:"Apply"}) then
 	   tell application "Terminal"
 		   activate
 		     do script "purge-wrangler"
 	    end tell
+  else if (outcome = {button returned:"Never"}) then
+    do shell script "rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
   end if' 2>/dev/null 1>&2
   sleep 10
 }
