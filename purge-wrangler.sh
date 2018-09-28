@@ -984,14 +984,13 @@ ask_menu() {
 provide_menu_selection() {
   echo -e "
    >> ${BOLD}Patching System${NORMAL}           >> ${BOLD}System Management${NORMAL}
-   ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
-   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Sanitize System
-   ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Reboot System
-   ${BOLD}4.${NORMAL} Uninstall Patches         ${BOLD}8.${NORMAL} Preferences
-
-   ${BOLD}0.${NORMAL} Quit
+   ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}6.${NORMAL} System Recovery
+   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}7.${NORMAL} Sanitize System
+   ${BOLD}3.${NORMAL} Enable Ti82 Support       ${BOLD}8.${NORMAL} Reboot System
+   ${BOLD}4.${NORMAL} Check Patch Status        ${BOLD}9.${NORMAL} Preferences
+   ${BOLD}5.${NORMAL} Uninstall Patches         ${BOLD}0.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-8]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -1008,22 +1007,34 @@ process_args() {
     patch_tb;;
     -en|--enable-nv|2)
     patch_nv;;
-    -s|--status|3)
+    -t8|--ti82|3)
+    echo -e "\n>> ${BOLD}Enable Ti82 Support${NORMAL}\n"
+    if [[ ${TI82_PATCH_STATUS} == 0 ]]
+    then
+      echo "${BOLD}Enabling...${NORMAL}"
+      patch_ti82 1>/dev/null
+      echo "Ti82 Enabled."
+      sanitize_system
+    else
+      echo -e "Ti82 support is already enabled on this system."
+    fi
+    echo;;
+    -s|--status|4)
     check_patch_status;;
-    -u|--uninstall|4)
+    -u|--uninstall|5)
     uninstall;;
-    -r|--recover|5)
+    -r|--recover|6)
     recover_sys;;
-    -ss|--sanitize-system|6)
+    -ss|--sanitize-system|7)
     echo -e "\n>> ${BOLD}Sanitize System${NORMAL}\n"
     sanitize_system
     echo;;
-    -rb|--reboot|7)
+    -rb|--reboot|8)
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
     [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
-    -p|--prefs|8)
+    -p|--prefs|9)
     manage_pw_preferences;;
     0)
     echo && exit;;
