@@ -18,7 +18,7 @@
 #       - IOGraphicsFamily
 #       © @goalque at egpu.io
 # ----- Ti82 Controller Support
-#       - Modified & Simplified by @mac_editor
+#       - Generalized by @mac_editor
 #       © @khaosT at github.com
 # ----- TB Detection
 #       @owenrw at egpu.io
@@ -410,7 +410,6 @@ backup_system() {
       echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
       echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
       echo -e "${BOLD}Updating backup...${NORMAL}"
-      rm -r "${BACKUP_AGC}" "${BACKUP_IOG}" "${BACKUP_IONDRV}" "${BACKUP_NVDA_STARTUP_PATH}" 2>/dev/null
       if [[ $AMD_PATCH_STATUS == 1 || $NV_PATCH_STATUS == 1 ]]
       then
         echo -e "${BOLD}Uninstalling patch before backup update...${NORMAL}"
@@ -750,8 +749,8 @@ uninstall() {
   fi
   generate_new_bin "${SCRATCH_AGW_HEX}" "${SCRATCH_AGW_BIN}" "${AGW_BIN}"
   echo -e "Binaries reverted."
-  sanitize_system
   write_manifest
+  sanitize_system
   echo -e "Uninstallation Complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
@@ -810,6 +809,7 @@ recover_sys() {
     remove_web_drivers
   fi
   echo -e "Files restored."
+  write_manifest
   sanitize_system
   echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n\nRefer to the ${BOLD}macOS eGPU Troubleshooting Guide${NORMAL} in the ${BOLD}How-To's${NORMAL}\nsection of ${UNDERLINE}egpu.io${NORMAL} for further troubleshooting if needed.\n"
 }
