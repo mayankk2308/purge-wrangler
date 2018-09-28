@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 4.2.5
+# Version: 4.3.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -17,6 +17,9 @@
 #       - AppleGPUWrangler Discrete
 #       - IOGraphicsFamily
 #       © @goalque at egpu.io
+# ----- Ti82 Controller Support
+#       - Modified & Simplified by @mac_editor
+#       © @khaosT at github.com
 # ----- TB Detection
 #       @owenrw at egpu.io
 # ----- Testing
@@ -44,8 +47,25 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="2" && SCRIPT_PATCH_VER="5"
+SCRIPT_MAJOR_VER="4" && SCRIPT_MINOR_VER="3" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
+
+# Script preference plist
+PW_PLIST_ID="io.egpu.purge-wrangler"
+PW_PLIST="${HOME}/Library/Preferences/${PW_PLIST_ID}.plist"
+
+# Preference options (0: Ask, 1: Always, 2: Never, 3: Undefined)
+NVDA_WEB_INSTALLS=0
+NVDA_WEB_INSTALLS_KEY="NVDAWebInstall"
+NVDA_WEB_PATCH_INSTALLS=0
+NVDA_WEB_PATCH_INSTALLS_KEY="NVDAWebPatchInstall"
+AMD_LEGACY_INSTALLS=0
+AMD_LEGACY_INSTALLS_KEY="AMDLegacyInstall"
+TI82_INSTALLS=0
+TI82_INSTALLS_KEY="TI82Install"
+
+# Preference intermediate
+PREF_RESULT=3
 
 # User input
 INPUT=""
@@ -95,6 +115,10 @@ IONDRV_PLIST_PATH="${IONDRV_PATH}/Info.plist"
 IOG_PATH="${EXT_PATH}IOGraphicsFamily.kext"
 SUB_IOG_PATH="/IOGraphicsFamily"
 IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
+
+## IOThunderboltFamily
+IOT_FAM="${EXT_PATH}IOThunderboltFamily.kext"
+IOT_BIN="${IOT_FAM}/Contents/MacOS/IOThunderboltFamily"
 
 ## NVDAStartup
 NVDA_STARTUP_PATH="${EXT_PATH}NVDAStartup.kext"
@@ -201,6 +225,29 @@ fetch_latest_release() {
 
 # ----- SYSTEM CONFIGURATION MANAGER
 
+# Write preferences
+write_preferences() {
+  PREF_RESULT=3
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}" -int ${NVDA_WEB_INSTALLS}
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}" -int ${NVDA_WEB_PATCH_INSTALLS}
+  defaults write "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}" -int ${AMD_LEGACY_INSTALLS}
+  defaults write "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}" -int ${TI82_INSTALLS}
+}
+
+# Read preferences
+read_preferences() {
+  NVDA_WEB_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}")"
+  NVDA_WEB_PATCH_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}")"
+  AMD_LEGACY_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}")"
+  TI82_INSTALLS="$(defaults read "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}")"
+}
+
+# Read & prepare preferences
+prepare_preferences() {
+  PREF_DATA="$(defaults read "${PW_PLIST_ID}" 2>/dev/null)"
+  [[ -z "${PREF_DATA}" ]] && write_preferences || read_preferences
+}
+
 # Check caller
 validate_caller() {
   [[ "${1}" == "bash" && ! "${2}" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
@@ -262,10 +309,11 @@ check_patch_status() {
 
 # Cumulative system check
 perform_sys_check() {
+  elevate_privileges
   check_sip
   check_macos_version
   retrieve_tb_ver
-  elevate_privileges
+  prepare_preferences
   check_sys_extensions
   check_patch
   DID_INSTALL_LEGACY_KEXT=0
@@ -707,6 +755,83 @@ recover_sys() {
 
 # ----- USER INTERFACE
 
+# Present preference menu
+present_pref() {
+  MENU_TITLE="${1}"
+  echo -e "\n>> ${BOLD}AMD Legacy Support${NORMAL}"
+  echo "
+  ${BOLD}1.${NORMAL} Ask
+  ${BOLD}2.${NORMAL} Always (Yes)
+  ${BOLD}3.${NORMAL} Never (No)
+
+  ${BOLD}0.${NORMAL} Cancel
+  "
+  read -p "${BOLD}Preference${NORMAL} [0-3]: " INPUT
+  if [[ (( ${INPUT} < 0 )) || (( ${INPUT} > 3 )) ]]
+  then
+    echo -e "\nInvalid choice. Please try again."
+    sleep 1
+    manage_pw_preferences
+    return
+  fi
+  echo
+  [[ ${INPUT} != 0 ]] && echo -e "Preference updated.\n"
+  PREF_RESULT=$(( ${INPUT} - 1 ))
+  sleep 1
+}
+
+# Manage specific preferences
+manage_pw_preference() {
+  CHOICE=${1}
+  if [[ (( ${CHOICE} < 0 )) || (( ${INPUT} > 4 )) ]]
+  then
+    echo -e "\nInvalid choice. Please try again."
+    sleep 1
+    manage_pw_preferences
+    return
+  fi
+  case ${CHOICE} in
+    1)
+    present_pref "AMD Legacy Support"
+    AMD_LEGACY_INSTALLS=${PREF_RESULT};;
+    2)
+    present_pref "Web Driver Installations"
+    NVDA_WEB_INSTALLS=${PREF_RESULT};;
+    3)
+    present_pref "Web Driver Version Patching"
+    NVDA_WEB_PATCH_INSTALLS=${PREF_RESULT};;
+    4)
+    present_pref "TI82 Patching"
+    TI82_INSTALLS=${PREF_RESULT};;
+    0)
+    echo && return;;
+  esac
+  write_preferences
+  manage_pw_preferences
+}
+
+# Manage prompt preferences
+manage_pw_preferences() {
+  clear
+  read_preferences
+  PREFS=("Ask" "Always" "Never" "Undefined")
+  echo -e "\n>> ${BOLD}Preferences${NORMAL}"
+  echo -e "
+  ${BOLD}1.${NORMAL} AMD Legacy Support: ${BOLD}${PREFS[${AMD_LEGACY_INSTALLS}]}${NORMAL}
+  ${BOLD}2.${NORMAL} Web Driver Installations: ${BOLD}${PREFS[${NVDA_WEB_INSTALLS}]}${NORMAL}
+  ${BOLD}3.${NORMAL} Web Driver Version Patching: ${BOLD}${PREFS[${NVDA_WEB_PATCH_INSTALLS}]}${NORMAL}
+  ${BOLD}4.${NORMAL} TI82 Patching: ${BOLD}${PREFS[${TI82_INSTALLS}]}${NORMAL}
+
+  ${BOLD}0.${NORMAL} Cancel
+
+  Setting a preference for the above options will allow you to
+  forego the ${BOLD}Y/N${NORMAL} questions that don't apply to your setup.
+
+  Choose an option to change your preference.\n"
+  read -p "${BOLD}Modify${NORMAL} [0-4]: " INPUT
+  manage_pw_preference ${INPUT}
+}
+
 # Ask for main menu
 ask_menu() {
   read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
@@ -723,11 +848,11 @@ provide_menu_selection() {
    ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}5.${NORMAL} System Recovery
    ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}6.${NORMAL} Sanitize System
    ${BOLD}3.${NORMAL} Check Patch Status        ${BOLD}7.${NORMAL} Reboot System
-   ${BOLD}4.${NORMAL} Uninstall Patches
+   ${BOLD}4.${NORMAL} Uninstall Patches         ${BOLD}8.${NORMAL} Preferences
 
    ${BOLD}0.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-7]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [0-8]: " INPUT
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -759,6 +884,8 @@ process_args() {
     read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
     [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
+    -p|--prefs|8)
+    manage_pw_preferences;;
     0)
     echo && exit;;
     "")
