@@ -52,7 +52,6 @@ SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
 PW_PLIST_ID="io.egpu.purge-wrangler"
-PW_PLIST="${HOME}/Library/Preferences/${PW_PLIST_ID}.plist"
 
 # Preference options (0: Ask, 1: Always, 2: Never, 3: Undefined)
 NVDA_WEB_INSTALLS=0
@@ -120,6 +119,7 @@ IOG_BIN="${IOG_PATH}${SUB_IOG_PATH}"
 
 ## IOThunderboltFamily
 IOT_FAM="${EXT_PATH}IOThunderboltFamily.kext"
+SUB_IOT_PATH="/Contents/MacOS/IOThunderboltFamily"
 IOT_BIN="${IOT_FAM}/Contents/MacOS/IOThunderboltFamily"
 
 ## NVDAStartup
@@ -151,6 +151,10 @@ BACKUP_AGW_BIN="${BACKUP_AGC}${SUB_AGW_PATH}"
 ## IOGraphicsFamily
 BACKUP_IOG="${BACKUP_KEXT_DIR}IOGraphicsFamily.kext"
 BACKUP_IOG_BIN="${BACKUP_IOG}${SUB_IOG_PATH}"
+
+## IOThunderboltFamily
+BACKUP_IOT="${BACKUP_KEXT_DIR}IOThunderboltFamily.kext"
+BACKUP_IOT_BIN="${BACKUP_IOT}${SUB_IOT_PATH}"
 
 ## IONDRVSupport
 BACKUP_IONDRV="${BACKUP_KEXT_DIR}IONDRVSupport.kext"
@@ -385,6 +389,12 @@ write_manifest() {
     PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${IOG_BIN}" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
   fi
+  if [[ -s "${BACKUP_IOT}" ]]
+  then
+    UNPATCHED_IOT_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_IOT_BIN}" | awk '{ print $1 }')"
+    PATCHED_IOT_KEXT_SHA="$(shasum -a 512 -b "${IOT_BIN}" | awk '{ print $1 }')"
+    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOT_KEXT_SHA}\n${PATCHED_IOT_KEXT_SHA}"
+  fi
   echo -e "${MANIFEST_STR}" > "${MANIFEST}"
 }
 
@@ -394,6 +404,7 @@ execute_backup() {
   rsync -rt "${AGC_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -rt "${IOG_PATH}" "${BACKUP_KEXT_DIR}"
   rsync -rt "${IONDRV_PATH}" "${BACKUP_KEXT_DIR}"
+  rsync -rt "${IOT_FAM}" "${BACKUP_KEXT_DIR}"
   rsync -rt "${NVDA_STARTUP_PATH}" "${BACKUP_KEXT_DIR}"
 }
 
@@ -405,6 +416,12 @@ backup_system() {
     MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
+      if [[ $AMD_PATCH_STATUS == 0 && $NV_PATCH_STATUS == 0 ]]
+      then
+        execute_backup
+        echo -e "Backup refreshed."
+        return
+      fi
       echo -e "Backup already exists."
     else
       echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
