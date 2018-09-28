@@ -19,6 +19,7 @@
 #       © @goalque at egpu.io
 # ----- Ti82 Controller Support
 #       - IOThunderboltFamily patch
+#       - Enhancements by @itsage
 #       © @khaosT at github.com
 # ----- TB Detection
 #       @owenrw at egpu.io
