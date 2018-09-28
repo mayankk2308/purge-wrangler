@@ -1,5 +1,5 @@
 ![Header](https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/header.png)
-
+![Script Version](https://img.shields.io/github/release/mayankk2308/purge-wrangler.svg?style=for-the-badge)
 ![macOS Support](https://img.shields.io/badge/macOS-10.13.4+-orange.svg?style=for-the-badge) ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge) [![paypal][image-1]][1]
 # PurgeWrangler
 A lot has happened with **macOS 10.13.4** and eGPU support, but noticeably - the lack of:
