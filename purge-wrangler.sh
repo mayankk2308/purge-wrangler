@@ -512,7 +512,7 @@ run_legacy_kext_installer() {
   curl -L -s -o "${AMD_LEGACY_ZIP}" "${AMD_LEGACY_DL}"
   if [[ ! -e "${AMD_LEGACY_ZIP}" || ! -s "${AMD_LEGACY_ZIP}" || "$(cat "${AMD_LEGACY_ZIP}")" == "404: Not Found" ]]
   then
-    echo -e "Could not download.\n\n${BOLD}Continuing...${NORMAL}"
+    echo -e "Could not download.\n\n${BOLD}Continuing remaining patches...${NORMAL}"
     rm -rf "${AMD_LEGACY_ZIP}" 2>/dev/null
     return
   fi
@@ -942,6 +942,7 @@ show_update_prompt() {
 
 # Present preference menu
 present_pref() {
+  clear
   MENU_TITLE="${1}"
   echo -e "\n>> ${BOLD}${MENU_TITLE}${NORMAL}"
   echo "
@@ -1067,6 +1068,7 @@ process_args() {
     echo -e "\n>> ${BOLD}Enable Ti82 Support${NORMAL}\n"
     if [[ ${TI82_PATCH_STATUS} == 0 ]]
     then
+      backup_system
       echo "${BOLD}Enabling...${NORMAL}"
       patch_ti82 1>/dev/null
       write_manifest
