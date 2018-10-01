@@ -95,7 +95,8 @@ Reboot the system.
 #### 9. Preferences (`-p|--prefs`)
 Manage your preferences for queries the script asks when patching. This allows you to set defaults, such as always installing web drivers when patching rather than asking.
 
-Every macOS update rewrites kernel extensions (including security updates). This means that all patches installed using **purge-wrangler.sh** are reset. With **5.0.0** or later, the system will notify you if this has happened, and allow you to re-patch immediately.
+## Notifications
+Every macOS update rewrites kernel extensions (including security updates). This means that all patches installed using **purge-wrangler.sh** are reset. With **V5.0.0** or later, the system will notify you if this has happened, and allow you to re-patch immediately.
 ![Prompt](/resources/prompt.png)
 If you choose *"Never"* the reminder will never activate until you reinstall purge-wrangler in the future and then are in the same situation again.
 
