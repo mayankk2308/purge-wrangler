@@ -4,7 +4,7 @@
 # PurgeWrangler
 With **macOS 10.13.4**, Apple officially began supporting external GPUs on macs. However, they imposed the following limits:
 - Mac must have **Thunderbolt 3**
-- Select **AMD GPUs** only (see Apple's document)
+- Select **AMD GPUs** only (reference: [Apple](https://support.apple.com/en-us/HT208544))
 - No **NVIDIA GPUs**
 - No **Ti82 Thunderbolt 3** enclosures
 
@@ -23,7 +23,7 @@ The following is a list of basic requirements a mac must meet to run **purge-wra
 - **eGFX**: Any enclosure + eGPU
 
 ### Software
-- **iMac Pro & 2018 MacBook Pro (T2)**: Disable **Secure Boot**, as advised here.
+- **iMac Pro & 2018 MacBook Pro (T2)**: Disable **Secure Boot**, as instructed [here](https://support.apple.com/en-us/HT208330).
 - **macOS**: 10.13.4-6 (**High Sierra**), 10.14+ (**Mojave**)
 - **System Integrity Protection**: must be disabled.
 
