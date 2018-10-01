@@ -215,7 +215,8 @@ perform_software_update() {
 # Prompt for update
 prompt_software_update() {
   echo
-  read -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
+  read -n1 -p "${BOLD}Would you like to update?${NORMAL} [Y/N]: " INPUT
+  echo
   [[ "${INPUT}" == "Y" ]] && echo && perform_software_update && return
   [[ "${INPUT}" == "N" ]] && echo -e "\n${BOLD}Proceeding without updating...${NORMAL}" && sleep 1 && return
   echo -e "\nInvalid choice. Try again."
@@ -529,7 +530,8 @@ install_legacy_kext() {
   echo -e "\nIt is possible to use legacy AMD GPUs if needed.\nLegacy AMD GPUs refer to eGPUs not sanctioned as ${BOLD}\"supported by Apple\"${NORMAL}.\n"
   if [[ ${AMD_LEGACY_INSTALLS} != 1 && ${AMD_LEGACY_INSTALLS} != 2 ]]
   then
-    read -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
+    read -n1 -p "Enable ${BOLD}Legacy${NORMAL} AMD eGPUs? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "Y" ]] && echo && run_legacy_kext_installer && return
     [[ "${INPUT}" == "N" ]] && return
     echo -e "\nInvalid option.\n" && install_legacy_kext
@@ -557,7 +559,8 @@ install_ti82() {
   echo -e "\nTo use certain TB3 eGPU enclosures that have ${BOLD}Ti82 controllers${NORMAL},\nit is necessary to patch macOS to allow them to mount properly.\n"
   if [[ ${TI82_INSTALLS} != 1 && ${TI82_INSTALLS} != 2 ]]
   then
-    read -p "Enable ${BOLD}Ti82${NORMAL}? [Y/N]: " INPUT
+    read -n1 -p "Enable ${BOLD}Ti82${NORMAL}? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "Y" ]] && echo && DID_INSTALL_TI82=1 && patch_ti82 && return
     [[ "${INPUT}" == "N" ]] && echo && return
     echo -e "\nInvalid option.\n" && install_ti82
@@ -676,7 +679,8 @@ run_webdriver_installer() {
     INPUT=""
     if [[ ${NVDA_WEB_PATCH_INSTALLS} != 1 ]]
     then
-      read -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
+      read -n1 -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
+      echo
       [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
       [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
       echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
@@ -700,7 +704,8 @@ prompt_web_driver_install() {
     if [[ "$(${PlistBuddy} -c "Print ${NVDA_REQUIRED_OS}" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null)" != "${MACOS_BUILD}" ]]
     then
       echo -e "\nInstalled ${BOLD}NVIDIA Web Drivers${NORMAL} are specifying incorrect macOS build.\n"
-      read -p "${BOLD}Rectify${NORMAL}? [Y/N]: " INPUT
+      read -n1 -p "${BOLD}Rectify${NORMAL}? [Y/N]: " INPUT
+      echo
       if [[ "${INPUT}" != "Y" ]]
       then
         echo -e "\nDrivers unchanged.\n"
@@ -716,7 +721,8 @@ prompt_web_driver_install() {
   echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} are required for ${BOLD}NVIDIA 9xx${NORMAL} GPUs or newer.\nIf you are using an older macOS-supported NVIDIA GPU,\nweb drivers are not needed.\n"
   if [[ ${NVDA_WEB_INSTALLS} != 1 && ${NVDA_WEB_INSTALLS} != 2 ]]
   then
-    read -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    read -n1 -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
     [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
     echo -e "\nInvalid option." && prompt_web_driver_install
@@ -785,7 +791,8 @@ remove_web_drivers() {
   echo
   if [[ ${NVDA_WEB_UNINSTALLS} != 1 && ${NVDA_WEB_UNINSTALLS} != 2 ]]
   then
-    read -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    read -n1 -p "Remove ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "Y" ]] && run_webdriver_uninstaller && return
     [[ "${INPUT}" == "N" ]] && echo && return
     echo -e "\nInvalid option.\n" && remove_web_drivers
@@ -891,7 +898,8 @@ recover_sys() {
   then
     echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
     echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
-    read -p "System may already be clean. Still ${BOLD}attempt recovery${NORMAL}? [Y/N]: " INPUT
+    read -n1 -p "System may already be clean. Still ${BOLD}attempt recovery${NORMAL}? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "N" ]] && echo -e "Recovery ${BOLD}cancelled${NORMAL}.\n" && return
     [[ "${INPUT}" != "Y" ]] && echo -e "Invalid choice. Recovery ${BOLD}safely aborted${NORMAL}.\n" && return
     echo -e "\n${BOLD}Attempting recovery...${NORMAL}"
@@ -943,7 +951,8 @@ present_pref() {
 
   ${BOLD}0.${NORMAL} Cancel
   "
-  read -p "${BOLD}Preference${NORMAL} [0-3]: " INPUT
+  read -n1 -p "${BOLD}Preference${NORMAL} [0-3]: " INPUT
+  echo
   if [[ (( ${INPUT} < 0 )) || (( ${INPUT} > 3 )) ]]
   then
     echo -e "\nInvalid choice. Please try again."
@@ -1011,13 +1020,15 @@ manage_pw_preferences() {
   forego the ${BOLD}Y/N${NORMAL} questions relative to your setup.
 
   Choose an option to change your preference.\n"
-  read -p "${BOLD}Modify${NORMAL} [0-5]: " INPUT
+  read -n1 -p "${BOLD}Modify${NORMAL} [0-5]: " INPUT
+  echo
   manage_pw_preference ${INPUT}
 }
 
 # Ask for main menu
 ask_menu() {
-  read -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
+  read -n1 -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
+  echo
   [[ "${INPUT}" == "Y" ]] && perform_sys_check && clear && echo -e "\n>> ${BOLD}PurgeWrangler (${SCRIPT_VER})${NORMAL}" && provide_menu_selection && return
   [[ "${INPUT}" == "N" ]] && echo && exit
   echo -e "\nInvalid choice. Try again.\n"
@@ -1034,7 +1045,8 @@ provide_menu_selection() {
    ${BOLD}4.${NORMAL} Check Patch Status        ${BOLD}9.${NORMAL} Preferences
    ${BOLD}5.${NORMAL} Uninstall Patches         ${BOLD}0.${NORMAL} Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
+  read -n1 -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
+  echo
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -1076,7 +1088,8 @@ process_args() {
     echo;;
     -rb|--reboot|8)
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
-    read -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
+    read -n1 -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
+    echo
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
     [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
     -p|--prefs|9)
