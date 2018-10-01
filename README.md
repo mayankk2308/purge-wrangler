@@ -104,7 +104,7 @@ If you choose *"Never"* the reminder will never activate until you reinstall pur
 If you are unable to boot into macOS, boot while pressing **⌘ + S**, then enter the following commands:
 ```bash
 $ mount -uw /
-$ purge-wrangler
+$ purge-wrangler -r
 ```
 
 ## References

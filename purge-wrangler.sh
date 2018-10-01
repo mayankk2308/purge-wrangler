@@ -273,11 +273,11 @@ create_launchagent() {
 # Write preferences
 write_preferences() {
   PREF_RESULT=3
-  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}" -int ${NVDA_WEB_INSTALLS}
-  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}" -int ${NVDA_WEB_PATCH_INSTALLS}
-  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_UNINSTALLS_KEY}" -int ${NVDA_WEB_UNINSTALLS}
-  defaults write "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}" -int ${AMD_LEGACY_INSTALLS}
-  defaults write "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}" -int ${TI82_INSTALLS}
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_INSTALLS_KEY}" -int ${NVDA_WEB_INSTALLS} 2>/dev/null
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_PATCH_INSTALLS_KEY}" -int ${NVDA_WEB_PATCH_INSTALLS} 2>/dev/null
+  defaults write "${PW_PLIST_ID}" "${NVDA_WEB_UNINSTALLS_KEY}" -int ${NVDA_WEB_UNINSTALLS} 2>/dev/null
+  defaults write "${PW_PLIST_ID}" "${AMD_LEGACY_INSTALLS_KEY}" -int ${AMD_LEGACY_INSTALLS} 2>/dev/null
+  defaults write "${PW_PLIST_ID}" "${TI82_INSTALLS_KEY}" -int ${TI82_INSTALLS} 2>/dev/null
 }
 
 # Read preferences
@@ -1019,6 +1019,9 @@ manage_pw_preferences() {
 
   Setting a preference for the above options will allow you to
   forego the ${BOLD}Y/N${NORMAL} questions relative to your setup.
+
+  This feature will behave oddly if you have booted into Single User Mode.
+  Avoid changing settings in that case.
 
   Choose an option to change your preference.\n"
   read -n1 -p "${BOLD}Modify${NORMAL} [0-5]: " INPUT
