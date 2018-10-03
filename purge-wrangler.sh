@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.0.0
+# Version: 5.0.1
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -47,7 +47,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -102,7 +102,8 @@ BLOCK_HEX="554889E54157415641554154534881EC9801"
 PATCHED_BLOCK_HEX="554889E531C05DC341554154534881EC9801"
 
 # Patch status indicators
-AMD_PATCH_STATUS=""
+LEG_PATCH_STATUS=""
+TB_PATCH_STATUS=""
 NV_PATCH_STATUS=""
 TI82_PATCH_STATUS=""
 
@@ -265,7 +266,7 @@ create_launchagent() {
     </array>
 </dict>
 </plist>"
-  AGENT_PLIST="${HOME}/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
+  AGENT_PLIST="/Users/${SUDO_USER}/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
   echo "${AGENT}" > "${AGENT_PLIST}"
   chown "${SUDO_USER}" "${AGENT_PLIST}"
 }
@@ -344,11 +345,12 @@ retrieve_tb_ver() {
 
 # Patch check
 check_patch() {
-  [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && AMD_PATCH_STATUS=2 && NV_PATCH_STATUS=2 && return
+  [[ ! -f "${AGW_BIN}" || ! -f "${IOG_BIN}" ]] && TB_PATCH_STATUS=2 && NV_PATCH_STATUS=2 && return
   AGW_HEX="$(hexdump -ve '1/1 "%.2X"' "${AGW_BIN}")"
   IOG_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOG_BIN}")"
   IOT_HEX="$(hexdump -ve '1/1 "%.2X"' "${IOT_BIN}")"
-  [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 || -d "${AMD_LEGACY_KEXT}" ]] && AMD_PATCH_STATUS=1 || AMD_PATCH_STATUS=0
+  [[ -d "${AMD_LEGACY_KEXT}" ]] && LEG_PATCH_STATUS=1 || LEG_PATCH_STATUS=0
+  [[ "${AGW_HEX}" =~ "${SYS_TB_VER}" && "${SYS_TB_VER}" != "${TB_SWITCH_HEX}"3 ]] && TB_PATCH_STATUS=1 || TB_PATCH_STATUS=0
   [[ "${IOG_HEX}" =~ "${PATCHED_PCI_TUNNELLED_HEX}" ]] && NV_PATCH_STATUS=1 || NV_PATCH_STATUS=0
   [[ "${IOT_HEX}" =~ "${PATCHED_SKIPNUM_HEX}" ]] && TI82_PATCH_STATUS=1 || TI82_PATCH_STATUS=0
 }
@@ -357,7 +359,8 @@ check_patch() {
 check_patch_status() {
   PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
   echo -e "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  echo -e "${BOLD}AMD Patch${NORMAL}: ${PATCH_STATUSES[$AMD_PATCH_STATUS]}"
+  echo -e "${BOLD}Legacy AMD Support${NORMAL}: ${PATCH_STATUSES[$LEG_PATCH_STATUS]} "
+  echo -e "${BOLD}Thunderbolt Patch${NORMAL}: ${PATCH_STATUSES[$TB_PATCH_STATUS]}"
   echo -e "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}"
   echo -e "${BOLD}Ti82 Patch${NORMAL}: ${PATCH_STATUSES[${TI82_PATCH_STATUS}]}\n"
 }
@@ -371,7 +374,6 @@ perform_sys_check() {
   prepare_preferences
   check_sys_extensions
   check_patch
-  create_launchagent
   DID_INSTALL_LEGACY_KEXT=0
   DID_INSTALL_TI82=0
   USING_WEB_DRV=0
@@ -439,6 +441,8 @@ write_manifest() {
     PATCHED_IOT_KEXT_SHA="$(shasum -a 512 -b "${IOT_BIN}" | awk '{ print $1 }')"
     MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOT_KEXT_SHA}\n${PATCHED_IOT_KEXT_SHA}"
   fi
+  check_patch
+  MANIFEST_STR="${MANIFEST_STR}\n${TB_PATCH_STATUS}\n${TI82_PATCH_STATUS}\n${NV_PATCH_STATUS}"
   echo -e "${MANIFEST_STR}" > "${MANIFEST}"
 }
 
@@ -460,7 +464,7 @@ backup_system() {
     MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
     if [[ "${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}" ]]
     then
-      if [[ ${AMD_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 ]]
+      if [[ ${TB_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 ]]
       then
         execute_backup
         echo -e "Backup refreshed."
@@ -471,7 +475,7 @@ backup_system() {
       echo -e "\n${BOLD}Last Backup${NORMAL}: ${MANIFEST_MACOS_VER} ${BOLD}[${MANIFEST_MACOS_BUILD}]${NORMAL}"
       echo -e "${BOLD}Current System${NORMAL}: ${MACOS_VER} ${BOLD}[${MACOS_BUILD}]${NORMAL}\n"
       echo -e "${BOLD}Updating backup...${NORMAL}"
-      if [[ ${AMD_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 ]]
+      if [[ ${TB_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 ]]
       then
         echo -e "${BOLD}Uninstalling patch before backup update...${NORMAL}"
         uninstall
@@ -494,6 +498,7 @@ backup_system() {
 end_patch() {
   sanitize_system
   write_manifest
+  create_launchagent
   echo -e "${BOLD}Patch complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n"
 }
 
@@ -587,7 +592,7 @@ patch_tb() {
     [[ ${DID_INSTALL_LEGACY_KEXT} == 1 || ${DID_INSTALL_TI82} == 1 ]] && end_patch
     return
   fi
-  if [[ ${AMD_PATCH_STATUS} == 1 ]]
+  if [[ ${TB_PATCH_STATUS} == 1 ]]
   then
     echo -e "System has already been patched for ${BOLD}AMD eGPUs${NORMAL}.\n"
     [[ ${DID_INSTALL_LEGACY_KEXT} == 1 || ${DID_INSTALL_TI82} == 1 ]] && end_patch
@@ -665,8 +670,9 @@ run_webdriver_installer() {
     [[ "${DRIVER_MACOS_BUILD}" == "${MACOS_BUILD}" ]] && break
     (( INDEX++ ))
   done
-  if [[ (-z "${DRIVER_DL}" || -z "${DRIVER_VER}") && ${NVDA_WEB_PATCH_INSTALLS} != 2 ]]
+  if [[ (-z "${DRIVER_DL}" || -z "${DRIVER_VER}") ]]
   then
+    [[ ${NVDA_WEB_PATCH_INSTALLS} == 2 ]] && echo -e "\nNo web driver available for your system at this time.\nYour preference ${BOLD}disables${NORMAL} web driver patching." && return
     echo -e "Latest Available Driver: ${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL}\nYour macOS Build: ${BOLD}${MACOS_BUILD}${NORMAL}\n"
     DRIVER_MAJOR_BUILD="${LATEST_DRIVER_MACOS_BUILD:0:2}"
     MACOS_MAJOR_BUILD="${MACOS_BUILD:0:2}"
@@ -690,9 +696,6 @@ run_webdriver_installer() {
       install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}"
       return
     fi
-  else
-    echo -e "\nNo web driver available for your system at this time.\nYour preference ${BOLD}disables${NORMAL} web driver patching."
-    return
   fi
   install_web_drivers "${DRIVER_VER}" "${DRIVER_DL}"
 }
@@ -742,7 +745,7 @@ prompt_web_driver_install() {
 patch_nv() {
   echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
-  [[ ${AMD_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  [[ ${TB_PATCH_STATUS} == 1 || ${LEG_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   prompt_web_driver_install
   [[ ${USING_WEB_DRV} == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
   if [[ ${USING_WEB_DRV} == 1 ]]
@@ -807,6 +810,7 @@ remove_web_drivers() {
 
 # Uninstall Ti82
 uninstall_ti82() {
+  [[ ${TI82_PATCH_STATUS} == 0 ]] && return
   echo -e "${BOLD}Removing Ti82 support...${NORMAL}"
   generate_hex "${IOT_BIN}" "${SCRATCH_IOT_HEX}"
   generic_patcher "${PATCHED_SKIPNUM_HEX}" "${SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
@@ -817,7 +821,7 @@ uninstall_ti82() {
 # In-place re-patcher
 uninstall() {
   echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
-  [[ ${AMD_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
+  [[ ${LEG_PATCH_STATUS} == 0 && ${TB_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
@@ -834,7 +838,7 @@ uninstall() {
     echo -e "Unable to uninstall. Use ${BOLD}System Recovery${NORMAL}."
     return
   fi
-  [[ ${AMD_PATCH_STATUS} == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
+  [[ ${TB_PATCH_STATUS} == 1 ]] && generic_patcher "${SYS_TB_VER}" "${TB_SWITCH_HEX}"3 "${SCRATCH_AGW_HEX}"
   if [[ ${NV_PATCH_STATUS} == 1 ]]
   then
     generate_hex "${IOG_BIN}" "${SCRATCH_IOG_HEX}"
@@ -923,9 +927,10 @@ recover_sys() {
 # Show update prompt
 show_update_prompt() {
   check_patch
-  [[ ! -e "${MANIFEST}" ]] && return
+  [[ ! -e "${MANIFEST}" ]] && sleep 10 && return
   MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
-  [[ ${AMD_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 || ("${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}") ]] && return
+  MANIFEST_PATCH="$(sed -n "9,11p" "${MANIFEST}")"
+  [[ ${TB_PATCH_STATUS} == 1 || ${NV_PATCH_STATUS} == 1 || ${TI82_PATCH_STATUS} == 1 || ("${MANIFEST_MACOS_VER}" == "${MACOS_VER}" && "${MANIFEST_MACOS_BUILD}" == "${MACOS_BUILD}") || ! ("${MANIFEST_PATCH}" =~ "1") ]] && sleep 10 && return
   osascript -e '
   set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \"Never\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?"
   set outcome to (display dialog theDialogText buttons {"Never", "Later", "Apply"} default button "Apply" cancel button "Later" with icon caution)
@@ -1074,13 +1079,12 @@ process_args() {
       backup_system
       echo "${BOLD}Enabling...${NORMAL}"
       patch_ti82 1>/dev/null
-      write_manifest
       echo "Ti82 Enabled."
-      sanitize_system
+      end_patch
     else
-      echo -e "Ti82 support is already enabled on this system."
+      echo -e "Ti82 support is already enabled on this system.\n"
     fi
-    echo;;
+    ;;
     -s|--status|4)
     check_patch_status;;
     -u|--uninstall|5)
