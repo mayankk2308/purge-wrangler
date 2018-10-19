@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.0.1
+# Version: 5.0.2
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -47,7 +47,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="1"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -266,7 +266,9 @@ create_launchagent() {
     </array>
 </dict>
 </plist>"
-  AGENT_PLIST="/Users/${SUDO_USER}/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
+  AGENT_LOC="/Users/${SUDO_USER}/Library/LaunchAgents/"
+  mkdir -p "${AGENT_LOC}"
+  AGENT_PLIST="${AGENT_LOC}io.egpu.purge-wrangler-agent.plist"
   echo "${AGENT}" > "${AGENT_PLIST}"
   chown "${SUDO_USER}" "${AGENT_PLIST}"
 }
@@ -508,7 +510,7 @@ patch_plist() {
   COMMAND="${2}"
   KEY="${3}"
   VALUE="${4}"
-  $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}"
+  $PlistBuddy -c "${COMMAND} ${KEY} ${VALUE}" "${TARGET_PLIST}" 2>/dev/null
 }
 
 # Install AMDLegacySupport.kext
