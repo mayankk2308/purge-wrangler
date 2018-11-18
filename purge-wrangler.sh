@@ -1061,7 +1061,7 @@ provide_menu_selection() {
 
    ${BOLD}0.${NORMAL}  Quit
   "
-  read -n1 -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
+  read -p "${BOLD}What next?${NORMAL} [0-12]: " INPUT
   echo
   if [[ ! -z "${INPUT}" ]]
   then
