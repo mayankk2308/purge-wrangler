@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.0.2
+# Version: 5.1.0
 
 # Invaluable Contributors
 # ----- TB1/2 Patch
@@ -47,7 +47,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="0" && SCRIPT_PATCH_VER="2"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="0"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -1049,12 +1049,17 @@ ask_menu() {
 # Menu
 provide_menu_selection() {
   echo -e "
-   >> ${BOLD}Patching System${NORMAL}           >> ${BOLD}System Management${NORMAL}
-   ${BOLD}1.${NORMAL} Enable AMD eGPUs          ${BOLD}6.${NORMAL} System Recovery
-   ${BOLD}2.${NORMAL} Enable NVIDIA eGPUs       ${BOLD}7.${NORMAL} Sanitize System
-   ${BOLD}3.${NORMAL} Enable Ti82 Support       ${BOLD}8.${NORMAL} Reboot System
-   ${BOLD}4.${NORMAL} Check Patch Status        ${BOLD}9.${NORMAL} Preferences
-   ${BOLD}5.${NORMAL} Uninstall Patches         ${BOLD}0.${NORMAL} Quit
+   >> ${BOLD}eGPU Support${NORMAL}         >> ${BOLD}System Management${NORMAL}
+   ${BOLD}1.${NORMAL}  AMD eGPUs           ${BOLD}7.${NORMAL}  Status
+   ${BOLD}2.${NORMAL}  NVIDIA eGPUs        ${BOLD}8.${NORMAL}  Sanitize
+   ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}9.${NORMAL}  Recovery
+
+   >> ${BOLD}Additional Support${NORMAL}   >> ${BOLD}More Tools${NORMAL}
+   ${BOLD}4.${NORMAL}  Ti82 Enclosures     ${BOLD}10.${NORMAL} Command Line Options
+   ${BOLD}5.${NORMAL}  NVIDIA Web Drivers  ${BOLD}11.${NORMAL} System Reboot
+   ${BOLD}6.${NORMAL}  Anomaly Detection   ${BOLD}12.${NORMAL} Script Preferences
+
+   ${BOLD}0.${NORMAL}  Quit
   "
   read -n1 -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
   echo
@@ -1074,7 +1079,9 @@ process_args() {
     patch_tb;;
     -en|--enable-nv|2)
     patch_nv;;
-    -t8|--ti82|3)
+    -u|--uninstall|3)
+    uninstall;;
+    -t8|--ti82|4)
     echo -e "\n>> ${BOLD}Enable Ti82 Support${NORMAL}\n"
     if [[ ${TI82_PATCH_STATUS} == 0 ]]
     then
@@ -1087,23 +1094,21 @@ process_args() {
       echo -e "Ti82 support is already enabled on this system.\n"
     fi
     ;;
-    -s|--status|4)
+    -s|--status|7)
     check_patch_status;;
-    -u|--uninstall|5)
-    uninstall;;
-    -r|--recover|6)
-    recover_sys;;
-    -ss|--sanitize-system|7)
+    -ss|--sanitize-system|8)
     echo -e "\n>> ${BOLD}Sanitize System${NORMAL}\n"
     sanitize_system
     echo;;
-    -rb|--reboot|8)
+    -r|--recover|9)
+    recover_sys;;
+    -rb|--reboot|11)
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -n1 -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     echo
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
     [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
-    -p|--prefs|9)
+    -p|--prefs|12)
     manage_pw_preferences;;
     0)
     echo && exit;;
