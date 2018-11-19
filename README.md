@@ -77,7 +77,7 @@ purge-wrangler -r
 This will restore your system to a clean state as documented above.
 
 ## Hardware Chart
-The hardware chart aims to provide a very simple overview of possible external GPU configurations with macs using the script, and highlight potential edge cases. The following is table that lists possible these configurations and any potential issues:
+The hardware chart aims to provide a very simple overview of possible external GPU configurations with macs using the script, and highlight potential edge cases. Note that thunderbolt versions are mostly inconsequential to setup on macOS. The following is table that lists the possible configurations and any potential issues:
 
 | Built-In GPU(s) | External GPU | Dependency | Complications |
 | :-------------: | :----------: | :--------: | :------------ |
