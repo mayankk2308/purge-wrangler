@@ -5,27 +5,6 @@
 # License: Specified in LICENSE.md.
 # Version: 5.1.0
 
-# Invaluable Contributors
-# ----- TB1/2 Patch
-#       - AppleGPUWrangler Thunderbolt
-#       © @mac_editor (+ @fricorico) at egpu.io
-# ----- Legacy AMD GPUs
-#       - automate-eGPU.kext -> AMDLegacySupport.kext
-#       - Updated & Simplified to AMDLegacySupport by @mac_editor
-#       © @goalque at egpu.io
-# ----- New NVIDIA eGPU Patch
-#       - AppleGPUWrangler Discrete
-#       - IOGraphicsFamily
-#       © @goalque at egpu.io
-# ----- Ti82 Controller Support
-#       - IOThunderboltFamily patch
-#       © @khaosT at github.com
-# ----- TB Detection
-#       @owenrw at egpu.io
-# ----- Testing
-#       @itsage for most up-to-date releases, at egpu.io
-#       @techyowl for early versions, at egpu.io
-
 # ----- COMMAND LINE ARGS
 
 # Setup command args + data

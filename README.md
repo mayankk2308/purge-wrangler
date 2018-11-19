@@ -14,6 +14,10 @@ A quick run-through of what's included in this document:
   - Available capabilities and options in the script.
 - [Recovery](https://github.com/mayankk2308/purge-wrangler#recovery)
   - Easy way to recover from an unbootable system using the script.
+- [Hardware Chart](https://github.com/mayankk2308/purge-wrangler#hardware-chart)
+  - See a brief overview of possible mac & eGPU combinations and any complications involved.
+- [More Tools](https://github.com/mayankk2308/purge-wrangler#more-tools)
+  - Additional tools that you may need for some specific edge-case systems.
 - [References](https://github.com/mayankk2308/purge-wrangler#references)
   - Special thanks to everyone involved.
 - [Disclaimer](https://github.com/mayankk2308/purge-wrangler#disclaimer)
@@ -71,6 +75,36 @@ mount -uw /
 purge-wrangler -r
 ```
 This will restore your system to a clean state as documented above.
+
+## Hardware Chart
+The hardware chart aims to provide a very simple overview of possible external GPU configurations with macs using the script, and highlight potential edge cases. The following is table that lists possible these configurations and any potential issues:
+
+| Built-In GPU(s) | External GPU | Dependency | Complications |
+| :-------------: | :----------: | :--------: | :------------ |
+| **Intel** | AMD | macOS Drivers | Most intel-only macs are easy to set up. Some models may require plugging in the eGPU after boot. One of the more optimal configurations. |
+| **Intel** | NVIDIA | NVIDIA Web Drivers | Setup depends on the availability of NVIDIA Web Drivers for most modern NVIDIA GPUs and for your macOS version. Hot-unplugging not supported. |
+| **NVIDIA** | AMD | macOS Drivers | It may not be possible to run monitors connected to the eGPU, but the internal monitor can be used for eGPU-accelerated applications. |
+| **NVIDIA** | NVIDIA | NVIDIA Web Drivers | OpenCL/GL compute capabilities may be lost if NVIDIA Web Drivers are involved. Older GPUs that can use macOS drivers will work fine. |
+| **AMD** | AMD | macOS Drivers | Almost all setups should work nearly flawlessly with native hot-plug, unplug, and sudden un-plug support. One of the more optimal configurations. |
+| **AMD** | NVIDIA | NVIDIA Web Drivers | Due to conflicting framebuffers, external monitors connected to the eGPU may not render. The setup may or may not work depending on specific system models. NVIDIA Web Driver dependency involved as well for newer GPUs. |
+| **Intel**, **NVIDIA** | AMD | macOS Drivers | By default, monitors connected to the eGPU will not render, but this can be resolved via additional workarounds. See [more tools](https://github.com/mayankk2308/purge-wrangler#more-tools). |
+| **Intel**, **NVIDIA** | NVIDIA | NVIDIA Web Drivers | OpenCL/GL compute capabilities may be lost if NVIDIA Web Drivers are involved. This can be resolved using additional workarounds. See [more tools](https://github.com/mayankk2308/purge-wrangler#more-tools). |
+| **Intel**, **AMD** | AMD | macOS Drivers | Setup should work nearly flawlessly with native hot-plug, unplug, and sudden un-plug support. One of the more optimal configurations. |
+| **Intel**, **AMD** | NVIDIA | NVIDIA Web Drivers | Mostly working setups, though some macs may encounter black screens on monitors connected to the eGPU. See [more tools](https://github.com/mayankk2308/purge-wrangler#more-tools) for additional workarounds. |
+
+**NVIDIA Web Drivers** are **not required** for *most* **Kepler-based** GPUs as macOS already includes the drivers, which are recommended instead as they are up-to-date and are likely to work much better within macOS versus NVIDIA's provided drivers.
+
+## More Tools
+The **anomaly management** feature in the script will mention anything extra that needs to be done for proper eGPU functionality for the system. Thunderbolt versions (mac or enclosure) are irrelevant with respect to macOS compatibility. A table of additional tools that you may require is as follows:
+
+| Problem | Tool | Applies To | Description |
+| :------: | :--: | :--------: | :---------- |
+| Loss of **OpenCL/GL** | [PurgeNVDA](https://github.com/mayankk2308/purge-nvda) | **Intel**, **NVIDIA** | Resolves the issue on macs with Intel and NVIDIA GPUs (*a la* **MacBook Pro 15" 2012-14**) by disabling the discrete GPU only. Cannot apply to iMacs that do not have functional/disabled integrated GPUs.
+| Black Screens on AMD eGPUs | [PurgeNVDA](https://github.com/mayankk2308/purge-nvda) | **Intel**, **NVIDIA** | Resolves the issue on macs with Intel and NVIDIA GPUs (*a la* **MacBook Pro 15" 2012-14**) by disabling NVIDIA framebuffers. Cannot apply to iMacs that do not have functional/disabled integrated GPUs.
+| Black Screens on NVIDIA eGPUs | Coming Soon | **Intel**, **AMD** | The graphics mux needs to be switched to the integrated GPU before the system initializes the NVIDIA eGPU to enable acceleration on the external monitor(s). Not all configurations need this workaround. |
+| eGPU on Internal Display | [Set-eGPU](https://github.com/mayankk2308/set-egpu) | Any | If on **High Sierra**, use the script to enable apps to use the eGPU without requiring monitors. macOS **Mojave** or later has this built-in. |
+
+Unfortunately, as evident, iMacs facing similar complications are harder to resolve because of the absence of a functional Intel GPU. Otherwise the same fixes for the dual GPU notebooks would be applicable.
 
 ## References
 Many thanks to:
