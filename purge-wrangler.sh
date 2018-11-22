@@ -713,7 +713,7 @@ prompt_web_driver_install() {
     read -n1 -p "Install ${BOLD}NVIDIA Web Drivers${NORMAL}? [Y/N]: " INPUT
     echo
     [[ "${INPUT}" == "Y" ]] && USING_WEB_DRV=1 && echo && run_webdriver_installer && return
-    [[ "${INPUT}" == "N" ]] && echo -e "\nProceeding with ${BOLD}native macOS drivers${NORMAL}...\n" && return
+    [[ "${INPUT}" == "N" ]] && echo && return
     echo -e "\nInvalid option." && prompt_web_driver_install
   elif [[ ${NVDA_WEB_INSTALLS} == 1 ]]
   then
@@ -1094,7 +1094,7 @@ provide_menu_selection() {
    ${BOLD}2.${NORMAL}  NVIDIA eGPUs        ${BOLD}8.${NORMAL}  Sanitize
    ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}9.${NORMAL}  Recovery
 
-   >> ${BOLD}Additional Support${NORMAL}   >> ${BOLD}More Tools${NORMAL}
+   >> ${BOLD}Additional Support${NORMAL}   >> ${BOLD}More Options${NORMAL}
    ${BOLD}4.${NORMAL}  Ti82 Enclosures     ${BOLD}10.${NORMAL} System Reboot
    ${BOLD}5.${NORMAL}  NVIDIA Web Drivers  ${BOLD}11.${NORMAL} Script Preferences
    ${BOLD}6.${NORMAL}  Anomaly Detection
