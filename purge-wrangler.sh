@@ -618,7 +618,7 @@ install_web_drivers() {
   pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
   echo -e "Package sanitized.\n${BOLD}Installing...${NORMAL}"
   INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
-  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n\n${BOLD}Continuing patch...${NORMAL}" || echo -e "Installation failed."
+  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n" || echo -e "Installation failed."
   rm -r "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
   rm "${WEBDRIVER_PLIST}"
 }
@@ -670,7 +670,7 @@ run_webdriver_installer() {
       echo
       [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
       [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
-      echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}." && return
+      echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}.\n" && return
     else
       echo -e "Your preference is set to ${BOLD}always${NORMAL} patch web drivers.\n${BOLD}Proceeding...${NORMAL}\n"
       sleep 1
@@ -698,6 +698,8 @@ prompt_web_driver_install() {
         $PlistBuddy -c "Set ${NVDA_REQUIRED_OS} \"${MACOS_BUILD}\"" "${NVDA_STARTUP_WEB_PLIST_PATH}" 2>/dev/null 1>&2
         echo -e "Drivers patched.\n"
       fi
+    else
+      echo -e "\nAppropriate NVIDIA Web Drivers are ${BOLD}already installed${NORMAL}.\n"
     fi
     USING_WEB_DRV=1
     return
@@ -724,11 +726,13 @@ prompt_web_driver_install() {
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
+  echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}\n"
   [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
   [[ ${TB_PATCH_STATUS} == 1 || ${LEG_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
+  backup_system
   prompt_web_driver_install
   [[ ${USING_WEB_DRV} == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
+  echo -e "${BOLD}Continuing patch...${NORMAL}\n"
   if [[ ${USING_WEB_DRV} == 1 ]]
   then
     nvram nvda_drv=1
@@ -737,7 +741,6 @@ patch_nv() {
     nvram -d nvda_drv 2>/dev/null
     NVDA_STARTUP_PLIST_TO_PATCH="${NVDA_STARTUP_PLIST_PATH}"
   fi
-  backup_system
   echo -e "${BOLD}Patching components...${NORMAL}"
   install_ti82
   generate_hex "${AGW_BIN}" "${SCRATCH_AGW_HEX}"
@@ -1015,6 +1018,11 @@ manage_pw_preferences() {
   manage_pw_preference ${INPUT}
 }
 
+# Command line options
+command_line_opts() {
+  echo
+}
+
 # Ask for main menu
 ask_menu() {
   read -n1 -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
@@ -1034,14 +1042,13 @@ provide_menu_selection() {
    ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}9.${NORMAL}  Recovery
 
    >> ${BOLD}Additional Support${NORMAL}   >> ${BOLD}More Tools${NORMAL}
-   ${BOLD}4.${NORMAL}  Ti82 Enclosures     ${BOLD}10.${NORMAL} Command Line Options
-   ${BOLD}5.${NORMAL}  NVIDIA Web Drivers  ${BOLD}11.${NORMAL} System Reboot
-   ${BOLD}6.${NORMAL}  Anomaly Detection   ${BOLD}12.${NORMAL} Script Preferences
+   ${BOLD}4.${NORMAL}  Ti82 Enclosures     ${BOLD}10.${NORMAL} System Reboot
+   ${BOLD}5.${NORMAL}  NVIDIA Web Drivers  ${BOLD}11.${NORMAL} Script Preferences
+   ${BOLD}6.${NORMAL}  Anomaly Detection
 
    ${BOLD}0.${NORMAL}  Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-12]: " INPUT
-  echo
+  read -p "${BOLD}What next?${NORMAL} [0-11]: " INPUT
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -1073,6 +1080,9 @@ process_args() {
       echo -e "Ti82 support is already enabled on this system.\n"
     fi
     ;;
+    -nw|--nvidia-web|5)
+    echo -e "\n>> ${BOLD}NVIDIA Web Drivers${NORMAL}"
+    prompt_web_driver_install;;
     -s|--status|7)
     check_patch_status;;
     -ss|--sanitize-system|8)
@@ -1081,13 +1091,13 @@ process_args() {
     echo;;
     -r|--recover|9)
     recover_sys;;
-    -rb|--reboot|11)
+    -rb|--reboot|10)
     echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
     read -n1 -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
     echo
     [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
     [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
-    -p|--prefs|12)
+    -p|--prefs|11)
     manage_pw_preferences;;
     0)
     echo && exit;;
