@@ -86,7 +86,7 @@ After installing the script, all settings as described in [pre-requisites](https
 ### Software Updates
 At this time, we consider both **AMD** (for TB1/2 devices) and **NVIDIA** patches as foolproof. For NVIDIA users, please note that support depends on NVIDIA Web Drivers as well, so before updating, please ensure that there is a driver available for the new operating system.
 
-Updates to the operating system re-write system kernel extensions, undoing all patches applied previously via the script. In such a case, a dialog box will notify you that the patches have been undone, and suggest re-applying them.
+Updates to the operating system re-write system kernel extensions, undoing all patches applied previously via the script. In such a case, a dialog box will notify you that the patches have been undone, and will suggest re-applying them.
 
 ## Hardware Chart
 The hardware chart aims to provide a very simple overview of possible external GPU configurations with macs using the script, and highlight potential edge cases. Note that thunderbolt versions are mostly inconsequential to setup on macOS. The following is table that lists the possible configurations and any potential issues:
@@ -143,7 +143,7 @@ And the [eGPU.io](https://egpu.io) community for their support and insightful di
 This script moves core system files associated with macOS. While any of the potential issues with its application are recoverable, please use this script at your discretion. I will not be liable for any damages to your system.
 
 ## License
-See the license file for more information.
+The bundled license prevents any commercial use, redistribution, and compilation/assembly to obscure code for any purposes. This software comes without any warranty or guaranteed support. By using the script, you **agree** to adhere to this license. For more information, please see the [LICENSE](./LICENSE.md).
 
 ## Support
 If you loved **purge-wrangler.sh**, consider **starring** the repository or if you would like to, donate via **PayPal**:
