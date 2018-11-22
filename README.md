@@ -68,7 +68,6 @@ PurgeWrangler makes it super-easy to perform actions with an interactive menu, a
 | `-s` or `--status` | Status | Shows the current status of some of the components of the system and the any modifications made using the script. |
 | `-ss` or `--sanitize-system` | Sanitize | Fixes permissions and rebuilds kernel caches, useful for advanced users testing various modifcations to system kexts. |
 | `-r` or `--recover` | Recovery | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
-| `-cl` or `--command-line-opts` | Command Line Options | Displays a list of command line options allowing advanced users to bypass the menu, useful for integration with other components and additional scripting if needed. |
 | `-rb` or `--reboot` | System Reboot | Prompts the user to reboot the system, and instantly does so if after user consent, useful for easy command-line reboots. |
 | `-p` or `--prefs` | Script Preferences | Allows management of preferences for queries that the script asks for when patching. This allows users to set defaults, such as always installing web drivers. |
 

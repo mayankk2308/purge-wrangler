@@ -340,10 +340,10 @@ check_patch() {
 check_patch_status() {
   PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
   echo -e "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
-  echo -e "${BOLD}Legacy AMD Support${NORMAL}: ${PATCH_STATUSES[$LEG_PATCH_STATUS]} "
-  echo -e "${BOLD}Thunderbolt Patch${NORMAL}: ${PATCH_STATUSES[$TB_PATCH_STATUS]}"
-  echo -e "${BOLD}NVIDIA Patch${NORMAL}: ${PATCH_STATUSES[$NV_PATCH_STATUS]}"
-  echo -e "${BOLD}Ti82 Patch${NORMAL}: ${PATCH_STATUSES[${TI82_PATCH_STATUS}]}\n"
+  echo -e "${BOLD}Legacy AMD eGPUs${NORMAL}  ${PATCH_STATUSES[$LEG_PATCH_STATUS]} "
+  echo -e "${BOLD}TB1/2 AMD eGPUs${NORMAL}   ${PATCH_STATUSES[$TB_PATCH_STATUS]}"
+  echo -e "${BOLD}NVIDIA eGPUs${NORMAL}      ${PATCH_STATUSES[$NV_PATCH_STATUS]}"
+  echo -e "${BOLD}Ti82 Devices${NORMAL}      ${PATCH_STATUSES[${TI82_PATCH_STATUS}]}\n"
 }
 
 # Cumulative system check
@@ -668,7 +668,7 @@ run_webdriver_installer() {
     then
       read -n1 -p "Patch ${BOLD}Web Drivers${NORMAL} (${BOLD}${LATEST_DRIVER_MACOS_BUILD}${NORMAL} -> ${BOLD}${MACOS_BUILD}${NORMAL})? [Y/N]: " INPUT
       echo
-      [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}." && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
+      [[ "${INPUT}" == "N" ]] && echo -e "\nInstallation ${BOLD}aborted${NORMAL}.\n" && rm "${WEBDRIVER_PLIST}" 2>/dev/null && return
       [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Proceeding...${NORMAL}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
       echo -e "\nInvalid option. Installation ${BOLD}aborted${NORMAL}.\n" && return
     else
@@ -731,7 +731,7 @@ patch_nv() {
   [[ ${TB_PATCH_STATUS} == 1 || ${LEG_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   backup_system
   prompt_web_driver_install
-  [[ ${USING_WEB_DRV} == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "\n${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
+  [[ ${USING_WEB_DRV} == 1 && ! -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]] && echo -e "${BOLD}NVIDIA Web Drivers${NORMAL} requested, but not installed.\n" && return
   echo -e "${BOLD}Continuing patch...${NORMAL}\n"
   if [[ ${USING_WEB_DRV} == 1 ]]
   then
