@@ -14,10 +14,14 @@ A quick run-through of what's included in this document:
   - Available capabilities and options in the script.
 - [Recovery](https://github.com/mayankk2308/purge-wrangler#recovery)
   - Easy way to recover from an unbootable system using the script.
+- [Post-Install](https://github.com/mayankk2308/purge-wrangler#post-install)
+  - System configuration after script installation and some other things of note.
 - [Hardware Chart](https://github.com/mayankk2308/purge-wrangler#hardware-chart)
   - See a brief overview of possible mac & eGPU combinations and any complications involved.
 - [More Tools](https://github.com/mayankk2308/purge-wrangler#more-tools)
   - Additional tools that you may need for some specific edge-case systems.
+- [Troubleshooting](https://github.com/mayankk2308/purge-wrangler#troubleshooting)
+  - Additional resources and guides for eGPUs.
 - [References](https://github.com/mayankk2308/purge-wrangler#references)
   - Special thanks to everyone involved.
 - [Disclaimer](https://github.com/mayankk2308/purge-wrangler#disclaimer)
@@ -76,6 +80,14 @@ purge-wrangler -r
 ```
 This will restore your system to a clean state as documented above.
 
+## Post-Install
+After installing the script, all settings as described in [pre-requisites](https://github.com/mayankk2308/purge-wrangler#pre-requisites) must persist. For instance, **system integrity protection** must remain disabled as long as the system is in the *patched* state.
+
+### Software Updates
+At this time, we consider both **AMD** (for TB1/2 devices) and **NVIDIA** patches as foolproof. For NVIDIA users, please note that support depends on NVIDIA Web Drivers as well, so before updating, please ensure that there is a driver available for the new operating system.
+
+Updates to the operating system re-write system kernel extensions, undoing all patches applied previously via the script. In such a case, a dialog box will notify you that the patches have been undone, and suggest re-applying them.
+
 ## Hardware Chart
 The hardware chart aims to provide a very simple overview of possible external GPU configurations with macs using the script, and highlight potential edge cases. Note that thunderbolt versions are mostly inconsequential to setup on macOS. The following is table that lists the possible configurations and any potential issues:
 
@@ -105,6 +117,18 @@ The **anomaly management** feature in the script will mention anything extra tha
 | eGPU on Internal Display | [Set-eGPU](https://github.com/mayankk2308/set-egpu) | Any | If on **High Sierra**, use the script to enable apps to use the eGPU without requiring monitors. macOS **Mojave** or later has this built-in. |
 
 Unfortunately, as evident, iMacs facing similar complications are harder to resolve because of the absence of a functional Intel GPU. Otherwise the same fixes for the dual GPU notebooks would be applicable.
+
+## Troubleshooting
+Troubleshooting plays an important role in any kind of hack/patch. New OSes and hardware tend to bring with them new problems and challenges. The hardware chart aims to cover all variances of problems with eGPUs so far, but there can be some specific missed edge cases. The following is a list of additional resources rich in information:
+
+| Resource | Description |
+| :------: | :---------- |
+| [eGPU.io Build Guides](https://egpu.io/build-guides/) | See builds for a variety of systems and eGPUs. If you don't find an exact match, look for similar builds. |
+| [eGPU.io Troubleshooting Guide](https://egpu.io/forums/mac-setup/guide-troubleshooting-egpus-on-macos/) | Learn about some basics of eGPUs in macOS and find out what means what. This guide does not cover any Windows/Bootcamp-related efforts. |
+| [eGPU.io Community](https://egpu.io/forums/) | The eGPU.io forums are a great place to post concerns and doubts about your setup. Be sure to search the forum before posting as there might be high chance your doubt has already been answered. |
+| [eGPU Community on Reddit](https://www.reddit.com/r/eGPU/) | The reddit community is a wonderful place to request additional help for your new setup, and a good place to find fellow eGPU users. |
+
+My username on both communities is [@mac_editor](https://egpu.io/forums/profile/mac_editor). Feel free to mention my username on eGPU.io posts - I get an email notifying me of the same. In any case, with thousands of members, the community is a welcoming place. Don't be shy!
 
 ## References
 Many thanks to:
