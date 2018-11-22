@@ -2,7 +2,7 @@
 ![Script Version](https://img.shields.io/github/release/mayankk2308/purge-wrangler.svg?style=for-the-badge)
 ![macOS Support](https://img.shields.io/badge/macOS-10.13.4+-orange.svg?style=for-the-badge) ![Github All Releases](https://img.shields.io/github/downloads/mayankk2308/purge-wrangler/total.svg?style=for-the-badge) [![paypal](https://www.paypalobjects.com/webstatic/en_US/i/buttons/PP_logo_h_150x38.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest)
 # PurgeWrangler
-**purge-wrangler.sh** enables unsupported external GPU configurations on macOS for almost all macs. Before proceeding, please read through this **entire document**.
+**purge-wrangler.sh** enables unsupported external GPU configurations on macOS for almost all macs. Before proceeding, please read through this **entire document** to familiarize yourself with the script, the community, and the resources available you in case you find that you need help.
 
 ## Index
 A quick run-through of what's included in this document:
@@ -113,8 +113,9 @@ The **anomaly management** feature in the script will mention anything extra tha
 | :------: | :--: | :--------: | :---------- |
 | Loss of **OpenCL/GL** | [PurgeNVDA](https://github.com/mayankk2308/purge-nvda) | **Intel**, **NVIDIA** | Resolves the issue on macs with Intel and NVIDIA GPUs (*a la* **MacBook Pro 15" 2012-14**) by disabling the discrete GPU only. Cannot apply to iMacs that do not have functional/disabled integrated GPUs.
 | Black Screens on AMD eGPUs | [PurgeNVDA](https://github.com/mayankk2308/purge-nvda) | **Intel**, **NVIDIA** | Resolves the issue on macs with Intel and NVIDIA GPUs (*a la* **MacBook Pro 15" 2012-14**) by disabling NVIDIA framebuffers. Cannot apply to iMacs that do not have functional/disabled integrated GPUs.
-| Black Screens on NVIDIA eGPUs | Coming Soon | **Intel**, **AMD** | The graphics mux needs to be switched to the integrated GPU before the system initializes the NVIDIA eGPU to enable acceleration on the external monitor(s). Not all configurations need this workaround. |
+| Black Screens on NVIDIA eGPUs | Workaround | **Intel**, **AMD** | The graphics mux needs to be switched to the integrated GPU before the system initializes the NVIDIA eGPU. Hot-plugging eGPU at different times (at login screen, after login, and so on) may help. |
 | eGPU on Internal Display | [Set-eGPU](https://github.com/mayankk2308/set-egpu) | Any | If on **High Sierra**, use the script to enable apps to use the eGPU without requiring monitors. macOS **Mojave** or later has this built-in. |
+| No Boot with eGPU | Workaround | Certain Macs | Some macs cannot boot with certain eGPUs plugged in. A timed-plug is required, as described in this [build guide](https://egpu.io/forums/builds/mid-2014-macbook-pro-gt750m-gtx107016gbps-tb2-aorus-gaming-box-macos-10-13-6-mac_editor/) (see the boot process). |
 
 Unfortunately, as evident, iMacs facing similar complications are harder to resolve because of the absence of a functional Intel GPU. Otherwise the same fixes for the dual GPU notebooks would be applicable.
 
