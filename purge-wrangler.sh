@@ -86,6 +86,9 @@ TB_PATCH_STATUS=""
 NV_PATCH_STATUS=""
 TI82_PATCH_STATUS=""
 
+# System Discrete GPU
+DGPU_VENDOR=""
+
 # General kext paths
 EXT_PATH="/System/Library/Extensions/"
 TP_EXT_PATH="/Library/Extensions/"
@@ -782,7 +785,7 @@ remove_web_drivers() {
     echo
     [[ "${INPUT}" == "Y" ]] && run_webdriver_uninstaller && return
     [[ "${INPUT}" == "N" ]] && echo && return
-    echo -e "\nInvalid option.\n" && remove_web_drivers
+    echo -e "\nInvalid option." && remove_web_drivers
   elif [[ ${NVDA_WEB_UNINSTALLS} == 1 ]]
   then
     echo -e "Your preferences are set to ${BOLD}always${NORMAL} uninstall web drivers.\n${BOLD}Proceeding...${NORMAL}"
@@ -906,6 +909,61 @@ recover_sys() {
   echo -e "Recovery complete.\n\n${BOLD}System ready.${NORMAL} Restart now to apply changes.\n\nRefer to the ${BOLD}macOS eGPU Troubleshooting Guide${NORMAL} in the ${BOLD}How-To's${NORMAL}\nsection of ${UNDERLINE}egpu.io${NORMAL} for further troubleshooting if needed.\n"
 }
 
+# ----- ANOMALY MANAGER
+
+# Detect discrete GPU vendor
+detect_discrete_gpu_vendor() {
+  DGPU_VENDOR="$(ioreg -n GFX0@0 | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4)"
+  if [[ "${DGPU_VENDOR}" == "de10" ]]
+  then
+    DGPU_VENDOR="NVIDIA"
+  elif [[ "${DGPU_VENDOR}" == "0210" ]]
+  then
+    DGPU_VENDOR="AMD"
+  else
+    DGPU_VENDOR="None"
+  fi
+}
+
+# Anomaly detection
+detect_anomalies() {
+  detect_discrete_gpu_vendor
+  echo -e "Anomaly Detection will check your system to ${BOLD}find\npotential hiccups${NORMAL} based on the applied system patches."
+  echo -e "\n${BOLD}Discrete GPU${NORMAL}: ${DGPU_VENDOR}\n"
+  if [[ "${DGPU_VENDOR}" == "NVIDIA" ]]
+  then
+    if [[ ${NV_PATCH_STATUS} == 1 && -f "${NVDA_STARTUP_WEB_PLIST_PATH}" ]]
+    then
+      echo -e "${BOLD}Problem${NORMAL}     Loss of OpenCL/GL on all NVIDIA GPUs."
+      echo -e "${BOLD}Resolution${NORMAL}  Apply patches using ${BOLD}purge-nvda.sh${NORMAL}."
+      echo -e "\t    This issue cannot be resolved on iMacs.\n"
+    elif [[ ${TB_PATCH_STATUS} == 1 ]]
+    then
+      echo -e "${BOLD}Problem${NORMAL}     Black screens on monitors connected to eGPU."
+      echo -e "${BOLD}Resolution${NORMAL}  Apply patches using ${BOLD}purge-nvda.sh${NORMAL}."
+      echo -e "\t    This issue cannot be resolved on iMacs.\n"
+    else
+      echo -e "No expected anomalies with current configuration.\n"
+    fi
+  elif [[ "${DGPU_VENDOR}" == "AMD" ]]
+  then
+    if [[ ${NV_PATCH_STATUS} == 1 ]]
+    then
+      echo -e "${BOLD}Problem${NORMAL}     Black screens/slow performance with eGPU."
+      echo -e "${BOLD}Resolution${NORMAL}  Disable then re-enable automatic graphics switching,"
+      echo -e "\t    hot-plug eGPU, then log out and log in."
+      echo -e "\t    This issue, if encountered, might only be resolved with\n\t    trial-error or using more advanced mux-based workarounds.\n"
+    elif [[ ${TB_PATCH_STATUS} == 1 ]]
+    then
+      echo -e "No expected anomalies for your system.\n"
+    else
+      echo -e "No expected anomalies with current configuration.\n"
+    fi
+  else
+    echo -e "No expected anomalies with current configuration.\n"
+  fi
+}
+
 # ----- USER INTERFACE
 
 # Show update prompt
@@ -1018,11 +1076,6 @@ manage_pw_preferences() {
   manage_pw_preference ${INPUT}
 }
 
-# Command line options
-command_line_opts() {
-  echo
-}
-
 # Ask for main menu
 ask_menu() {
   read -n1 -p "${BOLD}Back to menu?${NORMAL} [Y/N]: " INPUT
@@ -1083,6 +1136,9 @@ process_args() {
     -nw|--nvidia-web|5)
     echo -e "\n>> ${BOLD}NVIDIA Web Drivers${NORMAL}"
     prompt_web_driver_install;;
+    -a|--anomaly-detect|6)
+    echo -e "\n>> ${BOLD}Anomaly Detection${NORMAL}\n"
+    detect_anomalies;;
     -s|--status|7)
     check_patch_status;;
     -ss|--sanitize-system|8)
