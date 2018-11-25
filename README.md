@@ -55,10 +55,11 @@ purge-wrangler
 In case the command above does not work, you can re-use the long installation command and fix the issue.
 
 ### Note About NVIDIA Setups
-Modern NVIDIA GPUs (Maxwell or better) depend on NVIDIA Web Drivers which NVIDIA provides per macOS release. Please ensure that there is a driver available for your current system. You can check that using the following command:
+Modern NVIDIA GPUs (Maxwell or better) depend on NVIDIA Web Drivers which NVIDIA provides per macOS release. **Please ensure that there is a driver available for your current system**. You can check that using the following command:
 ```bash
-# TODO: curl -s <url> | bash
+curl -s https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/webdrv-release.sh | bash
 ```
+For minor macOS version variations (**10.13.4 -> 10.13.5** for example), you may use **purge-wrangler.sh** to install the drivers patched for your OS automatically, with high chance of success. **10.13 -> 10.14** and other major OS changes usually break web drivers, and patching will not be helpful. The script will provide recommendations (**v4.2.5+**) as needed.
 
 ## Script Options
 PurgeWrangler makes it super-easy to perform actions with an interactive menu, and is recommended for most users. Providing no arguments to the script defaults to the menu. **Some options are coming soon in v5.1.0**.
