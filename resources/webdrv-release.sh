@@ -21,7 +21,7 @@ fetch_webdrv_info() {
   if [[ ! -f "${wd_plist}" ]]
   then
     echo -e "Unable to extract data.\n"
-    rm -f "${wd_plist}"
+    rm -f "${wd_plist}" 2>/dev/null
     return
   fi
   local latest_drv_ver="$(${PlistBuddy} -c "Print :updates:0:version" "${wd_plist}")"
@@ -29,6 +29,7 @@ fetch_webdrv_info() {
   echo -e "${bold}Latest Web Driver${normal}: ${latest_drv_ver}"
   echo -e "${bold}Supported OS Build${normal}: ${latest_drv_build}"
   echo -e "${bold}Your OS Build${normal}: $(sw_vers -buildVersion)"
+  rm -f "${wd_plist}" 2>/dev/null
 }
 
 fetch_webdrv_info
