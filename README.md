@@ -54,6 +54,8 @@ purge-wrangler
 
 In case the command above does not work, you can re-use the long installation command and fix the issue.
 
+**purge-wrangler.sh** requires **administrator privileges** and will request your password if run in a non-privileged shell. The script uses [sudo](https://support.apple.com/en-us/HT202035) to do so.
+
 ### Note About NVIDIA Setups
 Modern NVIDIA GPUs (Maxwell or better) depend on NVIDIA Web Drivers which NVIDIA provides per macOS release. **Please ensure that there is a driver available for your current system**. You can check that using the following command:
 ```bash
