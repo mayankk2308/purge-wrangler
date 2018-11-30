@@ -115,7 +115,7 @@ The hardware chart aims to provide a very simple overview of possible external G
 **NVIDIA Web Drivers** are **not required** for *most* **Kepler-based** GPUs as macOS already includes the drivers, which are recommended instead as they are up-to-date and are likely to work much better within macOS versus NVIDIA's provided drivers.
 
 ## More Tools
-The **anomaly management** feature in the script will mention anything extra that needs to be done for proper eGPU functionality for the system. Thunderbolt versions (mac or enclosure) are irrelevant with respect to macOS compatibility. A table of additional tools that you may require is as follows:
+The **anomaly detection** feature in the script will mention anything extra that needs to be done for proper eGPU functionality for the system. Thunderbolt versions (mac or enclosure) are irrelevant with respect to macOS compatibility. A table of additional tools that you may require is as follows:
 
 | Problem | Tool | Applies To | Description |
 | :------: | :--: | :--------: | :---------- |

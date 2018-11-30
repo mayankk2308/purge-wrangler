@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.1.0
+# Version: 5.1.1
 
 # ----- COMMAND LINE ARGS
 
@@ -26,7 +26,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="0"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="1"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -287,7 +287,7 @@ prepare_preferences() {
 
 # Check caller
 validate_caller() {
-  [[ "${1}" == "bash" && ! "${2}" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
+  [[ "${1}" == "bash" && -z "${2}" ]] && echo -e "\n${BOLD}Cannot execute${NORMAL}.\nPlease see the README for instructions.\n" && exit $EXEC_ERR
   [[ "${1}" != "${SCRIPT}" ]] && OPTION="${3}" || OPTION="${2}"
   [[ "${SCRIPT}" == "${SCRIPT_BIN}" || "${SCRIPT}" == "purge-wrangler" ]] && BIN_CALL=1
 }
@@ -342,7 +342,7 @@ check_patch() {
 # Patch status check
 check_patch_status() {
   PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
-  echo -e "\n>> ${BOLD}Check Patch Status${NORMAL}\n"
+  echo -e "\n>> ${BOLD}System Status${NORMAL}\n"
   echo -e "${BOLD}Legacy AMD eGPUs${NORMAL}  ${PATCH_STATUSES[$LEG_PATCH_STATUS]} "
   echo -e "${BOLD}TB1/2 AMD eGPUs${NORMAL}   ${PATCH_STATUSES[$TB_PATCH_STATUS]}"
   echo -e "${BOLD}NVIDIA eGPUs${NORMAL}      ${PATCH_STATUSES[$NV_PATCH_STATUS]}"
@@ -564,7 +564,7 @@ install_ti82() {
 
 # Patch TB1/2 block
 patch_tb() {
-  echo -e "\n>> ${BOLD}Enable AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
+  echo -e "\n>> ${BOLD}AMD eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}"
   [[ -e "${AUTOMATE_EGPU_KEXT}" ]] && rm -r "${AUTOMATE_EGPU_KEXT}"
   [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   backup_system
@@ -729,7 +729,7 @@ prompt_web_driver_install() {
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo -e "\n>> ${BOLD}Enable NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}\n"
+  echo -e "\n>> ${BOLD}NVIDIA eGPUs${NORMAL}\n\n${BOLD}Starting patch...${NORMAL}\n"
   [[ ${NV_PATCH_STATUS} == 1 ]] && echo -e "System has already been patched for ${BOLD}NVIDIA eGPUs${NORMAL}.\n" && return
   [[ ${TB_PATCH_STATUS} == 1 || ${LEG_PATCH_STATUS} == 1 ]] && echo -e "System has previously been patched for ${BOLD}AMD eGPUs${NORMAL}.\nPlease uninstall before proceeding.\n" && return
   backup_system
@@ -807,7 +807,7 @@ uninstall_ti82() {
 
 # In-place re-patcher
 uninstall() {
-  echo -e "\n>> ${BOLD}Uninstall Patches${NORMAL}\n"
+  echo -e "\n>> ${BOLD}Uninstall${NORMAL}\n"
   [[ ${LEG_PATCH_STATUS} == 0 && ${TB_PATCH_STATUS} == 0 && ${NV_PATCH_STATUS} == 0 && ${TI82_PATCH_STATUS} == 0 && ! -e "${NVDA_STARTUP_WEB_PATH}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${BOLD}Uninstalling...${NORMAL}"
   if [[ -d "${AMD_LEGACY_KEXT}" ]]
@@ -876,7 +876,7 @@ first_time_setup() {
 
 # Recovery logic
 recover_sys() {
-  echo -e "\n>> ${BOLD}System Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
+  echo -e "\n>> ${BOLD}Recovery${NORMAL}\n\n${BOLD}Recovering...${NORMAL}"
   if [[ -d "${AMD_LEGACY_KEXT}" ]]
   then
     echo -e "${BOLD}Removing legacy support...${NORMAL}"
