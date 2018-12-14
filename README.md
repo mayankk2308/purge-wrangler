@@ -40,6 +40,7 @@ Please read [Apple](https://support.apple.com/en-us/HT208544)'s external GPU doc
 | **System Integrity Protection** | Disabled | By default, this prevents system modifications that the script would like to make, and hence must be disabled. SIP can be disabled as described in this [article](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/ConfiguringSystemIntegrityProtection/ConfiguringSystemIntegrityProtection.html).  |
 | **Secure Boot** | No Security | For macs with the **T2** coprocessor, this needs to be done to allow patched versions of macs to boot. You can change this setting as described in this [article](https://support.apple.com/en-us/HT208330).  |
 | **External Boot** | Enabled | For macs with the **T2** coprocessor, an *optional* but recommended setting. You can change this as described [here](https://support.apple.com/en-us/HT208330).  |
+| **Backup** | Recommended | While the script has been comprehensively tested and is mature, hacks are just that, hacks. A system backup is always recommended. |
 
 ## Installation
 **purge-wrangler.sh** auto-manages itself and provides multiple installation and recovery options. Once the **pre-requisites** are satisfied, install the script by running the following in **Terminal**:

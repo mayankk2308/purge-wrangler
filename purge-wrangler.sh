@@ -452,6 +452,7 @@ backup_system() {
       then
         execute_backup
         echo -e "Backup refreshed."
+        write_manifest
         return
       fi
       echo -e "Backup already exists."
@@ -928,7 +929,7 @@ detect_discrete_gpu_vendor() {
 # Anomaly detection
 detect_anomalies() {
   detect_discrete_gpu_vendor
-  echo -e "Anomaly Detection will check your system to ${BOLD}find\npotential hiccups${NORMAL} based on the applied system patches."
+  echo -e "Anomaly Detection will check your system to ${BOLD}find\npotential hiccups${NORMAL} based on the applied system patches.\n\nPatches made from scripts such as ${BOLD}purge-nvda.sh${NORMAL}\nare not detected at this time."
   echo -e "\n${BOLD}Discrete GPU${NORMAL}: ${DGPU_VENDOR}\n"
   if [[ "${DGPU_VENDOR}" == "NVIDIA" ]]
   then
