@@ -45,7 +45,7 @@ Please read [Apple](https://support.apple.com/en-us/HT208544)'s external GPU doc
 ## Installation
 **purge-wrangler.sh** auto-manages itself and provides multiple installation and recovery options. Once the **pre-requisites** are satisfied, install the script by running the following in **Terminal**:
 ```bash
-curl -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/' | xargs curl -L -s -0 > purge-wrangler.sh && chmod +x purge-wrangler.sh && ./purge-wrangler.sh && rm purge-wrangler.sh
+curl -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":"([^"]+)".*/\1/' | xargs curl -L -s -0 > purge-wrangler.sh && chmod +x purge-wrangler.sh && ./purge-wrangler.sh && rm purge-wrangler.sh
 ```
 
 For future use, only the following will be required:
