@@ -72,14 +72,13 @@ PurgeWrangler makes it super-easy to perform actions with an interactive menu, a
 | `-ea` or `--enable-amd` | AMD eGPUs | Patches macOS on **Thunderbolt 1/2** macs to allow native external GPU support as if on a **Thunderbolt 3** mac. Also asks if you want enable **legacy AMD GPU** support and **Ti82** enclosures. |
 | `-en` or `--enable-nv` | NVIDIA eGPUs | **Downloads** the necessary drivers, patch them if needed, and patch macOS to enable support for **NVIDIA GPUs** (credits: @goalque). |
 | `-u` or `--uninstall` | Uninstall | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
+| `-r` or `--recover` | Recovery | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
+| `-s` or `--status` | Status | Shows the current status of some of the components of the system and the any modifications made using the script. |
 | `-t8` or `--ti82` | Ti82 Enclosures | Patches macOS to enable non-supported thunderbolt devices such as **Ti82** enclosures (credits: @khaosT), though it may be sensitive to macOS updates.  |
 | `-nw` or `--nvidia-web` | NVIDIA Web Drivers | Allows installation of **NVIDIA Web Drivers** without any system modifications, useful for managing the drivers easily. |
 | `-a` or `--anomaly-detect` | Anomaly Detection | Scans the current system to detect any anomalies that may hinder external GPU support and cause issues such as black screens and slow interface. |
-| `-s` or `--status` | Status | Shows the current status of some of the components of the system and the any modifications made using the script. |
-| `-ss` or `--sanitize-system` | Sanitize | Fixes permissions and rebuilds kernel caches, useful for advanced users testing various modifcations to system kexts. |
-| `-r` or `--recover` | Recovery | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
-| `-rb` or `--reboot` | System Reboot | Prompts the user to reboot the system, and instantly does so if after user consent, useful for easy command-line reboots. |
 | `-p` or `--prefs` | Script Preferences | Allows management of preferences for queries that the script asks for when patching. This allows users to set defaults, such as always installing web drivers. |
+| `-d` or `--donate` | Donate | Launches the default web browser with the set donation link - essentially the same as the **PayPal** button on this page. |
 
 ## Recovery
 If you are unable to boot into macOS, boot while pressing **⌘ + S**, then enter the following commands:
