@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.1.1
+# Version: 5.1.2
 
 # ----- COMMAND LINE ARGS
 
@@ -26,7 +26,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="1"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="2"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -183,7 +183,7 @@ USING_WEB_DRV=0
 # Perform software update
 perform_software_update() {
   echo -e "${BOLD}Downloading...${NORMAL}"
-  curl -L -s -o "${TMP_SCRIPT}" "${LATEST_RELEASE_DWLD}"
+  curl -q -L -s -o "${TMP_SCRIPT}" "${LATEST_RELEASE_DWLD}"
   [[ "$(cat "${TMP_SCRIPT}")" == "Not Found" ]] && echo -e "Download failed.\n${BOLD}Continuing without updating...${NORMAL}" && sleep 1 && rm "${TMP_SCRIPT}" && return
   echo -e "Download complete.\n${BOLD}Updating...${NORMAL}"
   chmod 700 "${TMP_SCRIPT}" && chmod +x "${TMP_SCRIPT}"
@@ -210,7 +210,7 @@ prompt_software_update() {
 fetch_latest_release() {
   mkdir -p -m 775 "${LOCAL_BIN}"
   [[ "${BIN_CALL}" == 0 ]] && return
-  LATEST_SCRIPT_INFO="$(curl -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest")"
+  LATEST_SCRIPT_INFO="$(curl -q -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest")"
   LATEST_RELEASE_VER="$(echo -e "${LATEST_SCRIPT_INFO}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
   LATEST_RELEASE_DWLD="$(echo -e "${LATEST_SCRIPT_INFO}" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/')"
   LATEST_MAJOR_VER="$(echo -e "${LATEST_RELEASE_VER}" | cut -d '.' -f1)"
@@ -218,7 +218,7 @@ fetch_latest_release() {
   LATEST_PATCH_VER="$(echo -e "${LATEST_RELEASE_VER}" | cut -d '.' -f3)"
   if [[ $LATEST_MAJOR_VER > $SCRIPT_MAJOR_VER || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER > $SCRIPT_MINOR_VER) || ($LATEST_MAJOR_VER == $SCRIPT_MAJOR_VER && $LATEST_MINOR_VER == $SCRIPT_MINOR_VER && $LATEST_PATCH_VER > $SCRIPT_PATCH_VER) && "$LATEST_RELEASE_DWLD" ]]
   then
-    echo -e "\n>> ${BOLD}Software Update${NORMAL}\n\nA script update (${BOLD}${LATEST_RELEASE_VER}${NORMAL}) is available.\nYou are currently on ${BOLD}${SCRIPT_VER}${NORMAL}."
+    echo -e "\n>> ${BOLD}Software Update${NORMAL}\n\nSoftware updates are available.\n\nOn Your System    ${BOLD}${SCRIPT_VER}${NORMAL}\nLatest Available  ${BOLD}${LATEST_RELEASE_VER}${NORMAL}\n\nFor the best experience, stick to the latest release."
     prompt_software_update
   fi
 }
@@ -499,7 +499,7 @@ patch_plist() {
 # Install AMDLegacySupport.kext
 run_legacy_kext_installer() {
   echo -e "${BOLD}Downloading AMDLegacySupport...${NORMAL}"
-  curl -L -s -o "${AMD_LEGACY_ZIP}" "${AMD_LEGACY_DL}"
+  curl -q -L -s -o "${AMD_LEGACY_ZIP}" "${AMD_LEGACY_DL}"
   if [[ ! -e "${AMD_LEGACY_ZIP}" || ! -s "${AMD_LEGACY_ZIP}" || "$(cat "${AMD_LEGACY_ZIP}")" == "404: Not Found" ]]
   then
     echo -e "Could not download.\n\n${BOLD}Continuing remaining patches...${NORMAL}"
@@ -541,6 +541,21 @@ patch_ti82() {
   generic_patcher "${SKIPNUM_HEX}" "${PATCHED_SKIPNUM_HEX}" "${SCRATCH_IOT_HEX}"
   generate_new_bin "${SCRATCH_IOT_HEX}" "${SCRATCH_IOT_BIN}" "${IOT_BIN}"
   echo -e "Ti82 support enabled.\n\n${BOLD}Continuing...${NORMAL}\n"
+}
+
+# Enable Ti82 independently
+enable_ti82() {
+  echo -e "\n>> ${BOLD}Ti82 Devices${NORMAL}\n"
+  if [[ ${TI82_PATCH_STATUS} == 0 ]]
+  then
+    backup_system
+    echo "${BOLD}Enabling...${NORMAL}"
+    patch_ti82 1>/dev/null
+    echo "Ti82 Enabled."
+    end_patch
+  else
+    echo -e "Ti82 support is already enabled on this system.\n"
+  fi
 }
 
 # Prompt for Ti82 patch
@@ -599,7 +614,7 @@ install_web_drivers() {
   DOWNLOAD_URL="${2}"
   rm -r "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
   echo -e "Data retrieved.\n${BOLD}Downloading drivers (${DRIVER_VERSION})...${NORMAL}"
-  curl --connect-timeout 15 -# -o "${INSTALLER_PKG}" "${DOWNLOAD_URL}"
+  curl -q --connect-timeout 15 --progress-bar -o "${INSTALLER_PKG}" "${DOWNLOAD_URL}"
   if [[ ! -s "${INSTALLER_PKG}" ]]
   then
     rm -r "${INSTALLER_PKG}" 2>/dev/null 1>&2
@@ -630,7 +645,7 @@ install_web_drivers() {
 # Run Webdriver installation procedure
 run_webdriver_installer() {
   echo -e "${BOLD}Fetching webdriver information...${NORMAL}"
-  WEBDRIVER_DATA="$(curl -s "https://gfe.nvidia.com/mac-update")"
+  WEBDRIVER_DATA="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${WEBDRIVER_DATA}" ]] && echo -e "Could not install web drivers." && return
   echo -e "${WEBDRIVER_DATA}" > "${WEBDRIVER_PLIST}"
   [[ ! -f "${WEBDRIVER_PLIST}" ]] && echo -e "Could not extract web driver information." && return
@@ -928,6 +943,7 @@ detect_discrete_gpu_vendor() {
 
 # Anomaly detection
 detect_anomalies() {
+  echo -e "\n>> ${BOLD}Anomaly Detection${NORMAL}\n"
   detect_discrete_gpu_vendor
   echo -e "Anomaly Detection will check your system to ${BOLD}find\npotential hiccups${NORMAL} based on the applied system patches.\n\nPatches made from scripts such as ${BOLD}purge-nvda.sh${NORMAL}\nare not detected at this time."
   echo -e "\n${BOLD}Discrete GPU${NORMAL}: ${DGPU_VENDOR}\n"
@@ -1090,19 +1106,17 @@ ask_menu() {
 # Menu
 provide_menu_selection() {
   echo -e "
-   >> ${BOLD}eGPU Support${NORMAL}         >> ${BOLD}System Management${NORMAL}
-   ${BOLD}1.${NORMAL}  AMD eGPUs           ${BOLD}7.${NORMAL}  Status
-   ${BOLD}2.${NORMAL}  NVIDIA eGPUs        ${BOLD}8.${NORMAL}  Sanitize
-   ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}9.${NORMAL}  Recovery
-
-   >> ${BOLD}Additional Support${NORMAL}   >> ${BOLD}More Options${NORMAL}
-   ${BOLD}4.${NORMAL}  Ti82 Enclosures     ${BOLD}10.${NORMAL} System Reboot
-   ${BOLD}5.${NORMAL}  NVIDIA Web Drivers  ${BOLD}11.${NORMAL} Script Preferences
-   ${BOLD}6.${NORMAL}  Anomaly Detection
+   >> ${BOLD}eGPU Support${NORMAL}         >> ${BOLD}More Options${NORMAL}
+   ${BOLD}1.${NORMAL}  AMD eGPUs           ${BOLD}6.${NORMAL}  Ti82 Devices
+   ${BOLD}2.${NORMAL}  NVIDIA eGPUs        ${BOLD}7.${NORMAL}  NVIDIA Web Drivers
+   ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}8.${NORMAL}  Anomaly Detection
+   ${BOLD}4.${NORMAL}  Recovery            ${BOLD}9.${NORMAL}  Script Preferences
+   ${BOLD}5.${NORMAL}  Status
 
    ${BOLD}0.${NORMAL}  Quit
   "
-  read -p "${BOLD}What next?${NORMAL} [0-11]: " INPUT
+  read -n1 -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
+  echo
   if [[ ! -z "${INPUT}" ]]
   then
     process_args "${INPUT}"
@@ -1121,40 +1135,18 @@ process_args() {
     patch_nv;;
     -u|--uninstall|3)
     uninstall;;
-    -t8|--ti82|4)
-    echo -e "\n>> ${BOLD}Enable Ti82 Support${NORMAL}\n"
-    if [[ ${TI82_PATCH_STATUS} == 0 ]]
-    then
-      backup_system
-      echo "${BOLD}Enabling...${NORMAL}"
-      patch_ti82 1>/dev/null
-      echo "Ti82 Enabled."
-      end_patch
-    else
-      echo -e "Ti82 support is already enabled on this system.\n"
-    fi
-    ;;
-    -nw|--nvidia-web|5)
+    -r|--recover|4)
+    recover_sys;;
+    -s|--status|5)
+    check_patch_status;;
+    -t8|--ti82|6)
+    enable_ti82;;
+    -nw|--nvidia-web|7)
     echo -e "\n>> ${BOLD}NVIDIA Web Drivers${NORMAL}"
     prompt_web_driver_install;;
-    -a|--anomaly-detect|6)
-    echo -e "\n>> ${BOLD}Anomaly Detection${NORMAL}\n"
+    -a|--anomaly-detect|8)
     detect_anomalies;;
-    -s|--status|7)
-    check_patch_status;;
-    -ss|--sanitize-system|8)
-    echo -e "\n>> ${BOLD}Sanitize System${NORMAL}\n"
-    sanitize_system
-    echo;;
-    -r|--recover|9)
-    recover_sys;;
-    -rb|--reboot|10)
-    echo -e "\n>> ${BOLD}Reboot System${NORMAL}\n"
-    read -n1 -p "${BOLD}Reboot${NORMAL} now? [Y/N]: " INPUT
-    echo
-    [[ "${INPUT}" == "Y" ]] && echo -e "\n${BOLD}Rebooting...${NORMAL}" && reboot && exit
-    [[ "${INPUT}" != "Y" ]] && echo -e "\nReboot aborted.\n" && ask_menu;;
-    -p|--prefs|11)
+    -p|--prefs|9)
     manage_pw_preferences;;
     0)
     echo && exit;;
