@@ -983,6 +983,12 @@ detect_anomalies() {
 
 # ----- USER INTERFACE
 
+# Request donation
+donate() {
+  open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
+  echo -e "\nSee your ${BOLD}web browser${NORMAL}.\n"
+}
+
 # Show update prompt
 show_update_prompt() {
   check_patch
@@ -1111,11 +1117,11 @@ provide_menu_selection() {
    ${BOLD}2.${NORMAL}  NVIDIA eGPUs        ${BOLD}7.${NORMAL}  NVIDIA Web Drivers
    ${BOLD}3.${NORMAL}  Uninstall           ${BOLD}8.${NORMAL}  Anomaly Detection
    ${BOLD}4.${NORMAL}  Recovery            ${BOLD}9.${NORMAL}  Script Preferences
-   ${BOLD}5.${NORMAL}  Status
+   ${BOLD}5.${NORMAL}  Status              ${BOLD}D.${NORMAL}  Donate
 
    ${BOLD}0.${NORMAL}  Quit
   "
-  read -n1 -p "${BOLD}What next?${NORMAL} [0-9]: " INPUT
+  read -n1 -p "${BOLD}What next?${NORMAL} [0-9|D]: " INPUT
   echo
   if [[ ! -z "${INPUT}" ]]
   then
@@ -1148,6 +1154,8 @@ process_args() {
     detect_anomalies;;
     -p|--prefs|9)
     manage_pw_preferences;;
+    -d|--donate|D|d)
+    donate;;
     0)
     echo && exit;;
     "")
