@@ -35,7 +35,6 @@ latest_script_data=""
 latest_release_dwld=""
 
 # Script preference plist
-scriptdata_plistpath="io.egpu.purge-wrangler"
 script_launchagent="io.egpu.purge-wrangler-agent"
 
 # User userinput
@@ -112,37 +111,8 @@ didinstall_amdlegacy=0
 support_dirpath="/Library/Application Support/Purge-Wrangler/"
 backupkext_dirpath="${support_dirpath}Kexts/"
 
-### Backup sequence redo
-## AppleGPUWrangler
-BACKUP_AGC="${backupkext_dirpath}AppleGraphicsControl.kext"
-BACKUP_AGW_BIN="${BACKUP_AGC}${agc_binsubpath}"
-
-## IOGraphicsFamily
-BACKUP_IOG="${backupkext_dirpath}IOGraphicsFamily.kext"
-BACKUP_IOG_BIN="${BACKUP_IOG}${iog_subpath}"
-
-## IOThunderboltFamily
-BACKUP_IOT="${backupkext_dirpath}IOThunderboltFamily.kext"
-BACKUP_IOT_BIN="${BACKUP_IOT}${iotfam_binsubpath}"
-
-## IONDRVSupport
-BACKUP_IONDRV="${backupkext_dirpath}IONDRVSupport.kext"
-
-## NVDAStartup
-BACKUP_NVDA_STARTUP_PATH="${backupkext_dirpath}NVDAStartup.kext"
-
-### Get rid of the manifest
-## Manifest
-MANIFEST="${support_dirpath}manifest.wglr"
-
-### Potentially get rid of these
-# Hexfiles & binaries
-SCRATCH_AGW_HEX=".AppleGPUWrangler.hex"
-SCRATCH_AGW_BIN=".AppleGPUWrangler.bin"
-SCRATCH_IOG_HEX=".IOGraphicsFamily.hex"
-SCRATCH_IOG_BIN=".IOGraphicsFamily.bin"
-SCRATCH_IOT_HEX=".IOThunderboltFamily.hex"
-SCRATCH_IOT_BIN=".IOThunderboltFamily.bin"
+## Deprecated manifest
+manifest="${support_dirpath}manifest.wglr"
 
 # pb configuration
 pb="/usr/libexec/PlistBuddy"
@@ -150,10 +120,13 @@ set_iognvda_pcitunnelled=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
 set_nvdastartup_pcitunnelled=":IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible bool"
 set_nvdastartup_requiredos=":IOKitPersonalities:NVDAStartup:NVDARequiredOS"
 
-### Get rid of this
-# Installation information
-MANIFEST_MACOS_VER=""
-MANIFEST_MACOS_BUILD=""
+# Property list generation defaults
+plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">\n<dict>\n</dict>\n</plist>"
+
+# Script configuration path
+scriptconfig_filepath="${support_dirpath}io.egpu.purge-wrangler.config.plist"
 
 # Webdriver information
 webdriver_plistpath="/usr/local/bin/webdriver.plist"
@@ -215,6 +188,61 @@ modify_plist() {
   $pb -c "${command} ${key} ${value}" "${target_plist}" 2>/dev/null
 }
 
+## -- Configuration Handling
+
+### Generates a configuration property list if needed
+generate_config() {
+  mkdir -p "${support_dirpath}"
+  [[ -f "${scriptconfig_filepath}" ]] && return
+  > "${scriptconfig_filepath}"
+  echo -e "${plist_defaultstring}" >> "${scriptconfig_filepath}"
+  $pb -c "Add :OSVersionAtPatch string ${macos_ver}" "${scriptconfig_filepath}"
+  $pb -c "Add :OSBuildAtPatch string ${macos_build}" "${scriptconfig_filepath}"
+  $pb -c "Add :DidApplyBinPatch bool false" "${scriptconfig_filepath}"
+}
+
+### Updates the configuration as necessary
+update_config() {
+  generate_config
+  check_patch
+  local status=("false" "true" "false")
+  $pb -c "Set :OSVersionAtPatch ${macos_ver}" "${scriptconfig_filepath}"
+  $pb -c "Set :OSBuildAtPatch ${macos_build}" "${scriptconfig_filepath}"
+  $pb -c "Set :DidApplyBinPatch ${status[((${tbswitch_enabled} | ${nvidia_enabled} | ${ti82_enabled}))]}" "${scriptconfig_filepath}"
+}
+
+### Deprecate manifest
+deprecate_manifest() {
+  [[ ! -f "${manifest}" ]] && return
+  macos_ver="$(sed "3q;d" "${manifest}")"
+  macos_build="$(sed "4q;d" "${manifest}")"
+  local manifest_patch="$(sed -n "9,11p" "${manifest}")"
+  update_config
+  [[ ${manifest_patch} =~ 1 ]] && $pb -c "Set :DidApplyBinPatch true" "${scriptconfig_filepath}"
+  macos_ver="$(sw_vers -productVersion)"
+  macos_build="$(sw_vers -buildVersion)"
+  rm -f "${manifest}"
+}
+
+
+### Create LaunchAgent
+create_launchagent() {
+  local agent_dirpath="/Users/${SUDO_USER}/Library/LaunchAgents/"
+  mkdir -p "${agent_dirpath}"
+  local agent_plistpath="${agent_dirpath}${script_launchagent}.plist"
+  > "${agent_plistpath}"
+  echo -e "${plist_defaultstring}" >> "${agent_plistpath}"
+  $pb -c "Add :Label string ${script_launchagent}" "${agent_plistpath}"
+  $pb -c "Add :OnDemand bool false" "${agent_plistpath}"
+  $pb -c "Add :LaunchOnlyOnce bool true" "${agent_plistpath}"
+  $pb -c "Add :RunAtLoad bool true" "${agent_plistpath}"
+  $pb -c "Add :UserName string ${SUDO_USER}" "${agent_plistpath}"
+  $pb -c "Add :ProgramArguments array" "${agent_plistpath}"
+  $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
+  $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
+  chown "${SUDO_USER}" "${agent_plistpath}"
+}
+
 # --- SCRIPT SOFTWARE UPDATE SYSTEM
 
 ### Perform software update
@@ -261,27 +289,6 @@ fetch_latest_release() {
 }
 
 # --- SYSTEM CONFIGURATION MANAGER
-
-### Create LaunchAgent
-create_launchagent() {
-  local agent_dirpath="/Users/${SUDO_USER}/Library/LaunchAgents/"
-  mkdir -p "${agent_dirpath}"
-  local agent_plistpath="${agent_dirpath}${script_launchagent}.plist"
-  touch "${agent_plistpath}"
-  > "${agent_plistpath}"
-  echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" >> "${agent_plistpath}"
-  echo -e "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">" >> "${agent_plistpath}"
-  echo -e "<plist version=\"1.0\">\n<dict>\n</dict>\n</plist>" >> "${agent_plistpath}"
-  $pb -c "Add :Label string ${script_launchagent}" "${agent_plistpath}"
-  $pb -c "Add :OnDemand bool false" "${agent_plistpath}"
-  $pb -c "Add :LaunchOnlyOnce bool true" "${agent_plistpath}"
-  $pb -c "Add :RunAtLoad bool true" "${agent_plistpath}"
-  $pb -c "Add :UserName string ${SUDO_USER}" "${agent_plistpath}"
-  $pb -c "Add :ProgramArguments array" "${agent_plistpath}"
-  $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
-  $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
-  chown "${SUDO_USER}" "${agent_plistpath}"
-}
 
 ### Check caller
 validate_caller() {
@@ -342,12 +349,12 @@ check_patch() {
 
 ### Display patch statuses
 check_patch_status() {
-  PATCH_STATUSES=("Disabled" "Enabled" "Unknown")
+  local status=("Disabled" "Enabled" "Unknown")
   echo -e "\n>> ${bold}Patch Status${normal}\n"
-  echo -e "${bold}Legacy AMD eGPUs${normal}  ${PATCH_STATUSES[$amdlegacy_enabled]} "
-  echo -e "${bold}TB1/2 AMD eGPUs${normal}   ${PATCH_STATUSES[$tbswitch_enabled]}"
-  echo -e "${bold}NVIDIA eGPUs${normal}      ${PATCH_STATUSES[$nvidia_enabled]}"
-  echo -e "${bold}Ti82 Devices${normal}      ${PATCH_STATUSES[${ti82_enabled}]}\n"
+  echo -e "${bold}TB1/2 AMD eGPUs${normal}   ${status[$tbswitch_enabled]}"
+  echo -e "${bold}Legacy AMD eGPUs${normal}  ${status[$amdlegacy_enabled]}"
+  echo -e "${bold}NVIDIA eGPUs${normal}      ${status[$nvidia_enabled]}"
+  echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}\n"
 }
 
 # Cumulative system check
@@ -358,6 +365,7 @@ perform_sys_check() {
   elevate_privileges
   check_sys_extensions
   check_patch
+  deprecate_manifest
   didinstall_amdlegacy=0
   didinstall_ti82=0
   using_nvdawebdrv=0
@@ -376,34 +384,6 @@ sanitize_system() {
 
 # ----- BACKUP SYSTEM
 
-# Write manifest file
-write_manifest() {
-  [[ ! -d "${support_dirpath}" ]] && return
-  MANIFEST_STR=""
-  if [[ -s "${BACKUP_AGC}" ]]
-  then
-    UNPATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_AGW_BIN}" | awk '{ print $1 }')"
-    PATCHED_AGW_KEXT_SHA="$(shasum -a 512 -b "${agw_binpath}" | awk '{ print $1 }')"
-    MANIFEST_STR="${UNPATCHED_AGW_KEXT_SHA}\n${PATCHED_AGW_KEXT_SHA}"
-  fi
-  MANIFEST_STR="${MANIFEST_STR}\n${macos_ver}\n${macos_build}"
-  if [[ -s "${BACKUP_IOG}" ]]
-  then
-    UNPATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_IOG_BIN}" | awk '{ print $1 }')"
-    PATCHED_IOG_KEXT_SHA="$(shasum -a 512 -b "${iog_binpath}" | awk '{ print $1 }')"
-    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOG_KEXT_SHA}\n${PATCHED_IOG_KEXT_SHA}"
-  fi
-  if [[ -s "${BACKUP_IOT}" ]]
-  then
-    UNPATCHED_IOT_KEXT_SHA="$(shasum -a 512 -b "${BACKUP_IOT_BIN}" | awk '{ print $1 }')"
-    PATCHED_IOT_KEXT_SHA="$(shasum -a 512 -b "${iotfam_binpath}" | awk '{ print $1 }')"
-    MANIFEST_STR="${MANIFEST_STR}\n${UNPATCHED_IOT_KEXT_SHA}\n${PATCHED_IOT_KEXT_SHA}"
-  fi
-  check_patch
-  MANIFEST_STR="${MANIFEST_STR}\n${tbswitch_enabled}\n${ti82_enabled}\n${nvidia_enabled}"
-  echo -e "${MANIFEST_STR}" > "${MANIFEST}"
-}
-
 # Primary procedure
 execute_backup() {
   mkdir -p "${backupkext_dirpath}"
@@ -417,21 +397,22 @@ execute_backup() {
 # Backup procedure
 backup_system() {
   echo -e "${bold}Backing up...${normal}"
-  if [[ -s "${BACKUP_AGC}" && -s "${MANIFEST}" ]]
+  if [[ $(find "${backupkext_dirpath}" -mindepth 1 -print -quit 2>/dev/null) && -s "${scriptconfig_filepath}" ]]
   then
-    MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
-    if [[ "${MANIFEST_MACOS_VER}" == "${macos_ver}" && "${MANIFEST_MACOS_BUILD}" == "${macos_build}" ]]
+    local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
+    local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
+    if [[ "${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}" ]]
     then
       if [[ ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 ]]
       then
         execute_backup
         echo -e "Backup refreshed."
-        write_manifest
+        update_config
         return
       fi
       echo -e "Backup already exists."
     else
-      echo -e "\n${bold}Last Backup${normal}: ${MANIFEST_MACOS_VER} ${bold}[${MANIFEST_MACOS_BUILD}]${normal}"
+      echo -e "\n${bold}Last Backup${normal}: ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
       echo -e "${bold}Current System${normal}: ${macos_ver} ${bold}[${macos_build}]${normal}\n"
       echo -e "${bold}Updating backup...${normal}"
       if [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 ]]
@@ -456,7 +437,7 @@ backup_system() {
 # Conclude patching sequence
 end_patch() {
   sanitize_system
-  write_manifest
+  update_config
   create_launchagent
   echo -e "${bold}Patch complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n"
 }
@@ -809,7 +790,7 @@ uninstall() {
   fi
   create_patched_binary "${agw_binpath}"
   echo -e "Binaries reverted."
-  write_manifest
+  update_config
   sanitize_system
   echo -e "Uninstallation Complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n"
 }
@@ -849,11 +830,12 @@ recover_sys() {
     rm -r "${amdlegacy_kextpath}"
     echo -e "Removal successful."
   fi
-  [[ ! -e "$MANIFEST" ]] && echo -e "Nothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}.\n" && return
-  MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
-  if [[ "${MANIFEST_MACOS_VER}" != "${macos_ver}" || "${MANIFEST_MACOS_BUILD}" != "${macos_build}" ]]
+  [[ ! -e "${scriptconfig_filepath}" ]] && echo -e "Nothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}.\n" && return
+  local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
+  local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
+  if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
   then
-    echo -e "\n${bold}Last Backup${normal}: ${MANIFEST_MACOS_VER} ${bold}[${MANIFEST_MACOS_BUILD}]${normal}"
+    echo -e "\n${bold}Last Backup${normal}: ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
     echo -e "${bold}Current System${normal}: ${macos_ver} ${bold}[${macos_build}]${normal}\n"
     read -n1 -p "System may already be clean. Still ${bold}attempt recovery${normal}? [Y/N]: " userinput
     echo
@@ -870,7 +852,7 @@ recover_sys() {
     remove_web_drivers
   fi
   echo -e "System restored."
-  write_manifest
+  update_config
   sanitize_system
   echo -e "Recovery complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n\nRefer to the ${bold}macOS eGPU Troubleshooting Guide${normal} in the ${bold}How-To's${normal}\nsection of ${underline}egpu.io${normal} for further troubleshooting if needed.\n"
 }
@@ -942,10 +924,11 @@ donate() {
 # Show update prompt
 show_update_prompt() {
   check_patch
-  [[ ! -e "${MANIFEST}" ]] && sleep 10 && return
-  MANIFEST_MACOS_VER="$(sed "3q;d" "${MANIFEST}")" && MANIFEST_MACOS_BUILD="$(sed "4q;d" "${MANIFEST}")"
-  MANIFEST_PATCH="$(sed -n "9,11p" "${MANIFEST}")"
-  [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 || ("${MANIFEST_MACOS_VER}" == "${macos_ver}" && "${MANIFEST_MACOS_BUILD}" == "${macos_build}") || ! ("${MANIFEST_PATCH}" =~ "1") ]] && sleep 10 && return
+  [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
+  local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
+  local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
+  local did_patch=="$($pb -c "Print :DidApplyBinPatch")"
+  [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 || ("${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}") || ${did_patch} == false ]] && sleep 10 && return
   osascript -e '
   set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \"Never\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?"
   set outcome to (display dialog theDialogText buttons {"Never", "Later", "Apply"} default button "Apply" cancel button "Later" with icon caution)
