@@ -403,19 +403,16 @@ backup_system() {
       fi
       echo -e "Backup already exists."
     else
-      echo -e "\n${bold}Last Backup${normal}: ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
-      echo -e "${bold}Current System${normal}: ${macos_ver} ${bold}[${macos_build}]${normal}\n"
+      echo -e "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
+      echo -e "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
       echo -e "${bold}Updating backup...${normal}"
       if [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 ]]
       then
-        echo -e "${bold}Uninstalling patch before backup update...${normal}"
+        echo -e "${bold}Uninstalling patch(es) before updating backup...${normal}\n"
         uninstall
-        echo -e "${bold}Re-running script...${normal}" && sleep 0.3
-        "${script}" "${option}"
-        exit
       fi
       execute_backup
-      echo -e "Update complete."
+      echo -e "\nUpdate complete."
     fi
   else
     execute_backup
@@ -679,7 +676,6 @@ remove_web_drivers() {
 
 # In-place re-patcher
 uninstall() {
-  echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling all modifications...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
@@ -705,7 +701,7 @@ uninstall() {
   fi
   create_patched_binary "${agw_binpath}"
   echo -e "Binaries reverted."
-  end_binary_modifications "Uninstallation Complete." -no-agent
+  [[ "${1}" == -end ]] && end_binary_modifications "Uninstallation Complete." -no-agent
 }
 
 # ----- BINARY MANAGER
@@ -732,38 +728,33 @@ first_time_setup() {
 
 # ----- RECOVERY SYSTEM
 
+### Perform recovery
+perform_recovery() {
+  echo -e "${bold}Restoring system...${normal}"
+  rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
+  modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
+  modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
+  remove_web_drivers
+  echo -e "System restored."
+  end_binary_modifications "Recovery complete." -no-agent
+}
+
 # Recovery logic
 recover_sys() {
   echo -e "\n\n➣ ${bold}Recovery${normal}\n\n${bold}Recovering...${normal}"
-  if [[ -d "${amdlegacy_kextpath}" ]]
-  then
-    echo -e "${bold}Removing legacy support...${normal}"
-    rm -r "${amdlegacy_kextpath}"
-    echo -e "Removal successful."
-  fi
-  [[ ! -e "${scriptconfig_filepath}" ]] && echo -e "Nothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}.\n" && return
+  [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
+  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
   if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
   then
-    echo -e "\n${bold}Last Backup${normal}: ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
-    echo -e "${bold}Current System${normal}: ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-    read -n1 -p "System may already be clean. Still ${bold}attempt recovery${normal}? [Y/N]: " userinput
-    echo
-    [[ "${userinput}" == "N" ]] && echo -e "Recovery ${bold}cancelled${normal}.\n" && return
-    [[ "${userinput}" != "Y" ]] && echo -e "Invalid choice. Recovery ${bold}safely aborted${normal}.\n" && return
-    echo -e "\n${bold}Attempting recovery...${normal}"
+    echo -e "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
+    echo -e "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
+    [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 ]] && echo -e "No relevant backup available. Better to ${bold}uninstall${normal}." || echo -e "System may already be clean."
+    yesno_action "Still ${bold}attempt recovery${normal}?" "echo -e \"\n\" && perform_recovery" "echo -e \"\n\nRecovery aborted.\""
+  else
+    perform_recovery
   fi
-  echo -e "${bold}Restoring system...${normal}"
-  [[ -d "${backupkext_dirpath}" ]] && rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
-  [[ "$(cat "${nvdastartup_plistpath}" | grep -i "IOPCITunnelCompatible")" ]] && modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-  if [[ -f "${nvdastartupweb_plistpath}" ]]
-  then
-    [[ "$(cat "${nvdastartupweb_plistpath}" | grep -i "IOPCITunnelCompatible")" ]] && modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-    remove_web_drivers
-  fi
-  echo -e "System restored."
-  end_binary_modifications "Recovery complete." -no-agent
 }
 
 # ----- ANOMALY MANAGER
@@ -894,7 +885,8 @@ process_args() {
     echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
     detect_anomalies;;
     -u|--uninstall|8)
-    uninstall;;
+    echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
+    uninstall -end;;
     -r|--recover|9)
     recover_sys;;
     -d|--donate|D|d)
