@@ -141,13 +141,12 @@ yesno_action() {
   local prompt="${1}"
   local yesaction="${2}"
   local noaction="${3}"
-  local userinput=""
   echo
   read -n1 -p "${prompt} [Y/N]: " userinput
-  [[ ${userinput} == "Y" ]] && echo && eval "${yesaction}" && echo && return
-  [[ ${userinput} == "N" ]] && echo && eval "${noaction}" && echo && return
-  echo -e "\nInvalid choice. Please try again."
-  yesno_action
+  [[ ${userinput} == "Y" ]] && eval "${yesaction}" && return
+  [[ ${userinput} == "N" ]] && eval "${noaction}" && return
+  echo -e "\n\nInvalid choice. Please try again."
+  yesno_action "${prompt}" "${yesaction}" "${noaction}"
 }
 
 ## -- Binary Patching Mechanism (P1 -> P2 -> P3)
@@ -224,7 +223,6 @@ deprecate_manifest() {
   rm -f "${manifest}"
 }
 
-
 ### Create LaunchAgent
 create_launchagent() {
   local agent_dirpath="/Users/${SUDO_USER}/Library/LaunchAgents/"
@@ -241,34 +239,23 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
+  su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
 # --- SCRIPT SOFTWARE UPDATE SYSTEM
 
 ### Perform software update
 perform_software_update() {
-  echo -e "${bold}Downloading...${normal}"
+  echo -e "\n\n${bold}Downloading...${normal}"
   curl -q -L -s -o "${tmp_script}" "${latest_release_dwld}"
-  [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && sleep 1 && rm "${tmp_script}" && return
+  [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && sleep 0.3 && rm "${tmp_script}" && return
   echo -e "Download complete.\n${bold}Updating...${normal}"
   chmod 700 "${tmp_script}" && chmod +x "${tmp_script}"
   rm "${script}" && mv "${tmp_script}" "${script}"
   chown "${SUDO_USER}" "${script}"
   echo -e "Update complete. ${bold}Relaunching...${normal}"
-  sleep 1
   "${script}"
   exit 0
-}
-
-### Prompt for update
-prompt_software_update() {
-  echo
-  read -n1 -p "${bold}Would you like to update?${normal} [Y/N]: " userinput
-  echo
-  [[ "${userinput}" == "Y" ]] && echo && perform_software_update && return
-  [[ "${userinput}" == "N" ]] && echo -e "\n${bold}Proceeding without updating...${normal}" && sleep 1 && return
-  echo -e "\nInvalid choice. Try again."
-  prompt_software_update
 }
 
 ### Check Github for newer version + prompt update
@@ -284,7 +271,7 @@ fetch_latest_release() {
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
     echo -e "\n>> ${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
-    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n${bold}Proceeding without updating...${normal}\" && sleep 1"
+    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n\n${bold}Proceeding without updating...${normal}\" && sleep 0.3"
   fi
 }
 
@@ -324,7 +311,13 @@ check_macos_version() {
 
 ### Ensure presence of system extensions
 check_sys_extensions() {
-  [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]] && echo -e "\nSystem could be unbootable. Consider ${bold}macOS Recovery${normal}.\n" && sleep 1
+  if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
+  then
+    echo -e "\nUnexpected system configuration or missing files."
+    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "echo && exit"
+    echo
+    exit
+  fi
 }
 
 ### Retrieve thunderbolt version
@@ -354,7 +347,7 @@ check_patch_status() {
   echo -e "${bold}TB1/2 AMD eGPUs${normal}   ${status[$tbswitch_enabled]}"
   echo -e "${bold}Legacy AMD eGPUs${normal}  ${status[$amdlegacy_enabled]}"
   echo -e "${bold}NVIDIA eGPUs${normal}      ${status[$nvidia_enabled]}"
-  echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}\n"
+  echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
 }
 
 # Cumulative system check
@@ -397,7 +390,7 @@ execute_backup() {
 # Backup procedure
 backup_system() {
   echo -e "${bold}Backing up...${normal}"
-  if [[ $(find "${backupkext_dirpath}" -mindepth 1 -print -quit 2>/dev/null) && -s "${scriptconfig_filepath}" ]]
+  if [[ ! -z $(find "${backupkext_dirpath}" -mindepth 1 -print -quit 2>/dev/null) && -s "${scriptconfig_filepath}" ]]
   then
     local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
     local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
@@ -419,7 +412,7 @@ backup_system() {
       then
         echo -e "${bold}Uninstalling patch before backup update...${normal}"
         uninstall
-        echo -e "${bold}Re-running script...${normal}" && sleep 1
+        echo -e "${bold}Re-running script...${normal}" && sleep 0.3
         "${script}" "${option}"
         exit
       fi
@@ -435,11 +428,13 @@ backup_system() {
 # ----- CORE PATCHING SYSTEM
 
 # Conclude patching sequence
-end_patch() {
+end_binary_modifications() {
   sanitize_system
   update_config
-  create_launchagent
-  echo -e "${bold}Patch complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n"
+  [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
+  local message="${1}"
+  echo -e "${bold}${message}\n\n${bold}System ready.${normal} Restart required."
+  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
 }
 
 # Install AMDLegacySupport.kext
@@ -491,16 +486,16 @@ patch_ti82() {
 
 # Enable Ti82 independently
 enable_ti82() {
-  echo -e "\n>> ${bold}Ti82 Devices${normal}\n"
+  echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
   if [[ ${ti82_enabled} == 0 ]]
   then
     backup_system
     echo "${bold}Enabling...${normal}"
     patch_ti82 1>/dev/null
     echo "Ti82 Enabled."
-    end_patch
+    end_binary_modifications "Patch complete."
   else
-    echo -e "Ti82 support is already enabled on this system.\n"
+    echo -e "Ti82 support is already enabled on this system."
   fi
 }
 
@@ -526,22 +521,22 @@ install_ti82() {
 
 # Patch TB1/2 block
 patch_tb() {
-  echo -e "\n>> ${bold}AMD eGPUs${normal}\n\n${bold}Starting patch...${normal}"
+  echo -e "\n\n➣ ${bold}AMD eGPUs${normal}\n\n${bold}Starting patch...${normal}"
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}.\nPlease uninstall before proceeding.\n" && return
+  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}.\nPlease uninstall before proceeding." && return
   backup_system
   install_legacy_kext
   install_ti82
   if [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]]
   then
     echo -e "No thunderbolt patch required for this Mac.\n"
-    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_patch
+    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_binary_modifications
     return
   fi
   if [[ ${tbswitch_enabled} == 1 ]]
   then
-    echo -e "System has already been patched for ${bold}AMD eGPUs${normal}.\n"
-    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_patch
+    echo -e "System has already been patched for ${bold}AMD eGPUs${normal}."
+    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_binary_modifications
     return
   fi
   echo -e "${bold}Patching components...${normal}"
@@ -549,7 +544,7 @@ patch_tb() {
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
   echo -e "Components patched."
-  end_patch
+  end_binary_modifications "Patch Complete."
 }
 
 # Download and install NVIDIA Web Drivers
@@ -628,7 +623,6 @@ run_webdriver_installer() {
     else
       echo -e "${bold}Recommendation${normal}: Minor OS version discrepancy detected.\n\t\tPatching ${bold}may be safe${normal}.\n"
     fi
-    userinput=""
     if [[ ${NVDA_WEB_PATCH_INSTALLS} != 1 ]]
     then
       read -n1 -p "Patch ${bold}Web Drivers${normal} (${bold}${LATEST_DRIVER_MACOS_BUILD}${normal} -> ${bold}${macos_build}${normal})? [Y/N]: " userinput
@@ -638,7 +632,7 @@ run_webdriver_installer() {
       echo -e "\nInvalid option. Installation ${bold}aborted${normal}.\n" && return
     else
       echo -e "Your preference is set to ${bold}always${normal} patch web drivers.\n${bold}Proceeding...${normal}\n"
-      sleep 1
+      sleep 0.3
       install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}"
       return
     fi
@@ -691,12 +685,12 @@ prompt_web_driver_install() {
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo -e "\n>> ${bold}NVIDIA eGPUs${normal}\n\n${bold}Starting patch...${normal}\n"
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}.\n" && return
-  [[ ${tbswitch_enabled} == 1 || ${amdlegacy_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}.\nPlease uninstall before proceeding.\n" && return
+  echo -e "\n\n➣ ${bold}NVIDIA eGPUs${normal}\n\n${bold}Starting patch...${normal}\n"
+  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 || ${amdlegacy_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
   backup_system
   prompt_web_driver_install
-  [[ ${using_nvdawebdrv} == 1 && ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed.\n" && return
+  [[ ${using_nvdawebdrv} == 1 && ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed." && return
   echo -e "${bold}Continuing patch...${normal}\n"
   if [[ ${using_nvdawebdrv} == 1 ]]
   then
@@ -719,7 +713,7 @@ patch_nv() {
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ -d "${deprecated_nvsolution_kextpath}" ]] && echo -e "${bold}NVDAEGPUSupport.kext${normal} detected. ${bold}Removing...${normal}" && rm -r "${deprecated_nvsolution_kextpath}" && echo -e "Removal complete."
   echo -e "Components patched."
-  end_patch
+  end_binary_modifications "Patch Complete."
 }
 
 # Run webdriver uninstallation process
@@ -764,7 +758,7 @@ uninstall_ti82() {
 
 # In-place re-patcher
 uninstall() {
-  echo -e "\n>> ${bold}Uninstall${normal}\n"
+  echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
   echo -e "${bold}Uninstalling...${normal}"
   if [[ -d "${amdlegacy_kextpath}" ]]
@@ -790,9 +784,7 @@ uninstall() {
   fi
   create_patched_binary "${agw_binpath}"
   echo -e "Binaries reverted."
-  update_config
-  sanitize_system
-  echo -e "Uninstallation Complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n"
+  end_binary_modifications "Uninstallation Complete." -no-agent
 }
 
 # ----- BINARY MANAGER
@@ -813,17 +805,15 @@ first_time_setup() {
   BIN_SHA=""
   [[ -s "${script_bin}" ]] && BIN_SHA="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
   [[ "${BIN_SHA}" == "${SCRIPT_SHA}" ]] && return
-  echo -e "\n>> ${bold}System Management${normal}\n\n${bold}Installing...${normal}"
   [[ ! -z "${BIN_SHA}" ]] && rm "${script_bin}"
   install_bin
-  echo -e "Installation successful. ${bold}Proceeding...${normal}\n" && sleep 1
 }
 
 # ----- RECOVERY SYSTEM
 
 # Recovery logic
 recover_sys() {
-  echo -e "\n>> ${bold}Recovery${normal}\n\n${bold}Recovering...${normal}"
+  echo -e "\n\n➣ ${bold}Recovery${normal}\n\n${bold}Recovering...${normal}"
   if [[ -d "${amdlegacy_kextpath}" ]]
   then
     echo -e "${bold}Removing legacy support...${normal}"
@@ -852,9 +842,7 @@ recover_sys() {
     remove_web_drivers
   fi
   echo -e "System restored."
-  update_config
-  sanitize_system
-  echo -e "Recovery complete.\n\n${bold}System ready.${normal} Restart now to apply changes.\n\nRefer to the ${bold}macOS eGPU Troubleshooting Guide${normal} in the ${bold}How-To's${normal}\nsection of ${underline}egpu.io${normal} for further troubleshooting if needed.\n"
+  end_binary_modifications "Recovery complete." -no-agent
 }
 
 # ----- ANOMALY MANAGER
@@ -875,7 +863,7 @@ detect_discrete_gpu_vendor() {
 
 # Anomaly detection
 detect_anomalies() {
-  echo -e "\n>> ${bold}Anomaly Detection${normal}\n"
+  echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
   detect_discrete_gpu_vendor
   echo -e "Anomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches.\n\nPatches made from scripts such as ${bold}purge-nvda.sh${normal}\nare not detected at this time."
   echo -e "\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
@@ -885,14 +873,14 @@ detect_anomalies() {
     then
       echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs."
       echo -e "${bold}Resolution${normal}  Apply patches using ${bold}purge-nvda.sh${normal}."
-      echo -e "\t    This issue cannot be resolved on iMacs.\n"
+      echo -e "\t    This issue cannot be resolved on iMacs."
     elif [[ ${tbswitch_enabled} == 1 ]]
     then
       echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU."
       echo -e "${bold}Resolution${normal}  Apply patches using ${bold}purge-nvda.sh${normal}."
-      echo -e "\t    This issue cannot be resolved on iMacs.\n"
+      echo -e "\t    This issue cannot be resolved on iMacs."
     else
-      echo -e "No expected anomalies with current configuration.\n"
+      echo -e "No expected anomalies with current configuration."
     fi
   elif [[ "${dgpu_vendor}" == "AMD" ]]
   then
@@ -901,15 +889,15 @@ detect_anomalies() {
       echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU."
       echo -e "${bold}Resolution${normal}  Disable then re-enable automatic graphics switching,"
       echo -e "\t    hot-plug eGPU, then log out and log in."
-      echo -e "\t    This issue, if encountered, might only be resolved with\n\t    trial-error or using more advanced mux-based workarounds.\n"
+      echo -e "\t    This issue, if encountered, might only be resolved with\n\t    trial-error or using more advanced mux-based workarounds."
     elif [[ ${tbswitch_enabled} == 1 ]]
     then
-      echo -e "No expected anomalies for your system.\n"
+      echo -e "No expected anomalies for your system."
     else
-      echo -e "No expected anomalies with current configuration.\n"
+      echo -e "No expected anomalies with current configuration."
     fi
   else
-    echo -e "No expected anomalies with current configuration.\n"
+    echo -e "No expected anomalies with current configuration."
   fi
 }
 
@@ -918,7 +906,7 @@ detect_anomalies() {
 # Request donation
 donate() {
   open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
-  echo -e "\nSee your ${bold}web browser${normal}.\n"
+  echo -e "\n\nSee your ${bold}web browser${normal}."
 }
 
 # Show update prompt
@@ -943,70 +931,54 @@ show_update_prompt() {
   sleep 10
 }
 
-# Ask for main menu
-ask_menu() {
-  read -n1 -p "${bold}Back to menu?${normal} [Y/N]: " userinput
-  echo
-  [[ "${userinput}" == "Y" ]] && perform_sys_check && clear && echo -e "\n>> ${bold}PurgeWrangler (${script_ver})${normal}" && provide_menu_selection && return
-  [[ "${userinput}" == "N" ]] && echo && exit
-  echo -e "\nInvalid choice. Try again.\n"
-  ask_menu
+### Script menu
+present_menu() {
+  clear
+  echo -e "➣  ${bold}PurgeWrangler (${script_ver})${normal}\n
+   ➣  ${bold}Patch Manager${normal}     ➣  ${bold}More Options${normal}
+   ${bold}1.${normal} Automatic         ${bold}6.${normal} Status
+   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Anomalies
+   ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Report
+   ${bold}4.${normal} Ti82 Support      ${bold}9.${normal} Recovery
+   ${bold}5.${normal} Uninstall         ${bold}D.${normal} Donate
+
+   ${bold}0.${normal}  Quit\n"
+  read -n1 -p "${bold}What next?${normal} [0-7|D]: " userinput
+  process_args "${userinput}"
+  yesno_action "${bold}Back to menu?${normal}" "perform_sys_check && present_menu && return" "echo -e \"\n\" && exit"
 }
 
-# Menu
-provide_menu_selection() {
-  echo -e "
-   >> ${bold}eGPU Support${normal}         >> ${bold}More Options${normal}
-   ${bold}1.${normal}  AMD eGPUs           ${bold}6.${normal}  Ti82 Devices
-   ${bold}2.${normal}  NVIDIA eGPUs        ${bold}7.${normal}  NVIDIA Web Drivers
-   ${bold}3.${normal}  Uninstall           ${bold}8.${normal}  Anomaly Detection
-   ${bold}4.${normal}  Recovery            ${bold}9.${normal}  Script Preferences
-   ${bold}5.${normal}  Status              ${bold}D.${normal}  Donate
-
-   ${bold}0.${normal}  Quit
-  "
-  read -n1 -p "${bold}What next?${normal} [0-9|D]: " userinput
-  echo
-  if [[ ! -z "${userinput}" ]]
-  then
-    process_args "${userinput}"
-  else
-    echo && exit
-  fi
-  ask_menu
-}
-
-# Process user userinput
+# Process user input
 process_args() {
   case "${1}" in
-    -ea|--enable-amd|1)
+    -a|--auto|1)
+    echo;;
+    -ea|--enable-amd|2)
     patch_tb;;
-    -en|--enable-nv|2)
+    -en|--enable-nv|3)
     patch_nv;;
-    -u|--uninstall|3)
-    uninstall;;
-    -r|--recover|4)
-    recover_sys;;
-    -s|--status|5)
-    check_patch_status;;
-    -t8|--ti82|6)
+    -t8|--ti82|4)
     enable_ti82;;
-    -nw|--nvidia-web|7)
-    echo -e "\n>> ${bold}NVIDIA Web Drivers${normal}"
-    prompt_web_driver_install;;
-    -a|--anomaly-detect|8)
+    -u|--uninstall|5)
+    uninstall;;
+    -s|--status|6)
+    check_patch_status;;
+    -a|--anomaly-detect|7)
     detect_anomalies;;
+    -b|--bug-report|8)
+    echo;;
+    -r|--recover|9)
+    recover_sys;;
     -d|--donate|D|d)
     donate;;
     0)
-    echo && exit;;
+    echo -e "\n" && exit;;
     "")
     fetch_latest_release
     first_time_setup
-    clear && echo -e ">> ${bold}PurgeWrangler (${script_ver})${normal}"
-    provide_menu_selection;;
+    present_menu;;
     *)
-    echo -e "\nInvalid option.\n";;
+    echo -e "\n\nInvalid option.";;
   esac
 }
 
