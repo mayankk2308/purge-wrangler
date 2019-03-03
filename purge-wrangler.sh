@@ -183,7 +183,7 @@ modify_plist() {
   local command="${2}"
   local key="${3}"
   local value="${4}"
-  $pb -c "${command} ${key} ${value}" "${target_plist}" 2>/dev/null
+  $pb -c "${command} ${key} ${value}" "${target_plist}" 2>/dev/null 1>&2
 }
 
 ## -- Configuration Handling
@@ -431,7 +431,7 @@ end_binary_modifications() {
   update_config
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   local message="${1}"
-  echo -e "${bold}${message}\n\n${bold}System ready.${normal} Restart required."
+  echo -e "${bold}${message}\n\n${bold}System ready.${normal} Reboot required."
   yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
 }
 
@@ -677,30 +677,20 @@ remove_web_drivers() {
   fi
 }
 
-# Uninstall Ti82
-uninstall_ti82() {
-  [[ ${ti82_enabled} == 0 ]] && return
-  echo -e "${bold}Removing Ti82 support...${normal}"
-  create_hexrepresentation "${iotfam_binpath}"
-  patch_binary "${iotfam_binpath}" "${hex_skipenum_patch}" "${hex_skipenum}"
-  create_patched_binary "${iotfam_binpath}"
-  echo -e "Ti82 support disabled."
-}
-
 # In-place re-patcher
 uninstall() {
   echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
-  [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\nSystem already clean.\n" && return
-  echo -e "${bold}Uninstalling...${normal}"
-  if [[ -d "${amdlegacy_kextpath}" ]]
-  then
-    echo -e "${bold}Removing legacy support...${normal}"
-    rm -r "${amdlegacy_kextpath}"
-    echo -e "Removal successful."
-  fi
+  [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
+  echo -e "${bold}Uninstalling all modifications...${normal}"
+  [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   remove_web_drivers
-  uninstall_ti82
   echo -e "${bold}Reverting binaries...${normal}"
+  if [[ ${ti82_enabled} == 1 ]]
+  then
+    create_hexrepresentation "${iotfam_binpath}"
+    patch_binary "${iotfam_binpath}" "${hex_skipenum_patch}" "${hex_skipenum}"
+    create_patched_binary "${iotfam_binpath}"
+  fi
   create_hexrepresentation "${agw_binpath}"
   [[ ${tbswitch_enabled} == 1 ]] && patch_binary "${agw_binpath}" "${system_thunderbolt_ver}" "${hex_thunderboltswitchtype}"3
   if [[ ${nvidia_enabled} == 1 ]]
@@ -708,10 +698,10 @@ uninstall() {
     create_hexrepresentation "${iog_binpath}"
     patch_binary "${iog_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
     patch_binary "${agw_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
-    [[ -f "${nvdastartupweb_plistpath}" && "$(cat "${nvdastartupweb_plistpath}" | grep -i "IOPCITunnelCompatible")" ]] && modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-    [[ "$(cat "${nvdastartup_plistpath}" | grep -i "IOPCITunnelCompatible")" ]] && modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
     create_patched_binary "${iog_binpath}"
-    [[ "$(cat "${iondrv_plistpath}" | grep -i "IOPCITunnelCompatible")" ]] && modify_plist "${iondrv_plistpath}" "Delete" "${set_iognvda_pcitunnelled}"
+    modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
+    modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
+    modify_plist "${iondrv_plistpath}" "Delete" "${set_iognvda_pcitunnelled}"
   fi
   create_patched_binary "${agw_binpath}"
   echo -e "Binaries reverted."
@@ -920,7 +910,7 @@ process_args() {
   esac
 }
 
-# ----- script DRIVER
+# --- SCRIPT DRIVER
 
 # Primary execution routine
 begin() {
