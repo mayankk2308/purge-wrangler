@@ -105,7 +105,6 @@ deprecated_automate_egpu_kextpath="${libextensions_path}automate-eGPU.kext"
 amdlegacy_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/AMDLegacySupport.kext.zip"
 amdlegacy_downloadpath="${libextensions_path}AMDLegacySupport.kext.zip"
 amdlegacy_kextpath="${libextensions_path}AMDLegacySupport.kext"
-didinstall_amdlegacy=0
 
 # General backup path
 support_dirpath="/Library/Application Support/Purge-Wrangler/"
@@ -359,7 +358,6 @@ perform_sys_check() {
   check_sys_extensions
   check_patch
   deprecate_manifest
-  didinstall_amdlegacy=0
   didinstall_ti82=0
   using_nvdawebdrv=0
 }
@@ -438,12 +436,14 @@ end_binary_modifications() {
 }
 
 # Install AMDLegacySupport.kext
-run_legacy_kext_installer() {
+install_amd_legacy_kext() {
+  [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
+  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
   if [[ ! -e "${amdlegacy_downloadpath}" || ! -s "${amdlegacy_downloadpath}" || "$(cat "${amdlegacy_downloadpath}")" == "404: Not Found" ]]
   then
-    echo -e "Could not download.\n\n${bold}Continuing remaining patches...${normal}"
+    echo -e "Could not download."
     rm -rf "${amdlegacy_downloadpath}" 2>/dev/null
     return
   fi
@@ -451,100 +451,33 @@ run_legacy_kext_installer() {
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
-  echo -e "Installation complete.\n\n${bold}Continuing...${normal}"
-  didinstall_amdlegacy=1
-}
-
-# Prompt AMDLegacySupport.kext install
-install_legacy_kext() {
-  [[ -d "${amdlegacy_kextpath}" ]] && return
-  echo -e "\nIt is possible to use legacy AMD GPUs if needed.\nLegacy AMD GPUs refer to eGPUs not sanctioned as ${bold}\"supported by Apple\"${normal}.\n"
-  if [[ ${AMD_LEGACY_INSTALLS} != 1 && ${AMD_LEGACY_INSTALLS} != 2 ]]
-  then
-    read -n1 -p "Enable ${bold}Legacy${normal} AMD eGPUs? [Y/N]: " userinput
-    echo
-    [[ "${userinput}" == "Y" ]] && echo && run_legacy_kext_installer && return
-    [[ "${userinput}" == "N" ]] && return
-    echo -e "\nInvalid option.\n" && install_legacy_kext
-  elif [[ ${AMD_LEGACY_INSTALLS} == 1 ]]
-  then
-    echo -e "Your preferences are set to ${bold}always${normal} install legacy support.\n${bold}Proceeding...${normal}\n"
-    run_legacy_kext_installer
-  else
-    echo -e "Your preferences are set to ${bold}never${normal} install legacy support.\n${bold}Proceeding...${normal}\n"
-  fi
-}
-
-# Patch for Ti82 support
-patch_ti82() {
-  echo "${bold}Enabling Ti82 support...${normal}"
-  create_hexrepresentation "${iotfam_binpath}"
-  patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
-  create_patched_binary "${iotfam_binpath}"
-  echo -e "Ti82 support enabled.\n\n${bold}Continuing...${normal}\n"
+  [[ "${1}" == -end-patch ]] && end_binary_modifications "Installation complete."
 }
 
 # Enable Ti82 independently
 enable_ti82() {
-  echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
-  if [[ ${ti82_enabled} == 0 ]]
-  then
-    backup_system
-    echo "${bold}Enabling...${normal}"
-    patch_ti82 1>/dev/null
-    echo "Ti82 Enabled."
-    end_binary_modifications "Patch complete."
-  else
-    echo -e "Ti82 support is already enabled on this system."
-  fi
-}
-
-# Prompt for Ti82 patch
-install_ti82() {
-  [[ ${ti82_enabled} == 1 ]] && return
-  echo -e "\nTo use certain TB3 eGPU enclosures that have ${bold}Ti82 controllers${normal},\nit is necessary to patch macOS to allow them to mount properly.\n"
-  if [[ ${TI82_INSTALLS} != 1 && ${TI82_INSTALLS} != 2 ]]
-  then
-    read -n1 -p "Enable ${bold}Ti82${normal}? [Y/N]: " userinput
-    echo
-    [[ "${userinput}" == "Y" ]] && echo && didinstall_ti82=1 && patch_ti82 && return
-    [[ "${userinput}" == "N" ]] && echo && return
-    echo -e "\nInvalid option.\n" && install_ti82
-  elif [[ ${TI82_INSTALLS} == 1 ]]
-  then
-    echo -e "Your preferences are set to ${bold}always${normal} install Ti82 support.\n${bold}Proceeding...${normal}\n"
-    didinstall_ti82=1 && patch_ti82
-  else
-    echo -e "Your preferences are set to ${bold}never${normal} install Ti82 support.\n${bold}Proceeding...${normal}\n"
-  fi
+  [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
+  echo "${bold}Enabling Ti82 support...${normal}"
+  create_hexrepresentation "${iotfam_binpath}"
+  patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
+  create_patched_binary "${iotfam_binpath}"
+  echo -e "Ti82 support enabled."
+  [[ "${1}" == -end-patch ]] && end_binary_modifications "Patch complete."
 }
 
 # Patch TB1/2 block
 patch_tb() {
-  echo -e "\n\n➣ ${bold}AMD eGPUs${normal}\n\n${bold}Starting patch...${normal}"
+  echo -e "${bold}Starting patch...${normal}"
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}.\nPlease uninstall before proceeding." && return
-  backup_system
-  install_legacy_kext
-  install_ti82
-  if [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]]
-  then
-    echo -e "No thunderbolt patch required for this Mac.\n"
-    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_binary_modifications
-    return
-  fi
-  if [[ ${tbswitch_enabled} == 1 ]]
-  then
-    echo -e "System has already been patched for ${bold}AMD eGPUs${normal}."
-    [[ ${didinstall_amdlegacy} == 1 || ${didinstall_ti82} == 1 ]] && end_binary_modifications
-    return
-  fi
+  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
+  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo -e "No thunderbolt patch required for this Mac." && return
   echo -e "${bold}Patching components...${normal}"
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
   echo -e "Components patched."
-  end_binary_modifications "Patch Complete."
+  [[ "${1}" == -end-patch ]] && end_binary_modifications "Patch complete."
 }
 
 # Download and install NVIDIA Web Drivers
@@ -685,10 +618,9 @@ prompt_web_driver_install() {
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo -e "\n\n➣ ${bold}NVIDIA eGPUs${normal}\n\n${bold}Starting patch...${normal}\n"
+  echo -e "\n${bold}Starting patch...${normal}\n"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 || ${amdlegacy_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
-  backup_system
   prompt_web_driver_install
   [[ ${using_nvdawebdrv} == 1 && ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed." && return
   echo -e "${bold}Continuing patch...${normal}\n"
@@ -701,7 +633,6 @@ patch_nv() {
     NVDA_STARTUP_PLIST_TO_PATCH="${nvdastartup_plistpath}"
   fi
   echo -e "${bold}Patching components...${normal}"
-  install_ti82
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
@@ -863,7 +794,6 @@ detect_discrete_gpu_vendor() {
 
 # Anomaly detection
 detect_anomalies() {
-  echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
   detect_discrete_gpu_vendor
   echo -e "Anomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches.\n\nPatches made from scripts such as ${bold}purge-nvda.sh${normal}\nare not detected at this time."
   echo -e "\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
@@ -938,9 +868,9 @@ present_menu() {
    ➣  ${bold}Patch Manager${normal}     ➣  ${bold}More Options${normal}
    ${bold}1.${normal} Automatic         ${bold}6.${normal} Status
    ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Anomalies
-   ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Report
-   ${bold}4.${normal} Ti82 Support      ${bold}9.${normal} Recovery
-   ${bold}5.${normal} Uninstall         ${bold}D.${normal} Donate
+   ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Uninstall
+   ${bold}4.${normal} AMD Legacy GPUs   ${bold}9.${normal} Recovery
+   ${bold}5.${normal} Ti82 Support      ${bold}D.${normal} Donate
 
    ${bold}0.${normal}  Quit\n"
   read -n1 -p "${bold}What next?${normal} [0-7|D]: " userinput
@@ -954,19 +884,27 @@ process_args() {
     -a|--auto|1)
     echo;;
     -ea|--enable-amd|2)
-    patch_tb;;
+    echo -e "\n\n➣ ${bold}AMD eGPUs${normal}\n"
+    backup_system
+    patch_tb -end-patch;;
     -en|--enable-nv|3)
-    patch_nv;;
-    -t8|--ti82|4)
-    enable_ti82;;
-    -u|--uninstall|5)
-    uninstall;;
+    echo -e "\n\n➣ ${bold}NVIDIA eGPUs${normal}\n"
+    backup_system
+    patch_nv -end-patch;;
+    -al|--amd-legacy|4)
+    echo -e "\n\n➣ ${bold}AMD Legacy GPUs${normal}\n"
+    install_amd_legacy_kext -end-patch;;
+    -t8|--ti82|5)
+    echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
+    backup_system
+    enable_ti82 -end-patch;;
     -s|--status|6)
     check_patch_status;;
     -a|--anomaly-detect|7)
+    echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
     detect_anomalies;;
-    -b|--bug-report|8)
-    echo;;
+    -u|--uninstall|8)
+    uninstall;;
     -r|--recover|9)
     recover_sys;;
     -d|--donate|D|d)
