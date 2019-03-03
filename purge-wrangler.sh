@@ -109,6 +109,8 @@ amdlegacy_kextpath="${libextensions_path}AMDLegacySupport.kext"
 # General backup path
 support_dirpath="/Library/Application Support/Purge-Wrangler/"
 backupkext_dirpath="${support_dirpath}Kexts/"
+prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/pw.png"
+prompticon_filepath="${support_dirpath}pw.png"
 
 ## Deprecated manifest
 manifest="${support_dirpath}manifest.wglr"
@@ -238,6 +240,7 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
+  curl -q -L -s -o "${prompticon_filepath}" "${prompticon_downloadurl}"
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
@@ -826,19 +829,28 @@ show_update_prompt() {
   [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
-  local did_patch=="$($pb -c "Print :DidApplyBinPatch")"
+  local did_patch=="$($pb -c "Print :DidApplyBinPatch" "${scriptconfig_filepath}")"
   [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 || ("${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}") || ${did_patch} == false ]] && sleep 10 && return
-  osascript -e '
-  set theDialogText to "PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \"Never\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?"
-  set outcome to (display dialog theDialogText buttons {"Never", "Later", "Apply"} default button "Apply" cancel button "Later" with icon caution)
-  if (outcome = {button returned:"Apply"}) then
-	   tell application "Terminal"
-		   activate
-		     do script "purge-wrangler"
-	    end tell
-  else if (outcome = {button returned:"Never"}) then
-    do shell script "rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist"
-  end if' 2>/dev/null 1>&2
+  osascript -e "
+  set promptIcon to \"nil\"
+  set outcome to \"nil\"
+  set theDialogText to \"PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \\\"Never\\\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?\"
+  try
+    set promptIcon to (POSIX file \"${prompticon_filepath}\") as alias
+  end try
+  if promptIcon is \"nil\" then
+    set outcome to (display dialog theDialogText buttons {\"Never\", \"Later\", \"Apply\"} default button \"Apply\" cancel button \"Later\")
+  else
+    set outcome to (display dialog theDialogText buttons {\"Never\", \"Later\", \"Apply\"} default button \"Apply\" cancel button \"Later\" with icon promptIcon)
+  end if
+  if (outcome = {button returned:\"Apply\"}) then
+	  tell application \"Terminal\"
+		  activate
+		  do script \"purge-wrangler\"
+	  end tell
+  else if (outcome = {button returned:\"Never\"}) then
+    do shell script \"rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist\"
+  end if" 2>/dev/null 1>&2
   sleep 10
 }
 
