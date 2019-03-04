@@ -529,6 +529,7 @@ reset_nvdawebdrv_stats() {
 ### Populate webdriver data
 get_nvdawebdrv_stats() {
   reset_nvdawebdrv_stats
+  echo -e "\n\n${bold}Fetching data...${normal}"
   [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
   local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${webdriver_data}" ]] && return
@@ -566,6 +567,7 @@ get_nvdawebdrv_stats() {
     nvdawebdrv_lastcompatible_ver="${currentdriver_ver}"
     nvdawebdrv_lastcompatible_downloadurl="${currentdriver_downloadurl}"
   fi
+  echo -e "Data retrieved."
 }
 
 ### Patch NVIDIA Web Driver version
@@ -581,11 +583,11 @@ webdriver_possibilities() {
   then
     [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo -e "\nAppropriate NVIDIA Web Drivers are ${bold}already installed${normal}.\n" && return
     echo -e "\nInstalled ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
-    [[ "${4}" != "-prompt" ]] && echo "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && echo "Resolved" && return
+    [[ "${4}" != "-prompt" ]] && echo "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && echo "Resolved." && return
     yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "echo -e \"\n\nDrivers unchanged.\""
   else
     local recommendation=("Not Required" "Suggested" "Not Advised" "Cannot Determine")
-    echo -e "\n\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
+    echo -e "\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
     yesno_action "${bold}Patch?${normal}" "echo -e \"\n\" && install_web_drivers \"${1}\" \"${2}\"" "echo -e \"\n\nInstallation aborted.\" && return"
   fi
 }
@@ -643,32 +645,12 @@ patch_nv() {
 
 # Run webdriver uninstallation process
 run_webdriver_uninstaller() {
-  echo -e "\n${bold}Uninstalling drivers...${normal}"
+  echo -e "${bold}Uninstalling NVIDIA drivers...${normal}"
   nvram -d nvda_drv
-  WEBDRIVER_UNINSTALLER="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
-  [[ ! -s "${WEBDRIVER_UNINSTALLER}" ]] && echo -e "Could not find NVIDIA uninstaller.\n" && return
-  installer -target "/" -pkg "${WEBDRIVER_UNINSTALLER}" 2>&1 1>/dev/null
-  echo -e "Drivers uninstalled.\nIf in ${bold}Single User Mode${normal}, only driver selection changed.\n" && return
-}
-
-# Remove NVIDIA Web Drivers
-remove_web_drivers() {
-  [[ ! -e "${nvdastartupweb_kextpath}" ]] && return
-  echo
-  if [[ ${NVDA_WEB_UNINSTALLS} != 1 && ${NVDA_WEB_UNINSTALLS} != 2 ]]
-  then
-    read -n1 -p "Remove ${bold}NVIDIA Web Drivers${normal}? [Y/N]: " userinput
-    echo
-    [[ "${userinput}" == "Y" ]] && run_webdriver_uninstaller && return
-    [[ "${userinput}" == "N" ]] && echo && return
-    echo -e "\nInvalid option." && remove_web_drivers
-  elif [[ ${NVDA_WEB_UNINSTALLS} == 1 ]]
-  then
-    echo -e "Your preferences are set to ${bold}always${normal} uninstall web drivers.\n${bold}Proceeding...${normal}"
-    run_webdriver_uninstaller
-  else
-    echo -e "Your preferences are set to ${bold}never${normal} uninstall web drivers.\n${bold}No action taken.${normal}\n"
-  fi
+  local webdriver_uninstaller="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
+  [[ ! -s "${webdriver_uninstaller}" ]] && echo -e "None found." && return
+  installer -target "/" -pkg "${webdriver_uninstaller}" 2>&1 1>/dev/null
+  echo -e "Drivers uninstalled.\nIf in ${bold}Single User Mode${normal}, driver only deactivated." && return
 }
 
 ### In-place re-patcher
@@ -676,7 +658,7 @@ uninstall() {
   [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling all modifications...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
-  remove_web_drivers
+  [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
   echo -e "${bold}Reverting binaries...${normal}"
   if [[ ${ti82_enabled} == 1 ]]
   then
@@ -727,18 +709,18 @@ first_time_setup() {
 
 ### Perform recovery
 perform_recovery() {
-  echo -e "${bold}Restoring system...${normal}"
+  echo -e "${bold}Recovering...${normal}"
   rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
   modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
   modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-  remove_web_drivers
+  run_webdriver_uninstaller
   echo -e "System restored."
   end_binary_modifications "Recovery complete." -no-agent
 }
 
 ### Recovery logic
 recover_sys() {
-  echo -e "\n\n➣ ${bold}Recovery${normal}\n\n${bold}Recovering...${normal}"
+  echo -e "\n\n➣ ${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -811,7 +793,7 @@ detect_anomalies() {
 
 # --- USER INTERFACE
 
-# Request donation
+### Request donation
 donate() {
   open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
   echo -e "\n\nSee your ${bold}web browser${normal}."
