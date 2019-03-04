@@ -352,7 +352,7 @@ check_patch_status() {
   echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
 }
 
-# Cumulative system check
+### Cumulative system check
 perform_sys_check() {
   check_sip
   check_macos_version
@@ -367,7 +367,7 @@ perform_sys_check() {
 
 # ----- OS MANAGEMENT
 
-# Sanitize system permissions and caches
+### Sanitize system permissions and caches
 sanitize_system() {
   echo -e "${bold}Sanitizing system...${normal}"
   chmod -R 755 "${agc_kextpath}" "${iog_kextpath}" "${iondrv_kextpath}" "${nvdastartupweb_kextpath}" "${nvdastartup_kextpath}" "${amdlegacy_kextpath}" "${iotfam_kextpath}" 1>/dev/null 2>&1
@@ -378,7 +378,7 @@ sanitize_system() {
 
 # ----- BACKUP SYSTEM
 
-# Primary procedure
+### Primary procedure
 execute_backup() {
   mkdir -p "${backupkext_dirpath}"
   rsync -rt "${agc_kextpath}" "${backupkext_dirpath}"
@@ -388,7 +388,7 @@ execute_backup() {
   rsync -rt "${nvdastartup_kextpath}" "${backupkext_dirpath}"
 }
 
-# Backup procedure
+### Backup procedure
 backup_system() {
   echo -e "${bold}Backing up...${normal}"
   if [[ ! -z $(find "${backupkext_dirpath}" -mindepth 1 -print -quit 2>/dev/null) && -s "${scriptconfig_filepath}" ]]
@@ -423,22 +423,21 @@ backup_system() {
   fi
 }
 
-# ----- CORE PATCHING SYSTEM
+# --- CORE PATCHWORK
 
-# Conclude patching sequence
+### Conclude patching sequence
 end_binary_modifications() {
-  sanitize_system
   update_config
+  sanitize_system
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   local message="${1}"
   echo -e "${bold}${message}\n\n${bold}System ready.${normal} Reboot required."
   yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
 }
 
-# Install AMDLegacySupport.kext
+### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
   [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
   if [[ ! -e "${amdlegacy_downloadpath}" || ! -s "${amdlegacy_downloadpath}" || "$(cat "${amdlegacy_downloadpath}")" == "404: Not Found" ]]
@@ -451,10 +450,10 @@ install_amd_legacy_kext() {
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
-  [[ "${1}" == -end-patch ]] && end_binary_modifications "Installation complete."
+  [[ "${1}" == -end ]] && end_binary_modifications "Installation complete."
 }
 
-# Enable Ti82 independently
+### Enable Ti82
 enable_ti82() {
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
@@ -462,12 +461,12 @@ enable_ti82() {
   patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
   create_patched_binary "${iotfam_binpath}"
   echo -e "Ti82 support enabled."
-  [[ "${1}" == -end-patch ]] && end_binary_modifications "Patch complete."
+  [[ "${1}" == -end ]] && end_binary_modifications "Patch complete."
 }
 
-# Patch TB1/2 block
+### Patch TB1/2 block
 patch_tb() {
-  echo -e "${bold}Starting patch...${normal}"
+  echo -e "${bold}Patching for AMD eGPUs...${normal}"
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
@@ -477,162 +476,158 @@ patch_tb() {
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
   echo -e "Components patched."
-  [[ "${1}" == -end-patch ]] && end_binary_modifications "Patch complete."
+  [[ "${1}" == -end ]] && end_binary_modifications "Patch complete."
 }
 
-# Download and install NVIDIA Web Drivers
+### Download and install NVIDIA Web Drivers
 install_web_drivers() {
-  INSTALLER_PKG="/usr/local/NVDAInstall.pkg"
-  INSTALLER_PKG_EXPANDED="/usr/local/NVDAInstall"
-  DRIVER_VERSION="${1}"
-  DOWNLOAD_URL="${2}"
-  rm -r "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
-  echo -e "Data retrieved.\n${bold}Downloading drivers (${DRIVER_VERSION})...${normal}"
-  curl -q --connect-timeout 15 --progress-bar -o "${INSTALLER_PKG}" "${DOWNLOAD_URL}"
-  if [[ ! -s "${INSTALLER_PKG}" ]]
+  local installerpkg_path="/usr/local/NVDAInstall.pkg"
+  local installerpkgexpanded_path="/usr/local/NVDAInstall"
+  local nvdadrv_ver="${1}"
+  local nvdadrv_downloadurl="${2}"
+  rm -r "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
+  echo -e "${bold}Downloading drivers (${nvdadrv_ver})...${normal}"
+  curl -q --connect-timeout 15 --progress-bar -o "${installerpkg_path}" "${nvdadrv_downloadurl}"
+  if [[ ! -s "${installerpkg_path}" ]]
   then
-    rm -r "${INSTALLER_PKG}" 2>/dev/null 1>&2
+    rm -r "${installerpkg_path}" 2>/dev/null 1>&2
     echo "Unable to download."
     return
   fi
   echo -e "Download complete.\n${bold}Sanitizing package...${normal}"
-  pkgutil --expand-full "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
-  sed -i "" -e "/installation-check/d" "${INSTALLER_PKG_EXPANDED}/Distribution"
-  NVDA_STARTUP_PKG_KEXT="$(find "${INSTALLER_PKG_EXPANDED}" -maxdepth 1 | grep -i NVWebDrivers)/Payload/Library/Extensions/NVDAStartupWeb.kext"
-  if [[ ! -d "${NVDA_STARTUP_PKG_KEXT}" ]]
+  pkgutil --expand-full "${installerpkg_path}" "${installerpkgexpanded_path}"
+  sed -i "" -e "/installation-check/d" "${installerpkgexpanded_path}/Distribution"
+  local nvdastartup_pkgkextpath="$(find "${installerpkgexpanded_path}" -maxdepth 1 | grep -i NVWebDrivers)/Payload/Library/Extensions/NVDAStartupWeb.kext"
+  if [[ ! -d "${nvdastartup_pkgkextpath}" ]]
   then
-    rm -r "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}" 2>/dev/null 1>&2
+    rm -r "${installerpkg_path}" "${installerpkgexpanded_path}" 2>/dev/null 1>&2
     echo "Unable to patch driver."
     return
   fi
-  $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${NVDA_STARTUP_PKG_KEXT}/Contents/Info.plist" 2>/dev/null 1>&2
-  chown -R root:wheel "${NVDA_STARTUP_PKG_KEXT}"
-  rm -r "${INSTALLER_PKG}"
-  pkgutil --flatten-full "${INSTALLER_PKG_EXPANDED}" "${INSTALLER_PKG}" 2>/dev/null 1>&2
+  $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartup_pkgkextpath}/Contents/Info.plist" 2>/dev/null 1>&2
+  chown -R root:wheel "${nvdastartup_pkgkextpath}"
+  rm -r "${installerpkg_path}"
+  pkgutil --flatten-full "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
   echo -e "Package sanitized.\n${bold}Installing...${normal}"
-  INSTALLER_ERR="$(installer -target "/" -pkg "${INSTALLER_PKG}" 2>&1 1>/dev/null)"
-  [[ -z "${INSTALLER_ERR}" ]] && echo -e "Installation complete.\n" || echo -e "Installation failed."
-  rm -r "${INSTALLER_PKG}" "${INSTALLER_PKG_EXPANDED}"
+  local installer_err="$(installer -target "/" -pkg "${installerpkg_path}" 2>&1 1>/dev/null)"
+  [[ -z "${installer_err}" ]] && echo -e "Installation complete.\n" || echo -e "Installation failed."
+  rm -r "${installerpkg_path}" "${installerpkgexpanded_path}"
   rm "${webdriver_plistpath}"
+}
+
+### Reset webdriver data
+reset_nvdawebdrv_stats() {
+  nvdawebdrv_lastcompatible_ver=""
+  nvdawebdrv_lastcompatible_downloadurl=""
+  nvdawebdrv_latest_ver=""
+  nvdawebdrv_latest_macosbuild=""
+  nvdawebdrv_latest_downloadurl=""
+  nvdawebdrv_alreadypresentos=""
+  nvdawebdrv_canpatchlatest=3
+}
+
+### Populate webdriver data
+get_nvdawebdrv_stats() {
+  reset_nvdawebdrv_stats
+  [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
+  local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
+  [[ -z "${webdriver_data}" ]] && return
+  echo -e "${webdriver_data}" > "${webdriver_plistpath}"
+  local index=0
+  local current_macos_build="${macos_build}"
+  local currentdriver_downloadurl=""
+  local currentdriver_ver=""
+  while [[ ! -z "${current_macos_build}" ]]
+  do
+    currentdriver_downloadurl="$($pb -c "Print :updates:${index}:downloadURL" "${webdriver_plistpath}" 2>/dev/null)"
+    currentdriver_ver="$($pb -c "Print :updates:${index}:version" "${webdriver_plistpath}" 2>/dev/null)"
+    current_macos_build="$($pb -c "Print :updates:${index}:OS" "${webdriver_plistpath}" 2>/dev/null)"
+    if [[ ${index} == 0 ]]
+    then
+      nvdawebdrv_latest_downloadurl="${currentdriver_downloadurl}"
+      nvdawebdrv_latest_ver="${currentdriver_ver}"
+      nvdawebdrv_latest_macosbuild="${current_macos_build}"
+    fi
+    [[ "${current_macos_build}" == "${macos_build}" ]] && break
+    (( index++ ))
+  done
+  if [[ -z "${currentdriver_downloadurl}" || -z "${currentdriver_ver}" ]]
+  then
+    local currentdriver_majormacosbuild="${nvdawebdrv_latest_macosbuild:0:2}"
+    local macos_major_build="${macos_build:0:2}"
+    if (( ${currentdriver_majormacosbuild} - ${macos_major_build} != 0 ))
+    then
+      nvdawebdrv_canpatchlatest=2
+    else
+      nvdawebdrv_canpatchlatest=1
+    fi
+  else
+    nvdawebdrv_canpatchlatest=0
+    nvdawebdrv_lastcompatible_ver="${currentdriver_ver}"
+    nvdawebdrv_lastcompatible_downloadurl="${currentdriver_downloadurl}"
+  fi
+}
+
+### Patch NVIDIA Web Driver version
+patch_nvdawebdrv_version() {
+  echo -e "\n\n${bold}Patching drivers...${normal}"
+  $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartupweb_plistpath}" 2>/dev/null 1>&2
+  echo -e "Drivers patched."
+}
+
+### Current webdriver possibilities
+webdriver_possibilities() {
+  if [[ "${3}" == -already-present ]]
+  then
+    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo -e "\nAppropriate NVIDIA Web Drivers are ${bold}already installed${normal}.\n" && return
+    echo -e "\nInstalled ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
+    [[ "${4}" != "-prompt" ]] && echo "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && echo "Resolved" && return
+    yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "echo -e \"\n\nDrivers unchanged.\""
+  else
+    local recommendation=("Not Required" "Suggested" "Not Advised" "Cannot Determine")
+    echo -e "\n\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
+    yesno_action "${bold}Patch?${normal}" "echo -e \"\n\" && install_web_drivers \"${1}\" \"${2}\"" "echo -e \"\n\nInstallation aborted.\" && return"
+  fi
 }
 
 # Run Webdriver installation procedure
 run_webdriver_installer() {
-  echo -e "${bold}Fetching webdriver information...${normal}"
-  WEBDRIVER_DATA="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
-  [[ -z "${WEBDRIVER_DATA}" ]] && echo -e "Could not install web drivers." && return
-  echo -e "${WEBDRIVER_DATA}" > "${webdriver_plistpath}"
-  [[ ! -f "${webdriver_plistpath}" ]] && echo -e "Could not extract web driver information." && return
-  INDEX=0
-  DRIVER_MACOS_BUILD="${macos_build}"
-  LATEST_DRIVER_MACOS_BUILD=""
-  DRIVER_DL=""
-  LATEST_DRIVER_DL=""
-  DRIVER_VER=""
-  LATEST_DRIVER_VER=""
-  while [[ ! -z "${DRIVER_MACOS_BUILD}" ]]
-  do
-    DRIVER_DL="$($pb -c "Print :updates:${INDEX}:downloadURL" "${webdriver_plistpath}" 2>/dev/null)"
-    DRIVER_VER="$($pb -c "Print :updates:${INDEX}:version" "${webdriver_plistpath}" 2>/dev/null)"
-    DRIVER_MACOS_BUILD="$($pb -c "Print :updates:${INDEX}:OS" "${webdriver_plistpath}" 2>/dev/null)"
-    if [[ ${INDEX} == 0 ]]
-    then
-      LATEST_DRIVER_DL="${DRIVER_DL}"
-      LATEST_DRIVER_VER="${DRIVER_VER}"
-      LATEST_DRIVER_MACOS_BUILD="${DRIVER_MACOS_BUILD}"
-    fi
-    [[ "${DRIVER_MACOS_BUILD}" == "${macos_build}" ]] && break
-    (( INDEX++ ))
-  done
-  if [[ (-z "${DRIVER_DL}" || -z "${DRIVER_VER}") ]]
-  then
-    [[ ${NVDA_WEB_PATCH_INSTALLS} == 2 ]] && echo -e "\nNo web driver available for your system at this time.\nYour preference ${bold}disables${normal} web driver patching." && return
-    echo -e "Latest Available Driver: ${bold}${LATEST_DRIVER_MACOS_BUILD}${normal}\nYour macOS Build: ${bold}${macos_build}${normal}\n"
-    DRIVER_MAJOR_BUILD="${LATEST_DRIVER_MACOS_BUILD:0:2}"
-    MACOS_MAJOR_BUILD="${macos_build:0:2}"
-    if (( ${DRIVER_MAJOR_BUILD} - ${MACOS_MAJOR_BUILD} != 0 ))
-    then
-      echo -e "${bold}Recommendation${normal}: Major OS version discrepancy detected.\n\t\tPatching ${bold}not recommended${normal}.\n"
-    else
-      echo -e "${bold}Recommendation${normal}: Minor OS version discrepancy detected.\n\t\tPatching ${bold}may be safe${normal}.\n"
-    fi
-    if [[ ${NVDA_WEB_PATCH_INSTALLS} != 1 ]]
-    then
-      read -n1 -p "Patch ${bold}Web Drivers${normal} (${bold}${LATEST_DRIVER_MACOS_BUILD}${normal} -> ${bold}${macos_build}${normal})? [Y/N]: " userinput
-      echo
-      [[ "${userinput}" == "N" ]] && echo -e "\nInstallation ${bold}aborted${normal}.\n" && rm "${webdriver_plistpath}" 2>/dev/null && return
-      [[ "${userinput}" == "Y" ]] && echo -e "\n${bold}Proceeding...${normal}" && install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}" && return
-      echo -e "\nInvalid option. Installation ${bold}aborted${normal}.\n" && return
-    else
-      echo -e "Your preference is set to ${bold}always${normal} patch web drivers.\n${bold}Proceeding...${normal}\n"
-      sleep 0.3
-      install_web_drivers "${LATEST_DRIVER_VER}" "${LATEST_DRIVER_DL}"
-      return
-    fi
-  fi
-  install_web_drivers "${DRIVER_VER}" "${DRIVER_DL}"
+  get_nvdawebdrv_stats
+  [[ ! -z "${nvdawebdrv_alreadypresentos}" ]] && webdriver_possibilities "" "" "-already-present" "${1}" && return
+  case ${nvdawebdrv_canpatchlatest} in
+    0)
+    install_web_drivers "${nvdawebdrv_lastcompatible_ver}" "${nvdawebdrv_lastcompatible_downloadurl}";;
+    1)
+    [[ "${1}" == -prompt ]] && webdriver_possibilities "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}" && return
+    install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}";;
+    2|3)
+    [[ "${1}" == -prompt ]] && webdriver_possibilities "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}" && return
+    echo -e "No compatible or suitably patchable NVIDIA driver available.";;
+  esac
 }
 
-# Prompt NVIDIA Web Driver installation
-prompt_web_driver_install() {
-  if [[ -f "${nvdastartupweb_plistpath}" ]]
-  then
-    if [[ "$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)" != "${macos_build}" ]]
-    then
-      echo -e "\nInstalled ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build.\n"
-      read -n1 -p "${bold}Rectify${normal}? [Y/N]: " userinput
-      echo
-      if [[ "${userinput}" != "Y" ]]
-      then
-        echo -e "\nDrivers unchanged.\n"
-      else
-        echo -e "\n${bold}Patching drivers...${normal}"
-        $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartupweb_plistpath}" 2>/dev/null 1>&2
-        echo -e "Drivers patched.\n"
-      fi
-    else
-      echo -e "\nAppropriate NVIDIA Web Drivers are ${bold}already installed${normal}.\n"
-    fi
-    using_nvdawebdrv=1
-    return
-  fi
-  echo -e "\n${bold}NVIDIA Web Drivers${normal} are required for ${bold}NVIDIA 9xx${normal} GPUs or newer.\nIf you are using an older macOS-supported NVIDIA GPU,\nweb drivers are not needed.\n"
-  if [[ ${NVDA_WEB_INSTALLS} != 1 && ${NVDA_WEB_INSTALLS} != 2 ]]
-  then
-    read -n1 -p "Install ${bold}NVIDIA Web Drivers${normal}? [Y/N]: " userinput
-    echo
-    [[ "${userinput}" == "Y" ]] && using_nvdawebdrv=1 && echo && run_webdriver_installer && return
-    [[ "${userinput}" == "N" ]] && echo && return
-    echo -e "\nInvalid option." && prompt_web_driver_install
-  elif [[ ${NVDA_WEB_INSTALLS} == 1 ]]
-  then
-    echo -e "Your preferences are set to ${bold}always${normal} install web drivers.\n${bold}Proceeding...${normal}"
-    sleep 1
-    using_nvdawebdrv=1 && echo && run_webdriver_installer && return
-  else
-    echo -e "Your preferences are set to ${bold}never${normal} install web drivers.\nProceeding with ${bold}native macOS drivers${normal}...\n"
-    sleep 1
-    return
-  fi
+### Prompt for webdriver installation
+prompt_webdriver_install() {
+  [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
+  [[ ! -z "${nvdawebdrv_alreadypresentos}" ]] && webdriver_possibilities "" "" "-already-present" "-prompt" && return
+  yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "echo -e \"\n\""
 }
 
 # Patch for NVIDIA eGPUs
 patch_nv() {
-  echo -e "\n${bold}Starting patch...${normal}\n"
+  echo -e "${bold}Patching for NVIDIA eGPUs...${normal}"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
-  [[ ${tbswitch_enabled} == 1 || ${amdlegacy_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
-  prompt_web_driver_install
-  [[ ${using_nvdawebdrv} == 1 && ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed." && return
-  echo -e "${bold}Continuing patch...${normal}\n"
-  if [[ ${using_nvdawebdrv} == 1 ]]
+  [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
+  [[ "${1}" == -prompt ]] && prompt_webdriver_install
+  local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
+  if (( ${using_nvdawebdrv} == 1 ))
   then
+    [[ ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed." && return
     nvram nvda_drv=1
-    NVDA_STARTUP_PLIST_TO_PATCH="${nvdastartupweb_plistpath}"
   else
     nvram -d nvda_drv 2>/dev/null
-    NVDA_STARTUP_PLIST_TO_PATCH="${nvdastartup_plistpath}"
+    nvdastartupplist_topatch="${nvdastartup_plistpath}"
   fi
-  echo -e "${bold}Patching components...${normal}"
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
@@ -640,11 +635,10 @@ patch_nv() {
   create_patched_binary "${agw_binpath}"
   create_patched_binary "${iog_binpath}"
   modify_plist "${iondrv_plistpath}" "Add" "${set_iognvda_pcitunnelled}" "true"
-  modify_plist "${NVDA_STARTUP_PLIST_TO_PATCH}" "Add" "${set_nvdastartup_pcitunnelled}" "true"
-  [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
-  [[ -d "${deprecated_nvsolution_kextpath}" ]] && echo -e "${bold}NVDAEGPUSupport.kext${normal} detected. ${bold}Removing...${normal}" && rm -r "${deprecated_nvsolution_kextpath}" && echo -e "Removal complete."
-  echo -e "Components patched."
-  end_binary_modifications "Patch Complete."
+  modify_plist "${nvdastartupplist_topatch}" "Add" "${set_nvdastartup_pcitunnelled}" "true"
+  rm -r "${deprecated_automate_egpu_kextpath}" 2>/dev/null 1>&2
+  rm -r "${deprecated_nvsolution_kextpath}" 2>/dev/null 1>&2
+  [[ "${2}" == -end ]] && end_binary_modifications "Patch complete."
 }
 
 # Run webdriver uninstallation process
@@ -677,7 +671,7 @@ remove_web_drivers() {
   fi
 }
 
-# In-place re-patcher
+### In-place re-patcher
 uninstall() {
   [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling all modifications...${normal}"
@@ -709,14 +703,14 @@ uninstall() {
 
 # ----- BINARY MANAGER
 
-# Bin management procedure
+### Bin management procedure
 install_bin() {
   rsync "${call_script_file}" "${script_bin}"
   chown "${SUDO_USER}" "${script_bin}"
-  chmod 700 "${script_bin}" && chmod a+x "${script_bin}"
+  chmod 755 "${script_bin}" && chmod a+x "${script_bin}"
 }
 
-# Bin first-time setup
+### Bin first-time setup
 first_time_setup() {
   [[ $is_bin_call == 1 ]] && return
   call_script_file="$(pwd)/$(echo -e "${script}")"
@@ -729,7 +723,7 @@ first_time_setup() {
   install_bin
 }
 
-# ----- RECOVERY SYSTEM
+# --- RECOVERY SYSTEM
 
 ### Perform recovery
 perform_recovery() {
@@ -742,7 +736,7 @@ perform_recovery() {
   end_binary_modifications "Recovery complete." -no-agent
 }
 
-# Recovery logic
+### Recovery logic
 recover_sys() {
   echo -e "\n\n➣ ${bold}Recovery${normal}\n\n${bold}Recovering...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
@@ -815,7 +809,7 @@ detect_anomalies() {
   fi
 }
 
-# ----- USER INTERFACE
+# --- USER INTERFACE
 
 # Request donation
 donate() {
@@ -823,7 +817,7 @@ donate() {
   echo -e "\n\nSee your ${bold}web browser${normal}."
 }
 
-# Show update prompt
+### Show update prompt
 show_update_prompt() {
   check_patch
   [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
@@ -866,12 +860,12 @@ present_menu() {
    ${bold}5.${normal} Ti82 Support      ${bold}D.${normal} Donate
 
    ${bold}0.${normal}  Quit\n"
-  read -n1 -p "${bold}What next?${normal} [0-7|D]: " userinput
+  read -n1 -p "${bold}What next?${normal} [0-9|D]: " userinput
   process_args "${userinput}"
   yesno_action "${bold}Back to menu?${normal}" "perform_sys_check && present_menu && return" "echo -e \"\n\" && exit"
 }
 
-# Process user input
+### Process user input
 process_args() {
   case "${1}" in
     -a|--auto|1)
@@ -879,18 +873,18 @@ process_args() {
     -ea|--enable-amd|2)
     echo -e "\n\n➣ ${bold}AMD eGPUs${normal}\n"
     backup_system
-    patch_tb -end-patch;;
+    patch_tb -end;;
     -en|--enable-nv|3)
     echo -e "\n\n➣ ${bold}NVIDIA eGPUs${normal}\n"
     backup_system
-    patch_nv -end-patch;;
+    patch_nv -prompt -end;;
     -al|--amd-legacy|4)
     echo -e "\n\n➣ ${bold}AMD Legacy GPUs${normal}\n"
-    install_amd_legacy_kext -end-patch;;
+    install_amd_legacy_kext -end;;
     -t8|--ti82|5)
     echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
     backup_system
-    enable_ti82 -end-patch;;
+    enable_ti82 -end;;
     -s|--status|6)
     check_patch_status;;
     -a|--anomaly-detect|7)
@@ -916,7 +910,7 @@ process_args() {
 
 # --- SCRIPT DRIVER
 
-# Primary execution routine
+### Primary execution routine
 begin() {
   [[ "${2}" == "--on-launch-check" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
