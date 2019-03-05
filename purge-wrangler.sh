@@ -657,7 +657,7 @@ run_patch_nv() {
 ### Patch for NVIDIA eGPUs
 patch_nv() {
   echo -e "${bold}Patching for NVIDIA eGPUs...${normal}"
-  [[ -e "${nvdastartupweb_kextpath}" && -z "${nvdawebdrv_patched}" ]] && run_patch_nv "${1}" "${2}" && return
+  [[ -e "${nvdastartupweb_kextpath}" && ${nvdawebdrv_patched} == 0 ]] && run_patch_nv "${1}" "${2}" && return
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
   run_patch_nv "${1}" "${2}"
