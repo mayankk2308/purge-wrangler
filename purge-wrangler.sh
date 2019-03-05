@@ -60,7 +60,9 @@ hex_skipenum_patch="554889E531C05DC341554154534881EC2801"
 amdlegacy_enabled=2
 tbswitch_enabled=2
 nvidia_enabled=2
+binpatch_enabled=0
 ti82_enabled=2
+nvdawebdrv_patched=2
 
 # System Discrete GPU
 dgpu_vendor=""
@@ -87,7 +89,6 @@ iog_binpath="${iog_kextpath}${iog_subpath}"
 iotfam_kextpath="${sysextensions_path}IOThunderboltFamily.kext"
 iotfam_binsubpath="/Contents/MacOS/IOThunderboltFamily"
 iotfam_binpath="${iotfam_kextpath}${iotfam_binsubpath}"
-didinstall_ti82=0
 
 ## NVDAStartup
 nvdastartup_kextpath="${sysextensions_path}NVDAStartup.kext"
@@ -199,6 +200,7 @@ generate_config() {
   $pb -c "Add :OSVersionAtPatch string ${macos_ver}" "${scriptconfig_filepath}"
   $pb -c "Add :OSBuildAtPatch string ${macos_build}" "${scriptconfig_filepath}"
   $pb -c "Add :DidApplyBinPatch bool false" "${scriptconfig_filepath}"
+  $pb -c "Add :DidApplyPatchNVDAWebDrv bool false" "${scriptconfig_filepath}"
 }
 
 ### Updates the configuration as necessary
@@ -208,7 +210,8 @@ update_config() {
   local status=("false" "true" "false")
   $pb -c "Set :OSVersionAtPatch ${macos_ver}" "${scriptconfig_filepath}"
   $pb -c "Set :OSBuildAtPatch ${macos_build}" "${scriptconfig_filepath}"
-  $pb -c "Set :DidApplyBinPatch ${status[((${tbswitch_enabled} | ${nvidia_enabled} | ${ti82_enabled}))]}" "${scriptconfig_filepath}"
+  $pb -c "Set :DidApplyBinPatch ${status[${binpatch_enabled}]}" "${scriptconfig_filepath}"
+  $pb -c "Set :DidApplyPatchNVDAWebDrv ${status[${nvdawebdrv_patched}]}" "${scriptconfig_filepath}"
 }
 
 ### Deprecate manifest
@@ -241,6 +244,7 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
   curl -q -L -s -o "${prompticon_filepath}" "${prompticon_downloadurl}"
+  [[ ! -s "${prompticon_filepath}" || "$(cat "${prompticon_filepath}")" == "404: Not Found" ]] && rm -f "${prompticon_filepath}" 2>/dev/null 1>&2
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
@@ -250,7 +254,7 @@ create_launchagent() {
 perform_software_update() {
   echo -e "\n\n${bold}Downloading...${normal}"
   curl -q -L -s -o "${tmp_script}" "${latest_release_dwld}"
-  [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && sleep 0.3 && rm "${tmp_script}" && return
+  [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
   echo -e "Download complete.\n${bold}Updating...${normal}"
   chmod 700 "${tmp_script}" && chmod +x "${tmp_script}"
   rm "${script}" && mv "${tmp_script}" "${script}"
@@ -273,7 +277,7 @@ fetch_latest_release() {
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
     echo -e "\n>> ${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
-    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n\n${bold}Proceeding without updating...${normal}\" && sleep 0.3"
+    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n\n${bold}Proceeding without updating...${normal}\""
   fi
 }
 
@@ -332,24 +336,30 @@ retrieve_tb_ver() {
 
 ### Retrieve patch status
 check_patch() {
+  binpatch_enabled=0
   [[ ! -f "${agw_binpath}" || ! -f "${iog_binpath}" || ! -f "${iotfam_binpath}" ]] && return
   local hex_agwbin="$(hexdump -ve '1/1 "%.2X"' "${agw_binpath}")"
   local hex_iogbin="$(hexdump -ve '1/1 "%.2X"' "${iog_binpath}")"
   local hex_iotfambin="$(hexdump -ve '1/1 "%.2X"' "${iotfam_binpath}")"
+  local nvdawebdrv_iopcitunnelcompat="$($pb -c "Print :IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible" "${nvdastartupweb_plistpath}" 2>/dev/null)"
+  [[ ! -e "${nvdastartupweb_kextpath}" ]] && nvdawebdrv_patched=2 || nvdawebdrv_patched=0
+  [[ "${nvdawebdrv_iopcitunnelcompat}" == "true" ]] && nvdawebdrv_patched=1
   [[ -d "${amdlegacy_kextpath}" ]] && amdlegacy_enabled=1 || amdlegacy_enabled=0
   [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
   [[ "${hex_iogbin}" =~ "${hex_iopcitunnelled_patch}" ]] && nvidia_enabled=1 || nvidia_enabled=0
   [[ "${hex_iotfambin}" =~ "${hex_skipenum_patch}" ]] && ti82_enabled=1 || ti82_enabled=0
+  [[ ${tbswitch_enabled} == "1" || ${ti82_enabled} == "1" || ${nvidia_enabled} == "1" ]] && binpatch_enabled=1
 }
 
 ### Display patch statuses
 check_patch_status() {
   local status=("Disabled" "Enabled" "Unknown")
-  echo -e "\n>> ${bold}Patch Status${normal}\n"
+  local drv_status=("Clean" "Patched" "Absent")
+  echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
   echo -e "${bold}TB1/2 AMD eGPUs${normal}   ${status[$tbswitch_enabled]}"
   echo -e "${bold}Legacy AMD eGPUs${normal}  ${status[$amdlegacy_enabled]}"
   echo -e "${bold}NVIDIA eGPUs${normal}      ${status[$nvidia_enabled]}"
-  echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
+  echo -e "${bold}Web Drivers${normal}       ${drv_status[$nvdawebdrv_patched]}"
 }
 
 ### Cumulative system check
@@ -361,7 +371,6 @@ perform_sys_check() {
   check_sys_extensions
   check_patch
   deprecate_manifest
-  didinstall_ti82=0
   using_nvdawebdrv=0
 }
 
@@ -397,7 +406,7 @@ backup_system() {
     local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
     if [[ "${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}" ]]
     then
-      if [[ ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 ]]
+      if [[ ${binpatch_enabled} == 0 ]]
       then
         execute_backup
         echo -e "Backup refreshed."
@@ -409,16 +418,18 @@ backup_system() {
       echo -e "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
       echo -e "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
       echo -e "${bold}Updating backup...${normal}"
-      if [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 ]]
+      if [[ ${binpatch_enabled} == 1 ]]
       then
         echo -e "${bold}Uninstalling patch(es) before updating backup...${normal}\n"
         uninstall
       fi
       execute_backup
-      echo -e "\nUpdate complete."
+      update_config
+      echo -e "Update complete."
     fi
   else
     execute_backup
+    update_config
     echo -e "Backup complete."
   fi
 }
@@ -581,7 +592,7 @@ patch_nvdawebdrv_version() {
 webdriver_possibilities() {
   if [[ "${3}" == -already-present ]]
   then
-    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo -e "\nAppropriate NVIDIA Web Drivers are ${bold}already installed${normal}.\n" && return
+    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo -e "Appropriate NVIDIA Web Drivers are ${bold}already installed${normal}." && return
     echo -e "\nInstalled ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
     [[ "${4}" != "-prompt" ]] && echo "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && echo "Resolved." && return
     yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "echo -e \"\n\nDrivers unchanged.\""
@@ -592,7 +603,7 @@ webdriver_possibilities() {
   fi
 }
 
-# Run Webdriver installation procedure
+### Run Webdriver installation procedure
 run_webdriver_installer() {
   get_nvdawebdrv_stats
   [[ ! -z "${nvdawebdrv_alreadypresentos}" ]] && webdriver_possibilities "" "" "-already-present" "${1}" && return
@@ -608,19 +619,19 @@ run_webdriver_installer() {
   esac
 }
 
-### Prompt for webdriver installation
-prompt_webdriver_install() {
-  [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
-  [[ ! -z "${nvdawebdrv_alreadypresentos}" ]] && webdriver_possibilities "" "" "-already-present" "-prompt" && return
-  yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "echo -e \"\n\""
-}
-
-# Patch for NVIDIA eGPUs
-patch_nv() {
-  echo -e "${bold}Patching for NVIDIA eGPUs...${normal}"
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
-  [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
-  [[ "${1}" == -prompt ]] && prompt_webdriver_install
+### Run NVIDIA eGPU patcher
+run_patch_nv() {
+  if [[ "${1}" == -prompt ]]
+  then
+    [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
+    if [[ ! -z "${nvdawebdrv_alreadypresentos}" ]]
+    then
+      webdriver_possibilities "" "" "-already-present" "-prompt"
+      using_nvdawebdrv=1
+    else
+      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "echo -e \"\n\""
+    fi
+  fi
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
   if (( ${using_nvdawebdrv} == 1 ))
   then
@@ -643,6 +654,15 @@ patch_nv() {
   [[ "${2}" == -end ]] && end_binary_modifications "Patch complete."
 }
 
+### Patch for NVIDIA eGPUs
+patch_nv() {
+  echo -e "${bold}Patching for NVIDIA eGPUs...${normal}"
+  [[ -e "${nvdastartupweb_kextpath}" && -z "${nvdawebdrv_patched}" ]] && run_patch_nv "${1}" "${2}" && return
+  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
+  run_patch_nv "${1}" "${2}"
+}
+
 # Run webdriver uninstallation process
 run_webdriver_uninstaller() {
   echo -e "${bold}Uninstalling NVIDIA drivers...${normal}"
@@ -655,8 +675,8 @@ run_webdriver_uninstaller() {
 
 ### In-place re-patcher
 uninstall() {
-  [[ ${amdlegacy_enabled} == 0 && ${tbswitch_enabled} == 0 && ${nvidia_enabled} == 0 && ${ti82_enabled} == 0 && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
-  echo -e "${bold}Uninstalling all modifications...${normal}"
+  [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
+  echo -e "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
   echo -e "${bold}Reverting binaries...${normal}"
@@ -720,7 +740,6 @@ perform_recovery() {
 
 ### Recovery logic
 recover_sys() {
-  echo -e "\n\n➣ ${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -729,7 +748,7 @@ recover_sys() {
   then
     echo -e "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
     echo -e "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-    [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 ]] && echo -e "No relevant backup available. Better to ${bold}uninstall${normal}." || echo -e "System may already be clean."
+    [[ ${binpatch_enabled} == 1 ]] && echo -e "No relevant backup available. Better to ${bold}uninstall${normal}." || echo -e "System may already be clean."
     yesno_action "Still ${bold}attempt recovery${normal}?" "echo -e \"\n\" && perform_recovery" "echo -e \"\n\nRecovery aborted.\""
   else
     perform_recovery
@@ -799,18 +818,12 @@ donate() {
   echo -e "\n\nSee your ${bold}web browser${normal}."
 }
 
-### Show update prompt
-show_update_prompt() {
-  check_patch
-  [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
-  local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
-  local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
-  local did_patch=="$($pb -c "Print :DidApplyBinPatch" "${scriptconfig_filepath}")"
-  [[ ${tbswitch_enabled} == 1 || ${nvidia_enabled} == 1 || ${ti82_enabled} == 1 || ("${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}") || ${did_patch} == false ]] && sleep 10 && return
+### Notify
+notify() {
   osascript -e "
   set promptIcon to \"nil\"
   set outcome to \"nil\"
-  set theDialogText to \"PurgeWrangler patches have been disabled because macOS was updated.\n\nChoosing \\\"Never\\\" will not remind you until you re-apply the patches manually and the same situation arises.\n\nRe-apply patches to restore eGPU functionality?\"
+  set theDialogText to \"${1}\"
   try
     set promptIcon to (POSIX file \"${prompticon_filepath}\") as alias
   end try
@@ -828,6 +841,19 @@ show_update_prompt() {
     do shell script \"rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist\"
   end if" 2>/dev/null 1>&2
   sleep 10
+}
+
+### Show update prompt
+show_update_prompt() {
+  check_patch
+  [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
+  local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
+  local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
+  local did_patch="$($pb -c "Print :DidApplyBinPatch" "${scriptconfig_filepath}")"
+  local did_patch_nvdawebdrv="$($pb -c "Print :DidApplyPatchNVDAWebDrv" "${scriptconfig_filepath}")"
+  [[ "${did_patch_nvdawebdrv}" == "true" && ${nvdawebdrv_patched} == 0 ]] && notify "There has been a change with previously patched NVIDIA Web Drivers. Re-apply PurgeWrangler patches to enable driver for eGPUs?" && return
+  [[ ${binpatch_enabled} == "1" || ("${prev_macos_ver}" == "${macos_ver}" && "${prev_macos_build}" == "${macos_build}") || ${did_patch} == false ]] && sleep 10 && return
+  notify "PurgeWrangler eGPU patches have been reset because macOS was updated. Would you like to re-enable patches?"
 }
 
 ### Script menu
@@ -868,6 +894,7 @@ process_args() {
     backup_system
     enable_ti82 -end;;
     -s|--status|6)
+    echo -e "\n\n➣ ${bold}Patch Status${normal}\n"
     check_patch_status;;
     -a|--anomaly-detect|7)
     echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
@@ -876,6 +903,7 @@ process_args() {
     echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
     uninstall -end;;
     -r|--recover|9)
+    echo -e "\n\n➣ ${bold}Recovery${normal}\n"
     recover_sys;;
     -d|--donate|D|d)
     donate;;
