@@ -248,6 +248,21 @@ create_launchagent() {
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
+### System report generation
+generate_sys_report() {
+  echo -e "${bold}Generating report...${normal}"
+  local report_dirpath="/Users/${SUDO_USER}/Desktop/PWR-$(date +%Y-%m-%d-%H-%M-%S)"
+  mkdir -p "${report_dirpath}"
+  detect_discrete_gpu_vendor
+  rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
+  $pb -c "Add :SysDiscreteGPU string ${dgpu_vendor}" "${report_dirpath}/PatchState.plist"
+  system_profiler -xml SPThunderboltDataType > "${report_dirpath}/ThunderboltDevices.plist"
+  zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
+  rm -r "${report_dirpath}"
+  chown "${SUDO_USER}" "${report_dirpath}.zip"
+  echo -e "Report generated on the Desktop."
+}
+
 # --- SCRIPT SOFTWARE UPDATE SYSTEM
 
 ### Perform software update
@@ -705,14 +720,7 @@ uninstall() {
 
 # ----- BINARY MANAGER
 
-### Bin management procedure
-install_bin() {
-  rsync "${call_script_file}" "${script_bin}"
-  chown "${SUDO_USER}" "${script_bin}"
-  chmod 755 "${script_bin}" && chmod a+x "${script_bin}"
-}
-
-### Bin first-time setup
+### Binary first-time setup
 first_time_setup() {
   [[ $is_bin_call == 1 ]] && return
   call_script_file="$(pwd)/$(echo -e "${script}")"
@@ -721,8 +729,9 @@ first_time_setup() {
   BIN_SHA=""
   [[ -s "${script_bin}" ]] && BIN_SHA="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
   [[ "${BIN_SHA}" == "${SCRIPT_SHA}" ]] && return
-  [[ ! -z "${BIN_SHA}" ]] && rm "${script_bin}"
-  install_bin
+  rsync "${call_script_file}" "${script_bin}"
+  chown "${SUDO_USER}" "${script_bin}"
+  chmod 755 "${script_bin}"
 }
 
 # --- RECOVERY SYSTEM
@@ -778,7 +787,7 @@ detect_anomalies() {
   echo -e "\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
   if [[ "${dgpu_vendor}" == "NVIDIA" ]]
   then
-    if [[ ${nvidia_enabled} == 1 && -f "${nvdastartupweb_plistpath}" ]]
+    if [[ ${nvidia_enabled} == "1" && -f "${nvdastartupweb_plistpath}" ]]
     then
       echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs."
       echo -e "${bold}Resolution${normal}  Apply patches using ${bold}purge-nvda.sh${normal}."
@@ -862,7 +871,7 @@ present_menu() {
   echo -e "➣  ${bold}PurgeWrangler (${script_ver})${normal}\n
    ➣  ${bold}Patch Manager${normal}     ➣  ${bold}More Options${normal}
    ${bold}1.${normal} Automatic         ${bold}6.${normal} Status
-   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Anomalies
+   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Report
    ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Uninstall
    ${bold}4.${normal} AMD Legacy GPUs   ${bold}9.${normal} Recovery
    ${bold}5.${normal} Ti82 Support      ${bold}D.${normal} Donate
@@ -896,9 +905,9 @@ process_args() {
     -s|--status|6)
     echo -e "\n\n➣ ${bold}Patch Status${normal}\n"
     check_patch_status;;
-    -a|--anomaly-detect|7)
-    echo -e "\n\n➣ ${bold}Anomalies${normal}\n"
-    detect_anomalies;;
+    -rp|--report|7)
+    echo -e "\n\n➣ ${bold}Report${normal}\n"
+    generate_sys_report;;
     -u|--uninstall|8)
     echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
     uninstall -end;;
