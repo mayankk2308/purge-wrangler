@@ -254,8 +254,10 @@ generate_sys_report() {
   local report_dirpath="/Users/${SUDO_USER}/Desktop/PWR-$(date +%Y-%m-%d-%H-%M-%S)"
   mkdir -p "${report_dirpath}"
   detect_discrete_gpu_vendor
+  detect_mac_model
   rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
   $pb -c "Add :SysDiscreteGPU string ${dgpu_vendor}" "${report_dirpath}/PatchState.plist"
+  $pb -c "Add :IsDesktopMac string ${is_desktop_mac}" "${report_dirpath}/PatchState.plist"
   system_profiler -xml SPThunderboltDataType > "${report_dirpath}/ThunderboltDevices.plist"
   zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
   rm -r "${report_dirpath}"
@@ -536,7 +538,7 @@ install_web_drivers() {
   pkgutil --flatten-full "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
   echo -e "Package sanitized.\n${bold}Installing...${normal}"
   local installer_err="$(installer -target "/" -pkg "${installerpkg_path}" 2>&1 1>/dev/null)"
-  [[ -z "${installer_err}" ]] && echo -e "Installation complete.\n" || echo -e "Installation failed."
+  [[ -z "${installer_err}" ]] && echo -e "Installation complete." || echo -e "Installation failed."
   rm -r "${installerpkg_path}" "${installerpkgexpanded_path}"
   rm "${webdriver_plistpath}"
 }
@@ -549,13 +551,16 @@ reset_nvdawebdrv_stats() {
   nvdawebdrv_latest_macosbuild=""
   nvdawebdrv_latest_downloadurl=""
   nvdawebdrv_alreadypresentos=""
+  nvdawebdrv_target_ver=""
+  nvdawebdrv_target_downloadurl=""
   nvdawebdrv_canpatchlatest=3
 }
 
 ### Populate webdriver data
 get_nvdawebdrv_stats() {
   reset_nvdawebdrv_stats
-  echo -e "\n\n${bold}Fetching data...${normal}"
+  nvdawebdrv_target_ver="${1}"
+  echo -e "\n${bold}Fetching data...${normal}"
   [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
   local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${webdriver_data}" ]] && return
@@ -569,6 +574,12 @@ get_nvdawebdrv_stats() {
     currentdriver_downloadurl="$($pb -c "Print :updates:${index}:downloadURL" "${webdriver_plistpath}" 2>/dev/null)"
     currentdriver_ver="$($pb -c "Print :updates:${index}:version" "${webdriver_plistpath}" 2>/dev/null)"
     current_macos_build="$($pb -c "Print :updates:${index}:OS" "${webdriver_plistpath}" 2>/dev/null)"
+    if [[ ! -z "${currentdriver_ver}" && "${nvdawebdrv_target_ver}" == "${currentdriver_ver}" ]]
+    then
+      nvdawebdrv_target_ver="${currentdriver_ver}"
+      nvdawebdrv_target_downloadurl="${currentdriver_downloadurl}"
+      return
+    fi
     if [[ ${index} == 0 ]]
     then
       nvdawebdrv_latest_downloadurl="${currentdriver_downloadurl}"
@@ -634,6 +645,17 @@ run_webdriver_installer() {
   esac
 }
 
+### Install specified version of Web Drivers
+install_ver_spec_webdrv() {
+  echo -e "Specify a ${bold}Webdriver version${normal} to install.\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.261\n"
+  read -p "${bold}Version${normal} [Q]: " userinput
+  [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
+  get_nvdawebdrv_stats "${userinput}"
+  [[ -z "${nvdawebdrv_target_downloadurl}" ]] && echo -e "No driver found for specified version." && return
+  install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}"
+  using_nvdawebdrv=1
+}
+
 ### Run NVIDIA eGPU patcher
 run_patch_nv() {
   if [[ "${1}" == -prompt ]]
@@ -644,7 +666,7 @@ run_patch_nv() {
       webdriver_possibilities "" "" "-already-present" "-prompt"
       using_nvdawebdrv=1
     else
-      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "echo -e \"\n\""
+      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "echo && using_nvdawebdrv=1 && run_webdriver_installer -prompt && echo" "echo -e \"\n\""
     fi
   fi
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
@@ -769,19 +791,21 @@ recover_sys() {
 # Detect discrete GPU vendor
 detect_discrete_gpu_vendor() {
   dgpu_vendor="$(ioreg -n GFX0@0 | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4)"
-  if [[ "${dgpu_vendor}" == "de10" ]]
-  then
-    dgpu_vendor="NVIDIA"
-  elif [[ "${dgpu_vendor}" == "0210" ]]
-  then
-    dgpu_vendor="AMD"
-  else
-    dgpu_vendor="None"
-  fi
+  [[ "${dgpu_vendor}" == "de10" ]] && dgpu_vendor="NVIDIA" && return
+  [[ "${dgpu_vendor}" == "0210" ]] && dgpu_vendor="AMD" && return
+  dgpu_vendor="None"
+}
+
+# Detect Mac Model
+detect_mac_model() {
+  is_desktop_mac=false
+  local model_id="$(system_profiler SPHardwareDataType | awk '/Model Identifier/ {print $3}')"
+  [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
 }
 
 # Anomaly detection
 detect_anomalies() {
+  detect_mac_model
   detect_discrete_gpu_vendor
   echo -e "Anomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches.\n\nPatches made from scripts such as ${bold}purge-nvda.sh${normal}\nare not detected at this time."
   echo -e "\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
@@ -870,13 +894,13 @@ present_menu() {
   clear
   echo -e "➣  ${bold}PurgeWrangler (${script_ver})${normal}\n
    ➣  ${bold}Patch Manager${normal}     ➣  ${bold}More Options${normal}
-   ${bold}1.${normal} Automatic         ${bold}6.${normal} Status
-   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Report
+   ${bold}1.${normal} Automatic         ${bold}6.${normal} Web Drivers
+   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Status
    ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Uninstall
    ${bold}4.${normal} AMD Legacy GPUs   ${bold}9.${normal} Recovery
    ${bold}5.${normal} Ti82 Support      ${bold}D.${normal} Donate
 
-   ${bold}0.${normal}  Quit\n"
+   ${bold}0.${normal} Quit\n"
   read -n1 -p "${bold}What next?${normal} [0-9|D]: " userinput
   process_args "${userinput}"
   yesno_action "${bold}Back to menu?${normal}" "perform_sys_check && present_menu && return" "echo -e \"\n\" && exit"
@@ -902,12 +926,12 @@ process_args() {
     echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
     backup_system
     enable_ti82 -end;;
-    -s|--status|6)
+    -nw|--nvidia-web|6)
+    echo -e "\n\n➣ ${bold}NVIDIA Web Drivers${normal}\n"
+    install_ver_spec_webdrv;;
+    -s|--status|7)
     echo -e "\n\n➣ ${bold}Patch Status${normal}\n"
     check_patch_status;;
-    -rp|--report|7)
-    echo -e "\n\n➣ ${bold}Report${normal}\n"
-    generate_sys_report;;
     -u|--uninstall|8)
     echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
     uninstall -end;;
