@@ -647,12 +647,12 @@ run_webdriver_installer() {
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
-  echo -e "Specify a ${bold}Webdriver version${normal} to install.\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.261\n"
-  read -p "${bold}Version${normal} [Q]: " userinput
+  echo -e "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
+  read -p "${bold}Version${normal} [L|Q]: " userinput
   [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
   get_nvdawebdrv_stats "${userinput}"
-  [[ -z "${nvdawebdrv_target_downloadurl}" ]] && echo -e "No driver found for specified version." && return
-  install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}"
+  [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && echo -e "No driver found for specified version." && return
+  [[ "${userinput}" != "L" ]] && install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}" || install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}"
   using_nvdawebdrv=1
 }
 
@@ -788,7 +788,7 @@ recover_sys() {
 
 # ----- ANOMALY MANAGER
 
-# Detect discrete GPU vendor
+### Detect discrete GPU vendor
 detect_discrete_gpu_vendor() {
   dgpu_vendor="$(ioreg -n GFX0@0 | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4)"
   [[ "${dgpu_vendor}" == "de10" ]] && dgpu_vendor="NVIDIA" && return
@@ -796,51 +796,89 @@ detect_discrete_gpu_vendor() {
   dgpu_vendor="None"
 }
 
-# Detect Mac Model
+### Detect Mac Model
 detect_mac_model() {
   is_desktop_mac=false
   local model_id="$(system_profiler SPHardwareDataType | awk '/Model Identifier/ {print $3}')"
   [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
 }
 
-# Anomaly detection
-detect_anomalies() {
+### Invoke purge-nvda.sh (3.0.5 or later)
+# Check connectivity before attempting
+invoke_purge_nvda() {
+  local purge_nvda_dirpath="/usr/local/bin/purge-nvda"
+  echo -e "${bold}Invoking purge-nvda.sh...${normal}"
+  curl -q -s "https://api.github.com/repos/mayankk2308/purge-nvda/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > "${purge_nvda_dirpath}"
+  chmod +x "${purge_nvda_dirpath}"
+  chown "${SUDO_USER}" "${purge_nvda_dirpath}"
+  purge-nvda "${1}" "${2}" 2>/dev/null 1>&2
+  echo "Anomaly resolution attempted."
+}
+
+### Invoke pmset
+invoke_pmset() {
+  echo -e "${bold}Invoking pmset...${normal}"
+  pmset -a gpuswitch 0 2>/dev/null
+  echo -e "Mux changed to iGPU."
+}
+
+### Compute anomaly states
+anomaly_states() {
   detect_mac_model
   detect_discrete_gpu_vendor
-  echo -e "Anomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches.\n\nPatches made from scripts such as ${bold}purge-nvda.sh${normal}\nare not detected at this time."
-  echo -e "\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
+  will_use_ext_disp=0
+  resolution_needed=0
+  yesno_action "Will you be using an ${bold}external monitor${normal}?" "will_use_ext_disp=1" "will_use_ext_disp=0"
+  [[ ${will_use_ext_disp} == 0 ]] && return
+  [[ ${is_desktop_mac} == 1 ]] && resolution_needed="-1" && return
   if [[ "${dgpu_vendor}" == "NVIDIA" ]]
   then
-    if [[ ${nvidia_enabled} == "1" && -f "${nvdastartupweb_plistpath}" ]]
-    then
-      echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs."
-      echo -e "${bold}Resolution${normal}  Apply patches using ${bold}purge-nvda.sh${normal}."
-      echo -e "\t    This issue cannot be resolved on iMacs."
-    elif [[ ${tbswitch_enabled} == 1 ]]
-    then
-      echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU."
-      echo -e "${bold}Resolution${normal}  Apply patches using ${bold}purge-nvda.sh${normal}."
-      echo -e "\t    This issue cannot be resolved on iMacs."
-    else
-      echo -e "No expected anomalies with current configuration."
-    fi
+    [[ -f "${nvdastartupweb_plistpath}" && ${nvidia_enabled} == 1 ]] && resolution_needed=1 && return
+    [[ ${tbswitch_enabled} == 1 ]] && resolution_needed=2 && return
   elif [[ "${dgpu_vendor}" == "AMD" ]]
   then
-    if [[ ${nvidia_enabled} == 1 ]]
-    then
-      echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU."
-      echo -e "${bold}Resolution${normal}  Disable then re-enable automatic graphics switching,"
-      echo -e "\t    hot-plug eGPU, then log out and log in."
-      echo -e "\t    This issue, if encountered, might only be resolved with\n\t    trial-error or using more advanced mux-based workarounds."
-    elif [[ ${tbswitch_enabled} == 1 ]]
-    then
-      echo -e "No expected anomalies for your system."
-    else
-      echo -e "No expected anomalies with current configuration."
-    fi
-  else
-    echo -e "No expected anomalies with current configuration."
+    [[ ${nvidia_enabled} == 1 ]] && resolution_needed=3 && return
   fi
+}
+
+### Resolve anomalies
+resolve_anomalies() {
+  case "${resolution_needed}" in
+    1)
+    [[ "${1}" == -bypass ]] && invoke_purge_nvda -on -no-rbno-st && return
+    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_purge_nvda -on -no-rb" "echo -e \"\n\nNo action taken.\" && return";;
+    2)
+    [[ "${1}" == -bypass ]] && invoke_purge_nvda -fa -no-rbno-st && return
+    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_purge_nvda -fa -no-rb" "echo -e \"\n\nNo action taken.\" && return";;
+    3)
+    [[ "${1}" == -bypass ]] && invoke_pmset && return
+    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_pmset" "echo -e \"\n\nNo action taken.\" && return";;
+  esac
+}
+
+### Print anomalies, if any
+print_anomalies() {
+  echo -e "\n\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
+  case "${resolution_needed}" in
+    1)
+    echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs."
+    echo -e "${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
+    2)
+    echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU."
+    echo -e "${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
+    3)
+    echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.";;
+    *)
+    [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies found.";;
+  esac
+}
+
+### Anomaly detection
+detect_anomalies() {
+  echo -e "\n\nAnomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
+  anomaly_states
+  print_anomalies
+  resolve_anomalies
 }
 
 # --- USER INTERFACE
@@ -940,6 +978,8 @@ process_args() {
     recover_sys;;
     -d|--donate|D|d)
     donate;;
+    A|a)
+    detect_anomalies;;
     0)
     echo -e "\n" && exit;;
     "")
