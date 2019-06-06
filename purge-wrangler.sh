@@ -7,6 +7,8 @@
 
 # ----- COMMAND LINE ARGS
 
+# trap '' 2
+
 # Setup command args + data
 script="${BASH_SOURCE}"
 option=""
@@ -20,6 +22,10 @@ shopt -s nocasematch
 bold="$(tput bold)"
 normal="$(tput sgr0)"
 underline="$(tput smul)"
+
+# User interface artifacts
+gap=" "
+mark=">>"
 
 # Script binary
 local_bin="/usr/local/bin"
@@ -47,10 +53,16 @@ system_thunderbolt_ver=""
 
 # AppleGPUWrangler references
 hex_thunderboltswitchtype="494F5468756E646572626F6C74537769746368547970653"
+hex_nvda_agw_bypass="494F50434954756E6E656C6C6564"
+hex_nvda_agw_bypass_patch="494F50434954756E6E656C6C6571"
+# hex_nvda_agw_bypass="FF90D0020000418B4C24244885C0740883C90241894C2424"
+# hex_nvda_agw_bypass_patch="FF90D0020000418B4C24244885C07D0883C90241894C2424"
 
 # IOGraphicsFamily references
-hex_iopcitunnelled="494F50434954756E6E656C6C6564"
-hex_iopcitunnelled_patch="494F50434954756E6E656C6C6571"
+hex_nvda_bypass="B9030000004C89FFFF90D00200004885C00F8490000000"
+hex_nvda_bypass_patch="B9030000004C89FFFF90D00200004839C00F8490000000"
+hex_nvda_clamshell="F0810D790A0300000200008B35730A0300"
+hex_nvda_clamshell_patch="F0810D790A0300000000008B35730A0300"
 
 # IOThunderboltFamily references
 hex_skipenum="554889E54157415641554154534881EC2801"
@@ -277,7 +289,7 @@ perform_software_update() {
   rm "${script}" && mv "${tmp_script}" "${script}"
   chown "${SUDO_USER}" "${script}"
   echo -e "Update complete. ${bold}Relaunching...${normal}"
-  "${script}"
+  "${script}" "${option}"
   exit 0
 }
 
@@ -363,7 +375,7 @@ check_patch() {
   [[ "${nvdawebdrv_iopcitunnelcompat}" == "true" ]] && nvdawebdrv_patched=1
   [[ -d "${amdlegacy_kextpath}" ]] && amdlegacy_enabled=1 || amdlegacy_enabled=0
   [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
-  [[ "${hex_iogbin}" =~ "${hex_iopcitunnelled_patch}" ]] && nvidia_enabled=1 || nvidia_enabled=0
+  [[ "${hex_iogbin}" =~ "${hex_nvda_bypass_patch}" ]] && nvidia_enabled=1 || nvidia_enabled=0
   [[ "${hex_iotfambin}" =~ "${hex_skipenum_patch}" ]] && ti82_enabled=1 || ti82_enabled=0
   [[ ${tbswitch_enabled} == "1" || ${ti82_enabled} == "1" || ${nvidia_enabled} == "1" ]] && binpatch_enabled=1
 }
@@ -680,8 +692,10 @@ run_patch_nv() {
   fi
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
-  patch_binary "${agw_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
-  patch_binary "${iog_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
+  # patch_binary "${agw_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
+  patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass}" "${hex_nvda_agw_bypass_patch}"
+  patch_binary "${iog_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
+  patch_binary "${iog_binpath}" "${hex_nvda_clamshell}" "${hex_nvda_clamshell_patch}"
   create_patched_binary "${agw_binpath}"
   create_patched_binary "${iog_binpath}"
   modify_plist "${iondrv_plistpath}" "Add" "${set_iognvda_pcitunnelled}" "true"
@@ -728,8 +742,10 @@ uninstall() {
   if [[ ${nvidia_enabled} == 1 ]]
   then
     create_hexrepresentation "${iog_binpath}"
-    patch_binary "${iog_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
-    patch_binary "${agw_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
+    patch_binary "${iog_binpath}" "${hex_nvda_bypass_patch}" "${hex_nvda_bypass}"
+    patch_binary "${iog_binpath}" "${hex_nvda_clamshell_patch}" "${hex_nvda_clamshell}"
+    patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass_patch}" "${hex_nvda_agw_bypass}"
+    # patch_binary "${agw_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
     create_patched_binary "${iog_binpath}"
     modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
     modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
@@ -927,68 +943,63 @@ show_update_prompt() {
   notify "PurgeWrangler eGPU patches have been reset because macOS was updated. Would you like to re-enable patches?"
 }
 
-### Script menu
-present_menu() {
-  clear
-  echo -e "➣  ${bold}PurgeWrangler (${script_ver})${normal}\n
-   ➣  ${bold}Patch Manager${normal}     ➣  ${bold}More Options${normal}
-   ${bold}1.${normal} Automatic         ${bold}6.${normal} Web Drivers
-   ${bold}2.${normal} AMD eGPUs         ${bold}7.${normal} Status
-   ${bold}3.${normal} NVIDIA eGPUs      ${bold}8.${normal} Uninstall
-   ${bold}4.${normal} AMD Legacy GPUs   ${bold}9.${normal} Recovery
-   ${bold}5.${normal} Ti82 Support      ${bold}D.${normal} Donate
-
-   ${bold}0.${normal} Quit\n"
-  read -n1 -p "${bold}What next?${normal} [0-9|D]: " userinput
-  process_args "${userinput}"
-  yesno_action "${bold}Back to menu?${normal}" "perform_sys_check && present_menu && return" "echo -e \"\n\" && exit"
+### Generalized args processor
+autoprocess_args() {
+  local choice="${1}" && shift
+  local caller="${2}" && shift
+  local actions=("${@}")
+  if [[ ${choice} =~ ^[0-9]+$ && (( ${choice} > 0 && ${choice} < ${#actions[@]} )) ]]
+  then
+    eval "${actions[(( ${choice} - 1 ))]}"
+    return
+  fi
+  echo -e "\n\nInvalid choice."
+  return
 }
 
-### Process user input
-process_args() {
-  case "${1}" in
-    -a|--auto|1)
-    echo;;
-    -ea|--enable-amd|2)
-    echo -e "\n\n➣ ${bold}AMD eGPUs${normal}\n"
-    backup_system
-    patch_tb -end;;
-    -en|--enable-nv|3)
-    echo -e "\n\n➣ ${bold}NVIDIA eGPUs${normal}\n"
-    backup_system
-    patch_nv -prompt -end;;
-    -al|--amd-legacy|4)
-    echo -e "\n\n➣ ${bold}AMD Legacy GPUs${normal}\n"
-    install_amd_legacy_kext -end;;
-    -t8|--ti82|5)
-    echo -e "\n\n➣ ${bold}Ti82 Support${normal}\n"
-    backup_system
-    enable_ti82 -end;;
-    -nw|--nvidia-web|6)
-    echo -e "\n\n➣ ${bold}NVIDIA Web Drivers${normal}\n"
-    install_ver_spec_webdrv;;
-    -s|--status|7)
-    echo -e "\n\n➣ ${bold}Patch Status${normal}\n"
-    check_patch_status;;
-    -u|--uninstall|8)
-    echo -e "\n\n➣ ${bold}Uninstall${normal}\n"
-    uninstall -end;;
-    -r|--recover|9)
-    echo -e "\n\n➣ ${bold}Recovery${normal}\n"
-    recover_sys;;
-    -d|--donate|D|d)
-    donate;;
-    A|a)
-    detect_anomalies;;
-    0)
-    echo -e "\n" && exit;;
-    "")
-    fetch_latest_release
-    first_time_setup
-    present_menu;;
-    *)
-    echo -e "\n\nInvalid option.";;
-  esac
+### Generalized input request
+autoprocess_input() {
+  local message="${1}" && shift
+  local caller="${1}" && shift
+  local prompt_back="${1}" && shift
+  local actions=("${@}")
+  local readonce="-n1"
+  (( ${#actions[@]} > 9 )) && readonce=""
+  read ${readonce} -p "${bold}${message}${normal} [1-${#actions[@]}]: " userinput
+  autoprocess_args "${userinput}" "${caller}" "${actions[@]}"
+  [[ "${prompt_back}" == true ]] && yesno_action "${bold}Back to menu?${normal}" "${caller}" "echo && exit"
+}
+
+### Generalized menu generator
+generate_menu() {
+  local header="${1}" && shift
+  local respond="${1}" && shift
+  local indent_level="${1}" && shift
+  local gap_after="${1}" && shift
+  local items=("${@}")
+  local indent=""
+  for (( i = 0; i < ${indent_level}; i++ ))
+  do
+    indent="${indent} "
+  done
+  clear
+  echo -e "${indent}${mark}${gap}${bold}${header}${normal}\n"
+  for (( i = 0; i < ${#items[@]}; i++ ))
+  do
+    num=$(( i + 1 ))
+    echo -e "${indent}${gap}${bold}${num}.${normal} ${items[${i}]}"
+    (( ${num} == ${gap_after} )) && echo
+  done
+  echo
+}
+
+### Script menu
+present_menu() {
+  perform_sys_check
+  menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
+  menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "echo" "donate" "echo && exit")
+  generate_menu "PurgeWrangler (${script_ver})" "process_args" "0" "4" "${menu_items[@]}"
+  autoprocess_input "What next?" "present_menu" "true" "${menu_actions[@]}"
 }
 
 # --- SCRIPT DRIVER
