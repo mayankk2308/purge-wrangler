@@ -973,7 +973,6 @@ autoprocess_input() {
 ### Generalized menu generator
 generate_menu() {
   local header="${1}" && shift
-  local respond="${1}" && shift
   local indent_level="${1}" && shift
   local gap_after="${1}" && shift
   local items=("${@}")
@@ -996,9 +995,9 @@ generate_menu() {
 ### Script menu
 present_menu() {
   perform_sys_check
-  menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
-  menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "echo" "donate" "echo && exit")
-  generate_menu "PurgeWrangler (${script_ver})" "process_args" "0" "4" "${menu_items[@]}"
+  local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
+  local menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "echo" "donate" "echo && exit")
+  generate_menu "PurgeWrangler (${script_ver})" "0" "4" "${menu_items[@]}"
   autoprocess_input "What next?" "present_menu" "true" "${menu_actions[@]}"
 }
 
@@ -1009,7 +1008,7 @@ begin() {
   [[ "${2}" == "--on-launch-check" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
-  process_args "${2}"
+  present_menu
 }
 
 begin "${0}" "${1}"
