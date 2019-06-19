@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 5.1.2
+# Version: 5.1.3
 
 # ----- COMMAND LINE ARGS
 
@@ -26,7 +26,7 @@ BIN_CALL=0
 SCRIPT_FILE=""
 
 # Script version
-SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="2"
+SCRIPT_MAJOR_VER="5" && SCRIPT_MINOR_VER="1" && SCRIPT_PATCH_VER="3"
 SCRIPT_VER="${SCRIPT_MAJOR_VER}.${SCRIPT_MINOR_VER}.${SCRIPT_PATCH_VER}"
 
 # Script preference plist
@@ -318,6 +318,23 @@ check_sys_extensions() {
   [[ ! -s "${AGC_PATH}" || ! -s "${AGW_BIN}" || ! -s "${IONDRV_PATH}" || ! -s "${IOG_BIN}" || ! -s "${IOT_FAM}" || ! -s "${IOT_BIN}" ]] && echo -e "\nSystem could be unbootable. Consider ${BOLD}macOS Recovery${NORMAL}.\n" && sleep 1
 }
 
+# Check if system volume is writable - attempt mount as writable
+SYS_VOL_MOUNT_ATTEMPT=0
+check_sys_volume() {
+  if [[ ! -w "${EXT_PATH}" ]]
+  then
+    if [[ ${SYS_VOL_MOUNT_ATTEMPT} == 0 ]]
+    then
+      mount -uw / 2>/dev/null 1>&2
+      SYS_VOL_MOUNT_ATTEMPT=1
+      check_sys_volume
+      return
+    fi
+    echo -e "\nYour system volume is ${BOLD}read-only${NORMAL}. PurgeWrangler cannot proceed.\n"
+    exit
+  fi
+}
+
 # Retrieve thunderbolt version
 retrieve_tb_ver() {
   TB_VER="$(ioreg | grep AppleThunderboltNHIType)"
@@ -355,6 +372,7 @@ perform_sys_check() {
   check_macos_version
   retrieve_tb_ver
   elevate_privileges
+  check_sys_volume
   prepare_preferences
   check_sys_extensions
   check_patch
