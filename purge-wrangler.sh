@@ -260,23 +260,6 @@ create_launchagent() {
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
-### System report generation
-generate_sys_report() {
-  echo -e "${bold}Generating report...${normal}"
-  local report_dirpath="/Users/${SUDO_USER}/Desktop/PWR-$(date +%Y-%m-%d-%H-%M-%S)"
-  mkdir -p "${report_dirpath}"
-  detect_discrete_gpu_vendor
-  detect_mac_model
-  rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
-  $pb -c "Add :SysDiscreteGPU string ${dgpu_vendor}" "${report_dirpath}/PatchState.plist"
-  $pb -c "Add :IsDesktopMac string ${is_desktop_mac}" "${report_dirpath}/PatchState.plist"
-  system_profiler -xml SPThunderboltDataType > "${report_dirpath}/ThunderboltDevices.plist"
-  zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
-  rm -r "${report_dirpath}"
-  chown "${SUDO_USER}" "${report_dirpath}.zip"
-  echo -e "Report generated on the Desktop."
-}
-
 # --- SCRIPT SOFTWARE UPDATE SYSTEM
 
 ### Perform software update
@@ -333,6 +316,23 @@ check_sip() {
   if [[ ! -z "$(csrutil status | grep -i enabled)" ]]
   then
     echo -e "\nPlease disable ${bold}System Integrity Protection${normal}.\n"
+    exit
+  fi
+}
+
+### Check if system volume is writable
+mount_attempt=0
+check_sys_volume() {
+  if [[ ! -w "${sysextensions_path}" ]]
+  then
+    if [[ ${mount_attempt} == 0 ]]
+    then
+      mount -uw / 2>/dev/null 1>&2
+      mount_attempt=1
+      check_sys_volume
+      return
+    fi
+    echo -e "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
     exit
   fi
 }
@@ -397,6 +397,7 @@ perform_sys_check() {
   check_macos_version
   retrieve_tb_ver
   elevate_privileges
+  check_sys_volume
   check_sys_extensions
   check_patch
   deprecate_manifest
@@ -948,7 +949,7 @@ autoprocess_args() {
   local choice="${1}" && shift
   local caller="${2}" && shift
   local actions=("${@}")
-  if [[ ${choice} =~ ^[0-9]+$ && (( ${choice} > 0 && ${choice} < ${#actions[@]} )) ]]
+  if [[ ${choice} =~ ^[0-9]+$ && (( ${choice} > 0 && ${choice} -le ${#actions[@]} )) ]]
   then
     eval "${actions[(( ${choice} - 1 ))]}"
     return

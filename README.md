@@ -18,7 +18,7 @@
 ## Installation
 Install using **Terminal**:
 ```bash
-curl -qLs "https://bit.ly/2WtIESm" | awk '/browser_download_url/ { print $2 }' | tr -d '"' | xargs curl -qLs > purge-wrangler.sh && bash purge-wrangler.sh && rm purge-wrangler.sh
+curl -qLs https://bit.ly/2WtIESm | awk -F'"' '/browser_download_url/{print $4}' | xargs curl -qLs > purge-wrangler && bash purge-wrangler && rm purge-wrangler
 ```
 
 Future use:
@@ -28,10 +28,10 @@ purge-wrangler
 
 Re-use the full installation command if the shortcut fails to function. **purge-wrangler.sh** requires [administrator privileges](https://support.apple.com/en-us/HT202035) to function.
 
-### About NVIDIA Setups
+#### For NVIDIA eGPUs
 If you plan on using a **non-Kepler** NVIDIA eGPU, **check for compatibility first**:
 ```bash
-curl -q -s https://raw.githubusercontent.com/mayankk2308/purge-wrangler/master/resources/webdrv-release.sh | bash
+curl -qLs https://bit.ly/2Z63Cn0 | bash
 ```
 It is best to follow recommendations as advised in the script.
 
