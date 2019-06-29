@@ -6,10 +6,10 @@ about: Report issues with the script.
 
 ### System Configuration
 Describe your system configuration here. State any anomalies (USB drives, etc.) involved as well.
-- Mac: MacBook Pro 15" Mid-2014, Mac Mini Mid-2018, etc.
-- macOS Version: 10.13.4, 10.14.5, etc.
-- System GPUs: Intel Iris & NVIDIA GT 750M, etc.
-- eGPU: Sonnet Breakaway 650 + RX Vega 64, etc.
+- **Mac**: MacBook Pro 15" Mid-2014, Mac Mini Mid-2018, etc.
+- **macOS Version**: 10.13.4, 10.14.5, etc.
+- **System GPUs**: Intel Iris & NVIDIA GT 750M, etc.
+- **eGPU**: Sonnet Breakaway 650 + RX Vega 64, etc.
 
 ### Issue Description
 Describe your problem. Does it occur every time?
