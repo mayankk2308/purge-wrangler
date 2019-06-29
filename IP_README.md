@@ -42,7 +42,8 @@ It is best to follow recommendations as advised in the script.
 | Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
 | Recovery | `-r` | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
 | System Status | `-s` | Shows the current status of some of the components of the system and the any modifications made using the script. |
-| Donate | `-d` | Launches the default web browser with the set donation link - essentially the same as the **PayPal** button on this page. |
+
+Running without arguments launches the menu.
 
 ## Recovery
 If you are unable to boot into macOS, boot while pressing **⌘ + S**, then enter the following commands:

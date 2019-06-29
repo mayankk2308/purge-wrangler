@@ -147,6 +147,7 @@ webdriver_plistpath="/usr/local/bin/webdriver.plist"
 using_nvdawebdrv=0
 
 # --- SCRIPT HELPERs
+niceexit="echo && exit"
 
 ## -- User Interface
 
@@ -349,7 +350,7 @@ check_sys_extensions() {
   if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
   then
     echo -e "\nUnexpected system configuration or missing files."
-    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "echo && exit"
+    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "${niceexit}"
     echo
     exit
   fi
@@ -382,6 +383,7 @@ check_patch() {
 
 ### Display patch statuses
 check_patch_status() {
+  echo -e "\n>> ${bold}System Status${normal}\n"
   local status=("Disabled" "Enabled" "Unknown")
   local drv_status=("Clean" "Patched" "Absent")
   echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
@@ -478,6 +480,7 @@ end_binary_modifications() {
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
+  echo -e "\n>> ${bold}AMD Legacy Support${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
@@ -496,6 +499,7 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
+  echo -e "\n>> ${bold}Enable Ti82 Support${normal}\n"
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
   create_hexrepresentation "${iotfam_binpath}"
@@ -551,7 +555,7 @@ install_web_drivers() {
   pkgutil --flatten-full "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
   echo -e "Package sanitized.\n${bold}Installing...${normal}"
   local installer_err="$(installer -target "/" -pkg "${installerpkg_path}" 2>&1 1>/dev/null)"
-  [[ -z "${installer_err}" ]] && echo -e "Installation complete." || echo -e "Installation failed."
+  [[ -e "${nvdastartupweb_kextpath}" ]] && echo -e "Installation complete." || echo -e "Installation failed."
   rm -r "${installerpkg_path}" "${installerpkgexpanded_path}"
   rm "${webdriver_plistpath}"
 }
@@ -660,6 +664,7 @@ run_webdriver_installer() {
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
+  echo -e "\n>> ${bold}Install NVIDIA Web Drivers${normal}\n"
   echo -e "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
   [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
@@ -693,7 +698,6 @@ run_patch_nv() {
   fi
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
-  # patch_binary "${agw_binpath}" "${hex_iopcitunnelled}" "${hex_iopcitunnelled_patch}"
   patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass}" "${hex_nvda_agw_bypass_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_clamshell}" "${hex_nvda_clamshell_patch}"
@@ -727,6 +731,7 @@ run_webdriver_uninstaller() {
 
 ### In-place re-patcher
 uninstall() {
+  echo -e "\n>> ${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
@@ -746,7 +751,6 @@ uninstall() {
     patch_binary "${iog_binpath}" "${hex_nvda_bypass_patch}" "${hex_nvda_bypass}"
     patch_binary "${iog_binpath}" "${hex_nvda_clamshell_patch}" "${hex_nvda_clamshell}"
     patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass_patch}" "${hex_nvda_agw_bypass}"
-    # patch_binary "${agw_binpath}" "${hex_iopcitunnelled_patch}" "${hex_iopcitunnelled}"
     create_patched_binary "${iog_binpath}"
     modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
     modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
@@ -754,7 +758,7 @@ uninstall() {
   fi
   create_patched_binary "${agw_binpath}"
   echo -e "Binaries reverted."
-  [[ "${1}" == -end ]] && end_binary_modifications "Uninstallation Complete." -no-agent
+  end_binary_modifications "Uninstallation Complete." -no-agent
 }
 
 # ----- BINARY MANAGER
@@ -764,10 +768,10 @@ first_time_setup() {
   [[ $is_bin_call == 1 ]] && return
   call_script_file="$(pwd)/$(echo -e "${script}")"
   [[ "${script}" == "${0}" ]] && call_script_file="$(echo -e "${call_script_file}" | cut -c 1-)"
-  SCRIPT_SHA="$(shasum -a 512 -b "${call_script_file}" | awk '{ print $1 }')"
-  BIN_SHA=""
-  [[ -s "${script_bin}" ]] && BIN_SHA="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
-  [[ "${BIN_SHA}" == "${SCRIPT_SHA}" ]] && return
+  script_sha="$(shasum -a 512 -b "${call_script_file}" | awk '{ print $1 }')"
+  bin_sha=""
+  [[ -s "${script_bin}" ]] && bin_sha="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
+  [[ "${bin_sha}" == "${script_sha}" ]] && return
   rsync "${call_script_file}" "${script_bin}"
   chown "${SUDO_USER}" "${script_bin}"
   chmod 755 "${script_bin}"
@@ -788,6 +792,7 @@ perform_recovery() {
 
 ### Recovery logic
 recover_sys() {
+  echo -e "\n>> ${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -892,7 +897,8 @@ print_anomalies() {
 
 ### Anomaly detection
 detect_anomalies() {
-  echo -e "\n\nAnomaly Detection will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
+  echo -e "\n>> ${bold}System Diagnosis${normal}\n"
+  echo -e "Diagnosis will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
   anomaly_states
   print_anomalies
   resolve_anomalies
@@ -951,6 +957,7 @@ autoprocess_args() {
   local actions=("${@}")
   if [[ ${choice} =~ ^[0-9]+$ && (( ${choice} > 0 && ${choice} -le ${#actions[@]} )) ]]
   then
+    echo
     eval "${actions[(( ${choice} - 1 ))]}"
     return
   fi
@@ -962,13 +969,14 @@ autoprocess_args() {
 autoprocess_input() {
   local message="${1}" && shift
   local caller="${1}" && shift
+  local exit_action="${1}" && shift
   local prompt_back="${1}" && shift
   local actions=("${@}")
   local readonce="-n1"
   (( ${#actions[@]} > 9 )) && readonce=""
   read ${readonce} -p "${bold}${message}${normal} [1-${#actions[@]}]: " userinput
   autoprocess_args "${userinput}" "${caller}" "${actions[@]}"
-  [[ "${prompt_back}" == true ]] && yesno_action "${bold}Back to menu?${normal}" "${caller}" "echo && exit"
+  [[ "${prompt_back}" == true ]] && yesno_action "${bold}Back to menu?${normal}" "${caller}" "${exit_action}"
 }
 
 ### Generalized menu generator
@@ -993,13 +1001,31 @@ generate_menu() {
   echo
 }
 
+### Args processor
+process_cli_args() {
+  case "${1}" in
+    -a) echo;;
+    -u) uninstall && echo;;
+    -r) recover_sys && echo;;
+    -s) check_patch_status && echo;;
+    *) first_time_setup && present_menu;;
+  esac
+}
+
+### Present more options
+present_more_options_menu() {
+  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Back")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "present_menu")
+  generate_menu "More Options" "0" "-1" "${menu_items[@]}"
+  autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
+}
+
 ### Script menu
 present_menu() {
-  perform_sys_check
   local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
-  local menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "echo" "donate" "echo && exit")
+  local menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "${niceexit}")
   generate_menu "PurgeWrangler (${script_ver})" "0" "4" "${menu_items[@]}"
-  autoprocess_input "What next?" "present_menu" "true" "${menu_actions[@]}"
+  autoprocess_input "What next?" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
 }
 
 # --- SCRIPT DRIVER
@@ -1009,7 +1035,7 @@ begin() {
   [[ "${2}" == "--on-launch-check" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
-  present_menu
+  process_cli_args "${option}"
 }
 
 begin "${0}" "${1}"
