@@ -931,10 +931,10 @@ detect_mac_model() {
 invoke_purge_nvda() {
   local purge_nvda_dirpath="/usr/local/bin/purge-nvda"
   echo -e "${bold}Invoking purge-nvda.sh...${normal}"
-  curl -q -s "https://api.github.com/repos/mayankk2308/purge-nvda/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > "${purge_nvda_dirpath}"
+  curl -qs "https://api.github.com/repos/mayankk2308/purge-nvda/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > "${purge_nvda_dirpath}"
   chmod +x "${purge_nvda_dirpath}"
   chown "${SUDO_USER}" "${purge_nvda_dirpath}"
-  purge-nvda "${1}" "${2}" 2>/dev/null 1>&2
+  "${purge_nvda_dirpath}" "${1}" "${2}" 2>/dev/null 1>&2
   echo "Anomaly resolution attempted."
 }
 
