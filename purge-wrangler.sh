@@ -729,6 +729,71 @@ run_webdriver_uninstaller() {
   echo -e "Drivers uninstalled.\nIf in ${bold}Single User Mode${normal}, driver only deactivated." && return
 }
 
+### Retrieve eGPU name
+get_egpu_name() {
+  local id="${1}"
+  local vendor="${2}"
+  local device_names="$(curl -s "http://pci-ids.ucw.cz/read/PC/${vendor}/${id}" | grep -i "itemname" | sed -E "s/.*Name\: (.*)$/\1/")"
+  local device_name="$(echo "${device_names}" | tail -1 | cut -d '[' -f2)"
+  local egpu_arch="$(echo "${device_names}" | tail -1 | cut -d '[' -f1)"
+  if [[ ! -z "${device_name}" ]]
+  then
+    echo "${device_name%?}:${egpu_arch}"
+  else
+    [[ ${vendor} == "10de" ]] && echo "NVIDIA"
+    [[ ${vendor} == "1002" ]] && echo "AMD"
+  fi
+}
+
+### Retrieve Ti82 need
+get_ti82_need() {
+  local ti82_data="$(system_profiler SPThunderboltDataType | grep -i unsupported)"
+  [[ -z ${ti82_data} ]] && echo "No" || echo "Yes"
+}
+
+### Detect eGPU
+detect_egpu() {
+  echo -e "${bold}Plug In eGPU${normal}. Press ESC to skip detection.\n"
+  IFS=''
+  for (( i = 30; i > 0; i-- ))
+  do
+    echo -ne "\033[2K\r"
+    printf "${bold}Waiting for eGPU...${normal}"
+    local ioreg_info="$(ioreg -n display@0)"
+    egpu_vendor=$(echo "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
+    local egpu_dev_id=$(echo "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
+    read -r -s -n 1 -t 1 key
+    if [[ ! -z "${egpu_vendor}" ]]
+    then
+      local name_data="$(get_egpu_name "${egpu_dev_id}" "${egpu_vendor}")"
+      egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
+      egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
+      needs_ti82="$(get_ti82_need)"
+      echo -ne "\033[2K\r"
+      echo -e "${bold}External GPU${normal}" "\t${egpu_name}"
+      echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
+      echo -e "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
+      echo -e "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
+      return
+    fi
+    if [ "${key}" == $'\e' ]
+    then
+      echo -ne "\033[2K\r"
+      echo -e "eGPU detection skipped. Please provide more information."
+      return
+    fi
+  done
+  echo -ne "\033[2K\r"
+  echo -e "Detection failed. Please provide more information."
+}
+
+### Automatic eGPU setup
+auto_setup_egpu() {
+  echo -e "\n>> ${bold}Setup eGPU${normal}\n"
+  [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && echo "System has previously been modified. Uninstall first." && return
+  detect_egpu
+}
+
 ### In-place re-patcher
 uninstall() {
   echo -e "\n>> ${bold}Uninstall${normal}\n"
@@ -909,7 +974,7 @@ detect_anomalies() {
 ### Request donation
 donate() {
   open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
-  echo -e "\n\nSee your ${bold}web browser${normal}."
+  echo -e "\nSee your ${bold}web browser${normal}."
 }
 
 ### Notify
@@ -1004,7 +1069,7 @@ generate_menu() {
 ### Args processor
 process_cli_args() {
   case "${1}" in
-    -a) echo;;
+    -a) auto_setup_egpu && echo;;
     -u) uninstall && echo;;
     -r) recover_sys && echo;;
     -s) check_patch_status && echo;;
@@ -1023,7 +1088,7 @@ present_more_options_menu() {
 ### Script menu
 present_menu() {
   local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
-  local menu_actions=("echo" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "${niceexit}")
+  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "${niceexit}")
   generate_menu "PurgeWrangler (${script_ver})" "0" "4" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
 }
@@ -1035,6 +1100,7 @@ begin() {
   [[ "${2}" == "--on-launch-check" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
+  fetch_latest_release
   process_cli_args "${option}"
 }
 
