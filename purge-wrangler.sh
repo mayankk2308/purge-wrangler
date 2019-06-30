@@ -479,7 +479,7 @@ end_binary_modifications() {
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
-  echo -e "\n${mark}${gap}${bold}AMD Legacy Support${normal}\n"
+  [[ "${1}" == -end ]] && echo -e "\n${mark}${gap}${bold}AMD Legacy Support${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
@@ -498,7 +498,7 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  echo -e "\n${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
+  [[ "${1}" == -end ]] && echo -e "\n${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
   create_hexrepresentation "${iotfam_binpath}"
@@ -519,8 +519,8 @@ patch_tb() {
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
-  echo -e "Components patched."
-  [[ "${1}" == -end ]] && end_binary_modifications "Patch complete."
+  echo -e "Patches applied."
+  [[ "${1}" == -end ]] && end_binary_modifications "Modifications complete."
 }
 
 ### Download and install NVIDIA Web Drivers
@@ -576,7 +576,7 @@ reset_nvdawebdrv_stats() {
 get_nvdawebdrv_stats() {
   reset_nvdawebdrv_stats
   nvdawebdrv_target_ver="${1}"
-  echo -e "\n${bold}Fetching data...${normal}"
+  echo -e "\n${bold}Fetching driver information...${normal}"
   [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
   local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${webdriver_data}" ]] && return
@@ -620,7 +620,7 @@ get_nvdawebdrv_stats() {
     nvdawebdrv_lastcompatible_ver="${currentdriver_ver}"
     nvdawebdrv_lastcompatible_downloadurl="${currentdriver_downloadurl}"
   fi
-  echo -e "Data retrieved."
+  echo -e "Information fetched."
 }
 
 ### Patch NVIDIA Web Driver version
@@ -689,7 +689,7 @@ run_patch_nv() {
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
   if (( ${using_nvdawebdrv} == 1 ))
   then
-    [[ ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} requested, but not installed." && return
+    [[ ! -f "${nvdastartupweb_plistpath}" ]] && echo -e "${bold}NVIDIA Web Drivers${normal} required, but not installed." && return
     nvram nvda_drv=1
   else
     nvram -d nvda_drv 2>/dev/null
@@ -706,7 +706,8 @@ run_patch_nv() {
   modify_plist "${nvdastartupplist_topatch}" "Add" "${set_nvdastartup_pcitunnelled}" "true"
   rm -r "${deprecated_automate_egpu_kextpath}" 2>/dev/null 1>&2
   rm -r "${deprecated_nvsolution_kextpath}" 2>/dev/null 1>&2
-  [[ "${2}" == -end ]] && end_binary_modifications "Patch complete."
+  echo -e "Patches applied."
+  [[ "${2}" == -end ]] && end_binary_modifications "Modifications complete."
 }
 
 ### Patch for NVIDIA eGPUs
@@ -767,6 +768,8 @@ detect_egpu() {
     read -r -s -n 1 -t 1 key
     if [[ ! -z "${egpu_vendor}" ]]
     then
+      legacy_amd_needed=0
+      webdrv_needed=0
       local name_data="$(get_egpu_name "${egpu_dev_id}" "${egpu_vendor}")"
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
@@ -805,20 +808,20 @@ auto_setup_egpu() {
   detect_egpu
   if [[ "${egpu_vendor}" == "1002" ]]
   then
-    [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext
+    [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext
     echo && patch_tb
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
-    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer
+    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1
     echo && patch_nv
   else
     manual_setup_egpu && return
   fi
-  [[ ${needs_ti82} == "Yes" ]] && echo "${bold}Enabling Ti82 support...${normal}" && enable_ti82 1>/dev/null
+  [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
   check_patch
   if [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]]
   then
-    echo -e "${bold}Resolving potential anomalies...${normal}"
+    echo -e "\n${bold}Resolving potential anomalies...${normal}"
     anomaly_states
     echo -e "\n"
     resolve_anomalies -bypass
@@ -831,6 +834,7 @@ uninstall() {
   echo -e "\n${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
+  pmset -a gpuswitch 0 2>/dev/null
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
   echo -e "${bold}Reverting binaries...${normal}"
@@ -892,6 +896,7 @@ recover_sys() {
   echo -e "\n${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
+  pmset -a gpuswitch 2 2>/dev/null
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
   if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
