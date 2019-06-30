@@ -55,12 +55,10 @@ system_thunderbolt_ver=""
 hex_thunderboltswitchtype="494F5468756E646572626F6C74537769746368547970653"
 hex_nvda_agw_bypass="494F50434954756E6E656C6C6564"
 hex_nvda_agw_bypass_patch="494F50434954756E6E656C6C6571"
-# hex_nvda_agw_bypass="FF90D0020000418B4C24244885C0740883C90241894C2424"
-# hex_nvda_agw_bypass_patch="FF90D0020000418B4C24244885C07D0883C90241894C2424"
 
 # IOGraphicsFamily references
-hex_nvda_bypass="B9030000004C89FFFF90D00200004885C00F8490000000"
-hex_nvda_bypass_patch="B9030000004C89FFFF90D00200004839C00F8490000000"
+hex_nvda_bypass="494F50434954756E6E656C6C6564"
+hex_nvda_bypass_patch="494F50434954756E6E656C6C6571"
 hex_nvda_clamshell="F0810D790A0300000200008B35730A0300"
 hex_nvda_clamshell_patch="F0810D790A0300000000008B35730A0300"
 
@@ -289,7 +287,7 @@ fetch_latest_release() {
   latest_patch_ver="$(echo -e "${latest_release_ver}" | cut -d '.' -f3)"
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
-    echo -e "\n>> ${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
+    echo -e "\n${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
     yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n\n${bold}Proceeding without updating...${normal}\""
   fi
 }
@@ -362,6 +360,7 @@ retrieve_tb_ver() {
   tb_type="${tb_type##*+-o AppleThunderboltNHIType}"
   tb_type="${tb_type::1}"
   system_thunderbolt_ver="${hex_thunderboltswitchtype}${tb_type}"
+  [[ ${tb_type} != 3 ]] && tb_needed=1 || tb_needed=0
 }
 
 ### Retrieve patch status
@@ -383,7 +382,7 @@ check_patch() {
 
 ### Display patch statuses
 check_patch_status() {
-  echo -e "\n>> ${bold}System Status${normal}\n"
+  echo -e "\n${mark}${gap}${bold}System Status${normal}\n"
   local status=("Disabled" "Enabled" "Unknown")
   local drv_status=("Clean" "Patched" "Absent")
   echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
@@ -480,7 +479,7 @@ end_binary_modifications() {
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
-  echo -e "\n>> ${bold}AMD Legacy Support${normal}\n"
+  echo -e "\n${mark}${gap}${bold}AMD Legacy Support${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
@@ -499,7 +498,7 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  echo -e "\n>> ${bold}Enable Ti82 Support${normal}\n"
+  echo -e "\n${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
   create_hexrepresentation "${iotfam_binpath}"
@@ -664,7 +663,7 @@ run_webdriver_installer() {
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
-  echo -e "\n>> ${bold}Install NVIDIA Web Drivers${normal}\n"
+  echo -e "\n${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
   echo -e "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
   [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
@@ -739,6 +738,8 @@ get_egpu_name() {
   if [[ ! -z "${device_name}" ]]
   then
     echo "${device_name%?}:${egpu_arch}"
+    [[ "${device_name}" =~ "Vega" || "${device_name}" =~ "Baffin" || "${device_name}" =~ "Ellesmere" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
+    [[ "${device_name}" =~ "GM" || "${device_name}" =~ "GP" ]] && webdrv_needed=1 || webdrv_needed=0
   else
     [[ ${vendor} == "10de" ]] && echo "NVIDIA"
     [[ ${vendor} == "1002" ]] && echo "AMD"
@@ -753,7 +754,7 @@ get_ti82_need() {
 
 ### Detect eGPU
 detect_egpu() {
-  echo -e "${bold}Plug In eGPU${normal}. Press ESC to skip detection.\n"
+  echo -e "${bold}Plug-in eGPU${normal}. Press ESC if you are not plugging in eGPU.\n"
   IFS=''
   for (( i = 30; i > 0; i-- ))
   do
@@ -762,6 +763,7 @@ detect_egpu() {
     local ioreg_info="$(ioreg -n display@0)"
     egpu_vendor=$(echo "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
     local egpu_dev_id=$(echo "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
+    local key=""
     read -r -s -n 1 -t 1 key
     if [[ ! -z "${egpu_vendor}" ]]
     then
@@ -787,16 +789,46 @@ detect_egpu() {
   echo -e "Detection failed. Please provide more information."
 }
 
+### Manual eGPU setup
+manual_setup_egpu() {
+  echo
+  local menu_items=("AMD" "NVIDIA" "Cancel")
+  local menu_actions=("echo && patch_tb -end" "echo && patch_nv -prompt -end" "present_menu")
+  generate_menu "Select GPU Vendor" "0" "-1" "0" "${menu_items[@]}"
+  autoprocess_input "Choice" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
+}
+
 ### Automatic eGPU setup
 auto_setup_egpu() {
-  echo -e "\n>> ${bold}Setup eGPU${normal}\n"
+  echo -e "\n${mark}${gap}${bold}Setup eGPU${normal}\n"
   [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && echo "System has previously been modified. Uninstall first." && return
   detect_egpu
+  if [[ "${egpu_vendor}" == "1002" ]]
+  then
+    [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext
+    echo && patch_tb
+  elif [[ "${egpu_vendor}" == "10de" ]]
+  then
+    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer
+    echo && patch_nv
+  else
+    manual_setup_egpu && return
+  fi
+  [[ ${needs_ti82} == "Yes" ]] && echo "${bold}Enabling Ti82 support...${normal}" && enable_ti82 1>/dev/null
+  check_patch
+  if [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]]
+  then
+    echo -e "${bold}Resolving potential anomalies...${normal}"
+    anomaly_states
+    echo -e "\n"
+    resolve_anomalies -bypass
+    end_binary_modifications "Modifications complete."
+  fi
 }
 
 ### In-place re-patcher
 uninstall() {
-  echo -e "\n>> ${bold}Uninstall${normal}\n"
+  echo -e "\n${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
@@ -857,7 +889,7 @@ perform_recovery() {
 
 ### Recovery logic
 recover_sys() {
-  echo -e "\n>> ${bold}Recovery${normal}\n"
+  echo -e "\n${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -891,7 +923,6 @@ detect_mac_model() {
 }
 
 ### Invoke purge-nvda.sh (3.0.5 or later)
-# Check connectivity before attempting
 invoke_purge_nvda() {
   local purge_nvda_dirpath="/usr/local/bin/purge-nvda"
   echo -e "${bold}Invoking purge-nvda.sh...${normal}"
@@ -962,7 +993,7 @@ print_anomalies() {
 
 ### Anomaly detection
 detect_anomalies() {
-  echo -e "\n>> ${bold}System Diagnosis${normal}\n"
+  echo -e "\n${mark}${gap}${bold}System Diagnosis${normal}\n"
   echo -e "Diagnosis will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
   anomaly_states
   print_anomalies
@@ -1049,13 +1080,14 @@ generate_menu() {
   local header="${1}" && shift
   local indent_level="${1}" && shift
   local gap_after="${1}" && shift
+  local should_clear="${1}" && shift
   local items=("${@}")
   local indent=""
   for (( i = 0; i < ${indent_level}; i++ ))
   do
     indent="${indent} "
   done
-  clear
+  [[ ${should_clear} == 1 ]] && clear
   echo -e "${indent}${mark}${gap}${bold}${header}${normal}\n"
   for (( i = 0; i < ${#items[@]}; i++ ))
   do
@@ -1081,7 +1113,7 @@ process_cli_args() {
 present_more_options_menu() {
   local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Back")
   local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "present_menu")
-  generate_menu "More Options" "0" "-1" "${menu_items[@]}"
+  generate_menu "More Options" "0" "-1" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
 
@@ -1089,7 +1121,7 @@ present_more_options_menu() {
 present_menu() {
   local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
   local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "${niceexit}")
-  generate_menu "PurgeWrangler (${script_ver})" "0" "4" "${menu_items[@]}"
+  generate_menu "PurgeWrangler (${script_ver})" "0" "4" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
 }
 
