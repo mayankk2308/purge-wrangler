@@ -799,10 +799,9 @@ auto_setup_egpu() {
   check_patch
   if [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]]
   then
-    echo -e "\n${bold}Resolving potential anomalies...${normal}"
+    echo -e "\n${bold}Detecting anomalies...${normal}"
     anomaly_states
-    echo -e "\n"
-    resolve_anomalies -bypass
+    print_anomalies
     end_binary_modifications "Modifications complete."
   fi
 }
@@ -812,7 +811,6 @@ uninstall() {
   echo -e "\n${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
-  pmset -a gpuswitch 2 2>/dev/null
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
   echo -e "${bold}Reverting binaries...${normal}"
@@ -861,7 +859,6 @@ first_time_setup() {
 ### Perform recovery
 perform_recovery() {
   echo -e "${bold}Recovering...${normal}"
-  pmset -a gpuswitch 2 2>/dev/null
   rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
   modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
   modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
@@ -905,24 +902,6 @@ detect_mac_model() {
   [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
 }
 
-### Invoke purge-nvda.sh (3.0.5 or later)
-invoke_purge_nvda() {
-  local purge_nvda_dirpath="/usr/local/bin/purge-nvda"
-  echo -e "${bold}Invoking purge-nvda.sh...${normal}"
-  curl -qs "https://api.github.com/repos/mayankk2308/purge-nvda/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > "${purge_nvda_dirpath}"
-  chmod +x "${purge_nvda_dirpath}"
-  chown "${SUDO_USER}" "${purge_nvda_dirpath}"
-  "${purge_nvda_dirpath}" "${1}" "${2}" 2>/dev/null 1>&2
-  echo "Invocation attempted."
-}
-
-### Invoke pmset
-invoke_pmset() {
-  echo -e "${bold}Invoking pmset...${normal}"
-  pmset -a gpuswitch 0 2>/dev/null
-  echo -e "Mux changed to iGPU."
-}
-
 ### Compute anomaly states
 anomaly_states() {
   detect_mac_model
@@ -942,28 +921,13 @@ anomaly_states() {
   fi
 }
 
-### Resolve anomalies
-resolve_anomalies() {
-  case "${resolution_needed}" in
-    1)
-    [[ "${1}" == -bypass ]] && invoke_purge_nvda -on -no-rbno-st && return
-    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_purge_nvda -on -no-rb" "echo -e \"\n\nNo action taken.\" && return";;
-    2)
-    [[ "${1}" == -bypass ]] && invoke_purge_nvda -fa -no-rbno-st && return
-    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_purge_nvda -fa -no-rb" "echo -e \"\n\nNo action taken.\" && return";;
-    3)
-    [[ "${1}" == -bypass ]] && invoke_pmset && return
-    yesno_action "${bold}Attempt resolution${normal}?" "echo -e \"\n\" && invoke_pmset" "echo -e \"\n\nNo action taken.\" && return";;
-  esac
-}
-
 ### Print anomalies, if any
 print_anomalies() {
   echo -e "\n\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
   case "${resolution_needed}" in
     1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
     2) echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
-    3) echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.${bold}Resolution${normal}  Use ${bold}pmset${normal} to force iGPU.";;
+    3) echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
     *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies found.";;
   esac
 }
@@ -974,7 +938,6 @@ detect_anomalies() {
   echo -e "Diagnosis will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
   anomaly_states
   print_anomalies
-  resolve_anomalies
 }
 
 # --- USER INTERFACE
