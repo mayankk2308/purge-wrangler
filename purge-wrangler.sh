@@ -504,8 +504,7 @@ patch_tb() {
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
-  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo -e "No thunderbolt patch required for this Mac." && return
-  echo -e "${bold}Patching components...${normal}"
+  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo -e "No patch required for this Mac." && return
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
@@ -759,7 +758,7 @@ detect_egpu() {
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
       needs_ti82="$(get_ti82_need)"
-      echoc "${bold}External GPU${normal}" "\t${egpu_name}"
+      echoc "${bold}External GPU${normal}\t${egpu_name}"
       echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
       echo -e "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
       echo -e "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
@@ -802,6 +801,7 @@ auto_setup_egpu() {
     echo -e "\n${bold}Detecting anomalies...${normal}"
     anomaly_states
     print_anomalies
+    echo
     end_binary_modifications "Modifications complete."
   fi
 }
