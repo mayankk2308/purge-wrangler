@@ -18,7 +18,7 @@
 ## Installation
 Install using **Terminal**:
 ```bash
-curl -qLs https://bit.ly/2WtIESm | awk -F'"' '/browser_download_url/{print $4}' | xargs curl -qLs > purge-wrangler && bash purge-wrangler && rm purge-wrangler
+curl -q -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > purge-wrangler.sh && chmod +x purge-wrangler.sh && ./purge-wrangler.sh && rm purge-wrangler.sh
 ```
 
 Future use:

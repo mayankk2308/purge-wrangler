@@ -5,15 +5,11 @@
 # License: Specified in LICENSE.md.
 # Version: 6.0.0
 
-# ----- COMMAND LINE ARGS
+# ----- ENVIRONMENT
 
-# trap '' 2
-
-# Setup command args + data
+# Script and options
 script="${BASH_SOURCE}"
 option=""
-
-# ----- ENVIRONMENT
 
 # Enable case-insensitive comparisons
 shopt -s nocasematch
@@ -51,18 +47,16 @@ macos_ver="$(sw_vers -productVersion)"
 macos_build="$(sw_vers -buildVersion)"
 system_thunderbolt_ver=""
 
-# AppleGPUWrangler references
+# Thunderbolt patch references
 hex_thunderboltswitchtype="494F5468756E646572626F6C74537769746368547970653"
-hex_nvda_agw_bypass="494F50434954756E6E656C6C6564"
-hex_nvda_agw_bypass_patch="494F50434954756E6E656C6C6571"
 
-# IOGraphicsFamily references
+# NVIDIA patch references
 hex_nvda_bypass="494F50434954756E6E656C6C6564"
 hex_nvda_bypass_patch="494F50434954756E6E656C6C6571"
 hex_nvda_clamshell="F0810D790A0300000200008B35730A0300"
 hex_nvda_clamshell_patch="F0810D790A0300000000008B35730A0300"
 
-# IOThunderboltFamily references
+# Ti82 patch references
 hex_skipenum="554889E54157415641554154534881EC2801"
 hex_skipenum_patch="554889E531C05DC341554154534881EC2801"
 
@@ -73,9 +67,7 @@ nvidia_enabled=2
 binpatch_enabled=0
 ti82_enabled=2
 nvdawebdrv_patched=2
-
-# System Discrete GPU
-dgpu_vendor=""
+using_nvdawebdrv=0
 
 # General kext paths
 sysextensions_path="/System/Library/Extensions/"
@@ -126,23 +118,16 @@ prompticon_filepath="${support_dirpath}pw.png"
 ## Deprecated manifest
 manifest="${support_dirpath}manifest.wglr"
 
-# pb configuration
+# Property Lists
 pb="/usr/libexec/PlistBuddy"
+webdriver_plistpath="/usr/local/bin/webdriver.plist"
+scriptconfig_filepath="${support_dirpath}io.egpu.purge-wrangler.config.plist"
 set_iognvda_pcitunnelled=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
 set_nvdastartup_pcitunnelled=":IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible bool"
 set_nvdastartup_requiredos=":IOKitPersonalities:NVDAStartup:NVDARequiredOS"
-
-# Property list generation defaults
 plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">\n<dict>\n</dict>\n</plist>"
-
-# Script configuration path
-scriptconfig_filepath="${support_dirpath}io.egpu.purge-wrangler.config.plist"
-
-# Webdriver information
-webdriver_plistpath="/usr/local/bin/webdriver.plist"
-using_nvdawebdrv=0
 
 # --- SCRIPT HELPERs
 niceexit="echo && exit"
@@ -160,6 +145,12 @@ yesno_action() {
   [[ ${userinput} == "N" ]] && eval "${noaction}" && return
   echo -e "\n\nInvalid choice. Please try again."
   yesno_action "${prompt}" "${yesaction}" "${noaction}"
+}
+
+### Clear print
+echoc() {
+  echo -ne "\033[2K\r"
+  echo -e "${1}"
 }
 
 ## -- Binary Patching Mechanism (P1 -> P2 -> P3)
@@ -249,7 +240,6 @@ create_launchagent() {
   $pb -c "Add :OnDemand bool false" "${agent_plistpath}"
   $pb -c "Add :LaunchOnlyOnce bool true" "${agent_plistpath}"
   $pb -c "Add :RunAtLoad bool true" "${agent_plistpath}"
-  $pb -c "Add :UserName string ${SUDO_USER}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments array" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
@@ -264,7 +254,7 @@ create_launchagent() {
 ### Perform software update
 perform_software_update() {
   echo -e "\n\n${bold}Downloading...${normal}"
-  curl -q -L -s -o "${tmp_script}" "${latest_release_dwld}"
+  curl -qLs -o "${tmp_script}" "${latest_release_dwld}"
   [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
   echo -e "Download complete.\n${bold}Updating...${normal}"
   chmod 700 "${tmp_script}" && chmod +x "${tmp_script}"
@@ -609,12 +599,7 @@ get_nvdawebdrv_stats() {
   then
     local currentdriver_majormacosbuild="${nvdawebdrv_latest_macosbuild:0:2}"
     local macos_major_build="${macos_build:0:2}"
-    if (( ${currentdriver_majormacosbuild} - ${macos_major_build} != 0 ))
-    then
-      nvdawebdrv_canpatchlatest=2
-    else
-      nvdawebdrv_canpatchlatest=1
-    fi
+    (( ${currentdriver_majormacosbuild} - ${macos_major_build} != 0 )) && nvdawebdrv_canpatchlatest=2 || nvdawebdrv_canpatchlatest=1
   else
     nvdawebdrv_canpatchlatest=0
     nvdawebdrv_lastcompatible_ver="${currentdriver_ver}"
@@ -697,7 +682,7 @@ run_patch_nv() {
   fi
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
-  patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass}" "${hex_nvda_agw_bypass_patch}"
+  patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_clamshell}" "${hex_nvda_clamshell_patch}"
   create_patched_binary "${agw_binpath}"
@@ -774,22 +759,15 @@ detect_egpu() {
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
       needs_ti82="$(get_ti82_need)"
-      echo -ne "\033[2K\r"
-      echo -e "${bold}External GPU${normal}" "\t${egpu_name}"
+      echoc "${bold}External GPU${normal}" "\t${egpu_name}"
       echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
       echo -e "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
       echo -e "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
       return
     fi
-    if [ "${key}" == $'\e' ]
-    then
-      echo -ne "\033[2K\r"
-      echo -e "eGPU detection skipped. Please provide more information."
-      return
-    fi
+    [ "${key}" == $'\e' ] && echoc "eGPU detection skipped. Please provide more information." && return
   done
-  echo -ne "\033[2K\r"
-  echo -e "Detection failed. Please provide more information."
+  echoc "Detection failed. Please provide more information."
 }
 
 ### Manual eGPU setup
@@ -797,7 +775,7 @@ manual_setup_egpu() {
   echo
   local menu_items=("AMD" "NVIDIA" "Cancel")
   local menu_actions=("echo && patch_tb -end" "echo && patch_nv -prompt -end" "present_menu")
-  generate_menu "Select GPU Vendor" "0" "-1" "0" "${menu_items[@]}"
+  generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
   autoprocess_input "Choice" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
 }
 
@@ -834,7 +812,7 @@ uninstall() {
   echo -e "\n${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
-  pmset -a gpuswitch 0 2>/dev/null
+  pmset -a gpuswitch 2 2>/dev/null
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
   echo -e "${bold}Reverting binaries...${normal}"
@@ -851,7 +829,7 @@ uninstall() {
     create_hexrepresentation "${iog_binpath}"
     patch_binary "${iog_binpath}" "${hex_nvda_bypass_patch}" "${hex_nvda_bypass}"
     patch_binary "${iog_binpath}" "${hex_nvda_clamshell_patch}" "${hex_nvda_clamshell}"
-    patch_binary "${agw_binpath}" "${hex_nvda_agw_bypass_patch}" "${hex_nvda_agw_bypass}"
+    patch_binary "${agw_binpath}" "${hex_nvda_bypass_patch}" "${hex_nvda_bypass}"
     create_patched_binary "${iog_binpath}"
     modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
     modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
@@ -883,6 +861,7 @@ first_time_setup() {
 ### Perform recovery
 perform_recovery() {
   echo -e "${bold}Recovering...${normal}"
+  pmset -a gpuswitch 2 2>/dev/null
   rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
   modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
   modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
@@ -896,7 +875,6 @@ recover_sys() {
   echo -e "\n${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
-  pmset -a gpuswitch 2 2>/dev/null
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
   if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
@@ -935,7 +913,7 @@ invoke_purge_nvda() {
   chmod +x "${purge_nvda_dirpath}"
   chown "${SUDO_USER}" "${purge_nvda_dirpath}"
   "${purge_nvda_dirpath}" "${1}" "${2}" 2>/dev/null 1>&2
-  echo "Anomaly resolution attempted."
+  echo "Invocation attempted."
 }
 
 ### Invoke pmset
@@ -983,16 +961,10 @@ resolve_anomalies() {
 print_anomalies() {
   echo -e "\n\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
   case "${resolution_needed}" in
-    1)
-    echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs."
-    echo -e "${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
-    2)
-    echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU."
-    echo -e "${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
-    3)
-    echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.";;
-    *)
-    [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies found.";;
+    1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
+    2) echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
+    3) echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.${bold}Resolution${normal}  Use ${bold}pmset${normal} to force iGPU.";;
+    *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies found.";;
   esac
 }
 
