@@ -130,7 +130,6 @@ plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <plist version=\"1.0\">\n<dict>\n</dict>\n</plist>"
 
 # --- SCRIPT HELPERs
-niceexit="echo && exit"
 
 ## -- User Interface
 
@@ -141,9 +140,10 @@ yesno_action() {
   local noaction="${3}"
   echo
   read -n1 -p "${prompt} [Y/N]: " userinput
+  echo -ne "\033[2K\r"
   [[ ${userinput} == "Y" ]] && eval "${yesaction}" && return
   [[ ${userinput} == "N" ]] && eval "${noaction}" && return
-  echo -e "\n\nInvalid choice. Please try again."
+  echo -e "Invalid choice. Please try again."
   yesno_action "${prompt}" "${yesaction}" "${noaction}"
 }
 
@@ -277,8 +277,8 @@ fetch_latest_release() {
   latest_patch_ver="$(echo -e "${latest_release_ver}" | cut -d '.' -f3)"
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
-    echo -e "\n${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
-    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"\n\n${bold}Proceeding without updating...${normal}\""
+    echo -e "${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
+    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"${bold}Proceeding without updating...${normal}\""
   fi
 }
 
@@ -338,7 +338,7 @@ check_sys_extensions() {
   if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
   then
     echo -e "\nUnexpected system configuration or missing files."
-    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "${niceexit}"
+    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "exit"
     echo
     exit
   fi
@@ -372,7 +372,7 @@ check_patch() {
 
 ### Display patch statuses
 check_patch_status() {
-  echo -e "\n${mark}${gap}${bold}System Status${normal}\n"
+  echo -e "${mark}${gap}${bold}System Status${normal}\n"
   local status=("Disabled" "Enabled" "Unknown")
   local drv_status=("Clean" "Patched" "Absent")
   echo -e "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
@@ -459,7 +459,8 @@ backup_system() {
 
 ### Reboot prompt
 reboot_action() {
-  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
+  [[ ${1} == -f ]] && echo "${mark}${gap}${bold}Reboot${normal}"
+  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"${bold}Rebooting...${normal}\" && reboot" "echo -e \"Reboot aborted.\""
 }
 
 ### Conclude patching sequence
@@ -468,13 +469,13 @@ end_binary_modifications() {
   sanitize_system
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   local message="${1}"
-  echo -e "${bold}${message}\n\n${bold}System ready.${normal} Reboot required."
+  echo -e "${bold}${message}\n\n${bold}Reboot${normal} to apply changes."
   reboot_action
 }
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
-  [[ "${1}" == -end ]] && echo -e "\n${mark}${gap}${bold}AMD Legacy Support${normal}\n"
+  [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
   echo -e "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
@@ -493,7 +494,7 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  [[ "${1}" == -end ]] && echo -e "\n${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
+  [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
   create_hexrepresentation "${iotfam_binpath}"
@@ -652,7 +653,7 @@ run_webdriver_installer() {
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
-  echo -e "\n${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
+  echo -e "${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
   echo -e "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
   [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
@@ -776,16 +777,16 @@ detect_egpu() {
 
 ### Manual eGPU setup
 manual_setup_egpu() {
-  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "echo -e \"\n\" && enable_ti82 && echo" "echo -e \"\n\nSkipping Ti82 support.\n\""
+  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && echo" "echo -e \"Skipping Ti82 support.\n\""
   local menu_items=("AMD" "NVIDIA" "Cancel")
-  local menu_actions=("echo && patch_tb -prompt" "echo && patch_nv -prompt" "echo -e \"\nFurther patching aborted.\"")
+  local menu_actions=("echo && patch_tb -prompt" "echo && patch_nv -prompt" "echo \"Further patching aborted.\"")
   generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
   autoprocess_input "Choice" "" "" "false" "${menu_actions[@]}"
 }
 
 ### Automatic eGPU setup
 auto_setup_egpu() {
-  echo -e "\n${mark}${gap}${bold}Setup eGPU${normal}\n"
+  echo -e "${mark}${gap}${bold}Setup eGPU${normal}\n"
   [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && echo "System has previously been modified. Uninstall first." && return
   detect_egpu
   [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
@@ -805,12 +806,12 @@ auto_setup_egpu() {
   echo -e "\n${bold}Detecting anomalies...${normal}"
   anomaly_states
   print_anomalies
-  end_binary_modifications "\nModifications complete."
+  end_binary_modifications "Modifications complete."
 }
 
 ### In-place re-patcher
 uninstall() {
-  echo -e "\n${mark}${gap}${bold}Uninstall${normal}\n"
+  echo -e "${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
@@ -871,7 +872,7 @@ perform_recovery() {
 
 ### Recovery logic
 recover_sys() {
-  echo -e "\n${mark}${gap}${bold}Recovery${normal}\n"
+  echo -e "${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -936,7 +937,7 @@ print_anomalies() {
 
 ### Anomaly detection
 detect_anomalies() {
-  echo -e "\n${mark}${gap}${bold}System Diagnosis${normal}\n"
+  echo -e "${mark}${gap}${bold}System Diagnosis${normal}\n"
   echo -e "Diagnosis will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
   anomaly_states
   print_anomalies
@@ -947,7 +948,7 @@ detect_anomalies() {
 ### Request donation
 donate() {
   open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
-  echo -e "\nSee your ${bold}web browser${normal}."
+  echo "See your ${bold}web browser${normal}."
 }
 
 ### Notify
@@ -993,13 +994,13 @@ autoprocess_args() {
   local choice="${1}" && shift
   local caller="${2}" && shift
   local actions=("${@}")
+  echo -ne "\033[2K\r"
   if [[ ${choice} =~ ^[0-9]+$ && (( ${choice} > 0 && ${choice} -le ${#actions[@]} )) ]]
   then
-    echo
     eval "${actions[(( ${choice} - 1 ))]}"
     return
   fi
-  echo -e "\n\nInvalid choice."
+  echo -e "Invalid choice."
   return
 }
 
@@ -1054,7 +1055,7 @@ process_cli_args() {
 ### Present more options
 present_more_options_menu() {
   local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Reboot" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "reboot_action" "present_menu")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "reboot_action -f" "present_menu")
   generate_menu "More Options" "0" "3" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
@@ -1062,9 +1063,9 @@ present_more_options_menu() {
 ### Script menu
 present_menu() {
   local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
-  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "${niceexit}")
+  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "exit")
   generate_menu "PurgeWrangler (${script_ver})" "0" "4" "1" "${menu_items[@]}"
-  autoprocess_input "What next?" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
+  autoprocess_input "What next?" "perform_sys_check && present_menu" "exit" "true" "${menu_actions[@]}"
 }
 
 # --- SCRIPT DRIVER
