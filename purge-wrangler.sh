@@ -457,6 +457,11 @@ backup_system() {
 
 # --- CORE PATCHWORK
 
+### Reboot prompt
+reboot_action() {
+  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
+}
+
 ### Conclude patching sequence
 end_binary_modifications() {
   update_config
@@ -464,7 +469,7 @@ end_binary_modifications() {
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   local message="${1}"
   echo -e "${bold}${message}\n\n${bold}System ready.${normal} Reboot required."
-  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"\n\n${bold}Rebooting...${normal}\" && reboot" "echo -e \"\n\nReboot aborted.\""
+  reboot_action
 }
 
 ### Install AMDLegacySupport.kext
@@ -501,6 +506,7 @@ enable_ti82() {
 ### Patch TB1/2 block
 patch_tb() {
   echo -e "${bold}Patching for AMD eGPUs...${normal}"
+  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "echo -e \"\n\" && install_amd_legacy_kext && echo" "echo -e \"\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
@@ -509,7 +515,6 @@ patch_tb() {
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
   echo -e "Patches applied."
-  [[ "${1}" == -end ]] && end_binary_modifications "Modifications complete."
 }
 
 ### Download and install NVIDIA Web Drivers
@@ -691,16 +696,15 @@ run_patch_nv() {
   rm -r "${deprecated_automate_egpu_kextpath}" 2>/dev/null 1>&2
   rm -r "${deprecated_nvsolution_kextpath}" 2>/dev/null 1>&2
   echo -e "Patches applied."
-  [[ "${2}" == -end ]] && end_binary_modifications "Modifications complete."
 }
 
 ### Patch for NVIDIA eGPUs
 patch_nv() {
   echo -e "${bold}Patching for NVIDIA eGPUs...${normal}"
-  [[ -e "${nvdastartupweb_kextpath}" && ${nvdawebdrv_patched} == 0 ]] && run_patch_nv "${1}" "${2}" && return
+  [[ -e "${nvdastartupweb_kextpath}" && ${nvdawebdrv_patched} == 0 ]] && run_patch_nv "${1}" && return
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
-  run_patch_nv "${1}" "${2}"
+  run_patch_nv "${1}"
 }
 
 # Run webdriver uninstallation process
@@ -741,10 +745,12 @@ get_ti82_need() {
 detect_egpu() {
   echo -e "${bold}Plug-in eGPU${normal}. Press ESC if you are not plugging in eGPU.\n"
   IFS=''
-  for (( i = 30; i > 0; i-- ))
+  for (( i = 15; i > 0; i-- ))
   do
     echo -ne "\033[2K\r"
     printf "${bold}Waiting for eGPU...${normal}"
+    needs_ti82="$(get_ti82_need)"
+    [[ "${needs_ti82}" == "Yes" ]] && echoc "Detection not possible. Ti82 override needed first." && return
     local ioreg_info="$(ioreg -n display@0)"
     egpu_vendor=$(echo "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
     local egpu_dev_id=$(echo "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
@@ -757,7 +763,6 @@ detect_egpu() {
       local name_data="$(get_egpu_name "${egpu_dev_id}" "${egpu_vendor}")"
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
-      needs_ti82="$(get_ti82_need)"
       echoc "${bold}External GPU${normal}\t${egpu_name}"
       echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
       echo -e "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
@@ -771,11 +776,11 @@ detect_egpu() {
 
 ### Manual eGPU setup
 manual_setup_egpu() {
-  echo
+  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "echo -e \"\n\" && enable_ti82 && echo" "echo -e \"\n\nSkipping Ti82 support.\n\""
   local menu_items=("AMD" "NVIDIA" "Cancel")
-  local menu_actions=("echo && patch_tb -end" "echo && patch_nv -prompt -end" "present_menu")
+  local menu_actions=("echo && patch_tb -prompt" "echo && patch_nv -prompt" "echo -e \"\nFurther patching aborted.\"")
   generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
-  autoprocess_input "Choice" "perform_sys_check && present_menu" "${niceexit}" "true" "${menu_actions[@]}"
+  autoprocess_input "Choice" "" "" "false" "${menu_actions[@]}"
 }
 
 ### Automatic eGPU setup
@@ -783,6 +788,7 @@ auto_setup_egpu() {
   echo -e "\n${mark}${gap}${bold}Setup eGPU${normal}\n"
   [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && echo "System has previously been modified. Uninstall first." && return
   detect_egpu
+  [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
   if [[ "${egpu_vendor}" == "1002" ]]
   then
     [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext
@@ -792,18 +798,14 @@ auto_setup_egpu() {
     [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1
     echo && patch_nv
   else
-    manual_setup_egpu && return
+    manual_setup_egpu
   fi
-  [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
   check_patch
-  if [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]]
-  then
-    echo -e "\n${bold}Detecting anomalies...${normal}"
-    anomaly_states
-    print_anomalies
-    echo
-    end_binary_modifications "Modifications complete."
-  fi
+  [[ ${binpatch_enabled} != "1" && ${amdlegacy_enabled} != "1" ]] && return
+  echo -e "\n${bold}Detecting anomalies...${normal}"
+  anomaly_states
+  print_anomalies
+  end_binary_modifications "\nModifications complete."
 }
 
 ### In-place re-patcher
@@ -1051,9 +1053,9 @@ process_cli_args() {
 
 ### Present more options
 present_more_options_menu() {
-  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "present_menu")
-  generate_menu "More Options" "0" "-1" "1" "${menu_items[@]}"
+  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Reboot" "Back")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "reboot_action" "present_menu")
+  generate_menu "More Options" "0" "3" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
 
