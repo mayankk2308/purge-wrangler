@@ -278,7 +278,7 @@ fetch_latest_release() {
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
     echo -e "${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
-    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo -e \"${bold}Proceeding without updating...${normal}\""
+    yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo \"${bold}Proceeding without updating...${normal}\""
   fi
 }
 
@@ -460,7 +460,7 @@ backup_system() {
 ### Reboot prompt
 reboot_action() {
   [[ ${1} == -f ]] && echo "${mark}${gap}${bold}Reboot${normal}"
-  yesno_action "${bold}Reboot Now?${normal}" "echo -e \"${bold}Rebooting...${normal}\" && reboot" "echo -e \"Reboot aborted.\""
+  yesno_action "${bold}Reboot Now?${normal}" "echo \"${bold}Rebooting...${normal}\" && reboot" "echo \"Reboot aborted.\""
 }
 
 ### Conclude patching sequence
@@ -500,14 +500,14 @@ enable_ti82() {
   create_hexrepresentation "${iotfam_binpath}"
   patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
   create_patched_binary "${iotfam_binpath}"
-  echo -e "Ti82 support enabled."
-  [[ "${1}" == -end ]] && end_binary_modifications "Patch complete."
+  echo "Ti82 support enabled."
+  if [[ "${1}" == -end ]]; then end_binary_modifications "Patch complete."; fi
 }
 
 ### Patch TB1/2 block
 patch_tb() {
   echo -e "${bold}Patching for AMD eGPUs...${normal}"
-  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "echo -e \"\n\" && install_amd_legacy_kext && echo" "echo -e \"\n\""
+  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && echo" "echo -e \"Skipping legacy kext.\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
@@ -571,7 +571,7 @@ reset_nvdawebdrv_stats() {
 get_nvdawebdrv_stats() {
   reset_nvdawebdrv_stats
   nvdawebdrv_target_ver="${1}"
-  echo -e "\n${bold}Fetching driver information...${normal}"
+  echo -e "${bold}Fetching driver information...${normal}"
   [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
   local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${webdriver_data}" ]] && return
@@ -615,7 +615,7 @@ get_nvdawebdrv_stats() {
 
 ### Patch NVIDIA Web Driver version
 patch_nvdawebdrv_version() {
-  echo -e "\n\n${bold}Patching drivers...${normal}"
+  echo -e "${bold}Patching drivers...${normal}"
   $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartupweb_plistpath}" 2>/dev/null 1>&2
   echo -e "Drivers patched."
 }
@@ -624,14 +624,14 @@ patch_nvdawebdrv_version() {
 webdriver_possibilities() {
   if [[ "${3}" == -already-present ]]
   then
-    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo -e "Appropriate NVIDIA Web Drivers are ${bold}already installed${normal}." && return
-    echo -e "\nInstalled ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
+    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && echo "Appropriate NVIDIA Web Drivers are ${bold}already installed${normal}." && return
+    echo -e "Installed ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
     [[ "${4}" != "-prompt" ]] && echo "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && echo "Resolved." && return
-    yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "echo -e \"\n\nDrivers unchanged.\""
+    yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "echo -e \"Drivers unchanged.\n\""
   else
     local recommendation=("Not Required" "Suggested" "Not Advised" "Cannot Determine")
     echo -e "\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
-    yesno_action "${bold}Patch?${normal}" "echo -e \"\n\" && install_web_drivers \"${1}\" \"${2}\"" "echo -e \"\n\nInstallation aborted.\" && return"
+    yesno_action "${bold}Patch?${normal}" "install_web_drivers \"${1}\" \"${2}\"" "echo -e \"Installation aborted.\n\" && return"
   fi
 }
 
@@ -673,7 +673,7 @@ run_patch_nv() {
       webdriver_possibilities "" "" "-already-present" "-prompt"
       using_nvdawebdrv=1
     else
-      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "echo && using_nvdawebdrv=1 && run_webdriver_installer -prompt && echo" "echo -e \"\n\""
+      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "echo -e \"Skipping web drivers.\n\""
     fi
   fi
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
@@ -718,8 +718,8 @@ run_webdriver_uninstaller() {
   echo -e "Drivers uninstalled.\nIf in ${bold}Single User Mode${normal}, driver only deactivated." && return
 }
 
-### Retrieve eGPU name
-get_egpu_name() {
+### Retrieve GPU name
+get_gpu_name() {
   local id="${1}"
   local vendor="${2}"
   local device_names="$(curl -s "http://pci-ids.ucw.cz/read/PC/${vendor}/${id}" | grep -i "itemname" | sed -E "s/.*Name\: (.*)$/\1/")"
@@ -761,7 +761,7 @@ detect_egpu() {
     then
       legacy_amd_needed=0
       webdrv_needed=0
-      local name_data="$(get_egpu_name "${egpu_dev_id}" "${egpu_vendor}")"
+      local name_data="$(get_gpu_name "${egpu_dev_id}" "${egpu_vendor}")"
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
       echoc "${bold}External GPU${normal}\t${egpu_name}"
@@ -815,7 +815,7 @@ uninstall() {
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && echo -e "No patches detected.\n${bold}System already clean.${normal}" && return
   echo -e "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
-  [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "echo -e \"\n\" && run_webdriver_uninstaller" "echo -e \"\n\""
+  [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "run_webdriver_uninstaller" "echo -e \"Skipping web drivers.\n\""
   echo -e "${bold}Reverting binaries...${normal}"
   if [[ ${ti82_enabled} == 1 ]]
   then
@@ -882,7 +882,7 @@ recover_sys() {
     echo -e "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
     echo -e "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
     [[ ${binpatch_enabled} == 1 ]] && echo -e "No relevant backup available. Better to ${bold}uninstall${normal}." || echo -e "System may already be clean."
-    yesno_action "Still ${bold}attempt recovery${normal}?" "echo -e \"\n\" && perform_recovery" "echo -e \"\n\nRecovery aborted.\""
+    yesno_action "Still ${bold}attempt recovery${normal}?" "perform_recovery" "echo \"Recovery aborted.\""
   else
     perform_recovery
   fi
@@ -892,10 +892,9 @@ recover_sys() {
 
 ### Detect discrete GPU vendor
 detect_discrete_gpu_vendor() {
-  dgpu_vendor="$(ioreg -n GFX0@0 | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4)"
-  [[ "${dgpu_vendor}" == "de10" ]] && dgpu_vendor="NVIDIA" && return
-  [[ "${dgpu_vendor}" == "0210" ]] && dgpu_vendor="AMD" && return
-  dgpu_vendor="None"
+  local ioreg_info="$(ioreg -n GFX0@0)"
+  dgpu_vendor="$(echo "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
+  dgpu_dev_id="$(echo "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
 }
 
 ### Detect Mac Model
@@ -926,12 +925,13 @@ anomaly_states() {
 
 ### Print anomalies, if any
 print_anomalies() {
-  echo -e "\n\n${bold}Discrete GPU${normal}: ${dgpu_vendor}\n"
+  local detected_gpus="$(system_profiler SPDisplaysDataType | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1')"
+  echo -e "${bold}Detected System GPUs${normal}:\n${detected_gpus}\n"
   case "${resolution_needed}" in
     1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
     2) echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
     3) echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
-    *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies found.";;
+    *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies expected.";;
   esac
 }
 
@@ -1056,7 +1056,7 @@ process_cli_args() {
 present_more_options_menu() {
   local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Reboot" "Back")
   local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "reboot_action -f" "present_menu")
-  generate_menu "More Options" "0" "3" "1" "${menu_items[@]}"
+  generate_menu "More Options" "0" "4" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
 
