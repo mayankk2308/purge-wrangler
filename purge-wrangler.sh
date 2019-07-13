@@ -489,7 +489,7 @@ install_amd_legacy_kext() {
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
-  [[ "${1}" == -end ]] && end_binary_modifications "Installation complete."
+  if [[ "${1}" == -end ]]; then end_binary_modifications "Installation complete."; fi
 }
 
 ### Enable Ti82
