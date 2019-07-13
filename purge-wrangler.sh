@@ -494,7 +494,7 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}Enable Ti82 Support${normal}\n"
+  [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
   create_hexrepresentation "${iotfam_binpath}"
@@ -789,6 +789,8 @@ auto_setup_egpu() {
   echo -e "${mark}${gap}${bold}Setup eGPU${normal}\n"
   [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && echo "System has previously been modified. Uninstall first." && return
   detect_egpu
+  echo
+  backup_system
   [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
   if [[ "${egpu_vendor}" == "1002" ]]
   then
@@ -874,7 +876,7 @@ perform_recovery() {
 recover_sys() {
   echo -e "${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
-  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo -e "\nNothing to recover.\n\nConsider ${bold}system recovery${normal} or ${bold}rebooting${normal}." && return
+  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && echo "Nothing to recover." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
   if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
