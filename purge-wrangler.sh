@@ -143,7 +143,7 @@ yesno_action() {
   echo -ne "\033[2K\r"
   [[ ${userinput} == "Y" ]] && eval "${yesaction}" && return
   [[ ${userinput} == "N" ]] && eval "${noaction}" && return
-  echo -e "Invalid choice. Please try again."
+  echo "Invalid choice. Please try again."
   yesno_action "${prompt}" "${yesaction}" "${noaction}"
 }
 
@@ -485,7 +485,7 @@ install_amd_legacy_kext() {
     rm -rf "${amdlegacy_downloadpath}" 2>/dev/null
     return
   fi
-  echo -e "Download complete.\n${bold}Installing...${normal}"
+  echo -e "Download complete."
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
@@ -509,9 +509,9 @@ patch_tb() {
   echo -e "${bold}Patching for AMD eGPUs...${normal}"
   [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && echo" "echo -e \"Skipping legacy kext.\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
-  [[ ${nvidia_enabled} == 1 ]] && echo -e "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
-  [[ ${tbswitch_enabled} == 1 ]] && echo -e "System has already been patched for ${bold}AMD eGPUs${normal}." && return
-  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo -e "No patch required for this Mac." && return
+  [[ ${nvidia_enabled} == 1 ]] && echo "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 ]] && echo "System has already been patched for ${bold}AMD eGPUs${normal}." && return
+  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo "No patch required for this Mac." && return
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
   create_patched_binary "${agw_binpath}"
@@ -779,7 +779,7 @@ detect_egpu() {
 manual_setup_egpu() {
   [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && echo" "echo -e \"Skipping Ti82 support.\n\""
   local menu_items=("AMD" "NVIDIA" "Cancel")
-  local menu_actions=("echo && patch_tb -prompt" "echo && patch_nv -prompt" "echo \"Further patching aborted.\"")
+  local menu_actions=("patch_tb -prompt" "patch_nv -prompt" "echo \"Further patching aborted.\"")
   generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
   autoprocess_input "Choice" "" "" "false" "${menu_actions[@]}"
 }
