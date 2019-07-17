@@ -242,7 +242,7 @@ create_launchagent() {
   $pb -c "Add :RunAtLoad bool true" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments array" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
-  $pb -c "Add :ProgramArguments:1 string --on-launch-check" "${agent_plistpath}"
+  $pb -c "Add :ProgramArguments:1 string -l" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
   curl -q -L -s -o "${prompticon_filepath}" "${prompticon_downloadurl}"
   [[ ! -s "${prompticon_filepath}" || "$(cat "${prompticon_filepath}")" == "404: Not Found" ]] && rm -f "${prompticon_filepath}" 2>/dev/null 1>&2
@@ -746,10 +746,10 @@ get_ti82_need() {
 detect_egpu() {
   echo -e "${bold}Plug-in eGPU${normal}. Press ESC if you are not plugging in eGPU.\n"
   IFS=''
-  for (( i = 15; i > 0; i-- ))
+  for (( i = 20; i > 0; i-- ))
   do
     echo -ne "\033[2K\r"
-    printf "${bold}Waiting for eGPU...${normal}"
+    printf "${bold}Detecting eGPU (${i})...${normal}"
     needs_ti82="$(get_ti82_need)"
     [[ "${needs_ti82}" == "Yes" ]] && echoc "Detection not possible. Ti82 override needed first." && return
     local ioreg_info="$(ioreg -n display@0)"
@@ -770,7 +770,7 @@ detect_egpu() {
       echo -e "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
       return
     fi
-    [ "${key}" == $'\e' ] && echoc "eGPU detection skipped. Please provide more information." && return
+    [[ "${key}" == $'\e' ]] && echoc "eGPU detection skipped. Please provide more information." && return
   done
   echoc "Detection failed. Please provide more information."
 }
@@ -963,14 +963,14 @@ notify() {
     set promptIcon to (POSIX file \"${prompticon_filepath}\") as alias
   end try
   if promptIcon is \"nil\" then
-    set outcome to (display dialog theDialogText buttons {\"Never\", \"Later\", \"Apply\"} default button \"Apply\" cancel button \"Later\")
+    set outcome to (display dialog theDialogText buttons {\"Never\", \"No\", \"Yes\"} default button \"Yes\" cancel button \"No\")
   else
-    set outcome to (display dialog theDialogText buttons {\"Never\", \"Later\", \"Apply\"} default button \"Apply\" cancel button \"Later\" with icon promptIcon)
+    set outcome to (display dialog theDialogText buttons {\"Never\", \"No\", \"Yes\"} default button \"Yes\" cancel button \"No\" with icon promptIcon)
   end if
-  if (outcome = {button returned:\"Apply\"}) then
+  if (outcome = {button returned:\"Yes\"}) then
 	  tell application \"Terminal\"
 		  activate
-		  do script \"purge-wrangler\"
+		  do script \"purge-wrangler -a\"
 	  end tell
   else if (outcome = {button returned:\"Never\"}) then
     do shell script \"rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist\"
@@ -1074,7 +1074,7 @@ present_menu() {
 
 ### Primary execution routine
 begin() {
-  [[ "${2}" == "--on-launch-check" ]] && show_update_prompt && return
+  [[ "${2}" == "-l" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
   fetch_latest_release
