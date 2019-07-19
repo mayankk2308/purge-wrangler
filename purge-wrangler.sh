@@ -10,6 +10,7 @@
 # Script and options
 script="${BASH_SOURCE}"
 option=""
+single_user_mode="$(sysctl -n kern.singleuser)"
 
 # Enable case-insensitive comparisons
 shopt -s nocasematch
@@ -715,7 +716,7 @@ run_webdriver_uninstaller() {
   local webdriver_uninstaller="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
   [[ ! -s "${webdriver_uninstaller}" ]] && echo -e "None found." && return
   installer -target "/" -pkg "${webdriver_uninstaller}" 2>&1 1>/dev/null
-  echo -e "Drivers uninstalled.\nIf in ${bold}Single User Mode${normal}, driver only deactivated." && return
+  [[ ${single_user_mode} == 0 ]] && echo "Drivers Uninstalled." || echo "Drivers deactivated."
 }
 
 ### Retrieve GPU name
@@ -1074,6 +1075,7 @@ present_menu() {
 
 ### Primary execution routine
 begin() {
+  [[ ${single_user_mode} == 1 ]] && recover_sys && return
   [[ "${2}" == "-l" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
