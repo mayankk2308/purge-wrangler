@@ -657,7 +657,8 @@ install_ver_spec_webdrv() {
   echo -e "${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
   echo -e "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
-  [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "\nNo changes made." && return
+  echo
+  [[ -z "${userinput}" || "${userinput}" == Q ]] && echo -e "No changes made." && return
   get_nvdawebdrv_stats "${userinput}"
   [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && echo -e "No driver found for specified version." && return
   [[ "${userinput}" != "L" ]] && install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}" || install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}"
@@ -1075,10 +1076,10 @@ present_menu() {
 
 ### Primary execution routine
 begin() {
-  [[ ${single_user_mode} == 1 ]] && recover_sys && return
   [[ "${2}" == "-l" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
+  [[ ${single_user_mode} == 1 ]] && recover_sys && return
   fetch_latest_release
   process_cli_args "${option}"
 }
