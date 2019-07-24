@@ -31,7 +31,7 @@ purge-wrangler
 Re-use the full installation command if the shortcut fails to function. **purge-wrangler.sh** requires [administrator privileges](https://support.apple.com/en-us/HT202035) to function.
 
 ## Script Options
-| Menu | CLI | Description |
+| Menu | CLI Argument | Description |
 | :------: | :--: | :---------- |
 | Setup eGPU | `-a` | Automatically set up eGPU based on your system configuration and external GPU. |
 | Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
