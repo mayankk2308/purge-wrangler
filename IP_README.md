@@ -16,9 +16,11 @@
 | **Backup** | Recommended | Always | A system backup is always recommended before modifying core operating system components. |
 
 ## Installation
+**Note**: If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs.
+
 Install using **Terminal**:
 ```bash
-curl -q -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*"browser_download_url":[ \t]*"([^"]+)".*/\1/' | xargs curl -L -s -0 > purge-wrangler.sh && chmod +x purge-wrangler.sh && ./purge-wrangler.sh && rm purge-wrangler.sh
+curl -qLs $(curl -qLs https://bit.ly/2WtIESm | grep '"browser_download_url":' | cut -d'"' -f4) > purge-wrangler.sh; bash purge-wrangler.sh; rm purge-wrangler.sh
 ```
 
 Future use:
@@ -28,15 +30,8 @@ purge-wrangler
 
 Re-use the full installation command if the shortcut fails to function. **purge-wrangler.sh** requires [administrator privileges](https://support.apple.com/en-us/HT202035) to function.
 
-#### For NVIDIA eGPUs
-If you plan on using a **non-Kepler** NVIDIA eGPU, **check for compatibility first**:
-```bash
-curl -qLs https://bit.ly/2Z63Cn0 | bash
-```
-It is best to follow recommendations as advised in the script.
-
 ## Script Options
-| Argument | Menu | Description |
+| Menu | CLI | Description |
 | :------: | :--: | :---------- |
 | Setup eGPU | `-a` | Automatically set up eGPU based on your system configuration and external GPU. |
 | Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
@@ -49,12 +44,12 @@ Running without arguments launches the menu.
 If you are unable to boot into macOS, boot while pressing **⌘ + S**, then enter the following commands:
 ```bash
 mount -uw /
-purge-wrangler -r
+purge-wrangler
 ```
 This will restore your system to a clean state.
 
 ## Hardware Chart
-With NVIDIA GPUs, **hot-unplugging** capability is not supported.
+With NVIDIA GPUs, **hot-unplugging** capability is not supported. Additionally, **NVIDIA Web Drivers** are **not required** for **Kepler-based** GPUs as macOS already includes the drivers.
 
 | Integrated GPU | Discrete GPU | External GPU | Dependency | Complications |
 | :------------: | :----------: | :----------: | :--------: | :------------ |
@@ -68,8 +63,6 @@ With NVIDIA GPUs, **hot-unplugging** capability is not supported.
 | **Intel** | **NVIDIA** | NVIDIA | NVIDIA Web Drivers | Use [purge-nvda.sh](https://github.com/mayankk2308/purge-nvda) to resolve OpenCL/GL compute loss, and use this [boot procedure](https://egpu.io/forums/builds/mid-2014-macbook-pro-gt750m-gtx107016gbps-tb2-aorus-gaming-box-macos-10-13-6-mac_editor/). |
 | **Intel** | **AMD** | AMD | macOS Drivers | Native or native-like support without any significant complications. |
 | **Intel** | **AMD** | NVIDIA | NVIDIA Web Drivers | Slow/black screens  which may require switching **mux** to the iGPU or logging out and in after hot-plugging. |
-
-**NVIDIA Web Drivers** are **not required** for **Kepler-based** GPUs as macOS already includes the drivers.
 
 ## Troubleshooting
 - [eGPU.io Build Guides](https://egpu.io/build-guides/): See builds for a variety of systems and eGPUs. If you don't find an exact match, look for similar builds.
