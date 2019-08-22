@@ -139,7 +139,8 @@ yesno_action() {
   local prompt="${1}"
   local yesaction="${2}"
   local noaction="${3}"
-  echo
+  local noecho="${4}"
+  [[ -z "${noecho}" ]] && echo
   read -n1 -p "${prompt} [Y/N]: " userinput
   echo -ne "\033[2K\r"
   [[ ${userinput} == "Y" ]] && eval "${yesaction}" && return
@@ -245,7 +246,7 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:1 string -l" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
-  curl -q -L -s -o "${prompticon_filepath}" "${prompticon_downloadurl}"
+  curl -qLs -o "${prompticon_filepath}" "${prompticon_downloadurl}"
   [[ ! -s "${prompticon_filepath}" || "$(cat "${prompticon_filepath}")" == "404: Not Found" ]] && rm -f "${prompticon_filepath}" 2>/dev/null 1>&2
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
@@ -256,7 +257,7 @@ create_launchagent() {
 perform_software_update() {
   echo -e "\n\n${bold}Downloading...${normal}"
   curl -qLs -o "${tmp_script}" "${latest_release_dwld}"
-  [[ "$(cat "${tmp_script}")" == "Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
+  [[ "$(cat "${tmp_script}")" == "404: Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
   echo -e "Download complete.\n${bold}Updating...${normal}"
   chmod 700 "${tmp_script}" && chmod +x "${tmp_script}"
   rm "${script}" && mv "${tmp_script}" "${script}"
@@ -730,8 +731,6 @@ get_gpu_name() {
   if [[ ! -z "${device_name}" ]]
   then
     echo "${device_name%?}:${egpu_arch}"
-    [[ "${device_name}" =~ "Vega" || "${device_name}" =~ "Baffin" || "${device_name}" =~ "Ellesmere" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
-    [[ "${device_name}" =~ "GM" || "${device_name}" =~ "GP" ]] && webdrv_needed=1 || webdrv_needed=0
   else
     [[ ${vendor} == "10de" ]] && echo "NVIDIA"
     [[ ${vendor} == "1002" ]] && echo "AMD"
@@ -740,7 +739,7 @@ get_gpu_name() {
 
 ### Retrieve Ti82 need
 get_ti82_need() {
-  local ti82_data="$(system_profiler SPThunderboltDataType | grep -i unsupported)"
+  local ti82_data="$(system_profiler SPThunderboltDataType | grep -i unsupported 2>/dev/null)"
   [[ -z ${ti82_data} ]] && echo "No" || echo "Yes"
 }
 
@@ -766,6 +765,8 @@ detect_egpu() {
       local name_data="$(get_gpu_name "${egpu_dev_id}" "${egpu_vendor}")"
       egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
+      [[ "${egpu_arch}" =~ "Vega" || "${egpu_arch}" =~ "Baffin" || "${egpu_arch}" =~ "Ellesmere" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
+      [[ "${egpu_arch}" =~ "GK" || "${egpu_arch}" =~ "GF" ]] && webdrv_needed=0 || webdrv_needed=1
       echoc "${bold}External GPU${normal}\t${egpu_name}"
       echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
       echo -e "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
@@ -779,7 +780,7 @@ detect_egpu() {
 
 ### Manual eGPU setup
 manual_setup_egpu() {
-  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && echo" "echo -e \"Skipping Ti82 support.\n\""
+  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && echo" "echo -e \"Skipping Ti82 support.\n\"" -n
   local menu_items=("AMD" "NVIDIA" "Cancel")
   local menu_actions=("patch_tb -prompt" "patch_nv -prompt" "echo \"Further patching aborted.\"")
   generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
@@ -793,7 +794,8 @@ auto_setup_egpu() {
   detect_egpu
   echo
   backup_system
-  [[ ${needs_ti82} == "Yes" ]] && echo && enable_ti82
+  echo
+  [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && echo
   if [[ "${egpu_vendor}" == "1002" ]]
   then
     [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext
@@ -810,6 +812,7 @@ auto_setup_egpu() {
   echo -e "\n${bold}Detecting anomalies...${normal}"
   anomaly_states
   print_anomalies
+  echo
   end_binary_modifications "Modifications complete."
 }
 
@@ -904,7 +907,7 @@ detect_discrete_gpu_vendor() {
 ### Detect Mac Model
 detect_mac_model() {
   is_desktop_mac=false
-  local model_id="$(system_profiler SPHardwareDataType | awk '/Model Identifier/ {print $3}')"
+  local model_id="$(system_profiler SPHardwareDataType | awk '/Model Identifier/ {print $3}' 2>/dev/null)"
   [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
 }
 
@@ -917,11 +920,11 @@ anomaly_states() {
   yesno_action "Will you be using an ${bold}external monitor${normal}?" "will_use_ext_disp=1" "will_use_ext_disp=0"
   [[ ${will_use_ext_disp} == 0 ]] && return
   [[ ${is_desktop_mac} == 1 ]] && resolution_needed="-1" && return
-  if [[ "${dgpu_vendor}" == "NVIDIA" ]]
+  if [[ "${dgpu_vendor}" == "10de" ]]
   then
     [[ -f "${nvdastartupweb_plistpath}" && ${nvidia_enabled} == 1 ]] && resolution_needed=1 && return
     [[ ${tbswitch_enabled} == 1 ]] && resolution_needed=2 && return
-  elif [[ "${dgpu_vendor}" == "AMD" ]]
+  elif [[ "${dgpu_vendor}" == "1002" ]]
   then
     [[ ${nvidia_enabled} == 1 ]] && resolution_needed=3 && return
   fi
@@ -929,7 +932,7 @@ anomaly_states() {
 
 ### Print anomalies, if any
 print_anomalies() {
-  local detected_gpus="$(system_profiler SPDisplaysDataType | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1')"
+  local detected_gpus="$(system_profiler SPDisplaysDataType | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1' 2>/dev/null)"
   echo -e "${bold}Detected System GPUs${normal}:\n${detected_gpus}\n"
   case "${resolution_needed}" in
     1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
@@ -1015,8 +1018,8 @@ autoprocess_input() {
   local exit_action="${1}" && shift
   local prompt_back="${1}" && shift
   local actions=("${@}")
-  local readonce="-n1"
-  (( ${#actions[@]} > 9 )) && readonce=""
+  local readonce=""
+  (( ${#actions[@]} < 10 )) && readonce="-n1"
   read ${readonce} -p "${bold}${message}${normal} [1-${#actions[@]}]: " userinput
   autoprocess_args "${userinput}" "${caller}" "${actions[@]}"
   [[ "${prompt_back}" == true ]] && yesno_action "${bold}Back to menu?${normal}" "${caller}" "${exit_action}"
@@ -1039,7 +1042,7 @@ generate_menu() {
   for (( i = 0; i < ${#items[@]}; i++ ))
   do
     num=$(( i + 1 ))
-    echo -e "${indent}${gap}${bold}${num}.${normal} ${items[${i}]}"
+    echo -e "${indent}${gap}${bold}${num}${normal}. ${items[${i}]}"
     (( ${num} == ${gap_after} )) && echo
   done
   echo

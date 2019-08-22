@@ -18,7 +18,7 @@
 ## Installation
 **Note**: If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs.
 
-Install using **Terminal**:
+Download and install using **Terminal**:
 ```bash
 curl -qLs $(curl -qLs https://bit.ly/2WtIESm | grep '"browser_download_url":' | cut -d'"' -f4) > purge-wrangler.sh; bash purge-wrangler.sh; rm purge-wrangler.sh
 ```
@@ -31,12 +31,12 @@ purge-wrangler
 Re-use the full installation command if the shortcut fails to function. **purge-wrangler.sh** requires [administrator privileges](https://support.apple.com/en-us/HT202035) to function.
 
 ## Script Options
-| Menu | CLI Argument | Description |
+| Menu | CLI Arg | Description |
 | :------: | :--: | :---------- |
 | Setup eGPU | `-a` | Automatically set up eGPU based on your system configuration and external GPU. |
 | Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
 | Recovery | `-r` | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
-| System Status | `-s` | Shows the current status of some of the components of the system and the any modifications made using the script. |
+| System Status | `-s` | Shows the current status of some of the components of the system and any modifications made using the script. |
 
 Running without arguments launches the menu.
 
