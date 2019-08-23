@@ -70,6 +70,9 @@ With NVIDIA GPUs, **hot-unplugging** capability is not supported. Additionally, 
 - [eGPU.io Community](https://egpu.io/forums/): Ask about, request help, learn more, and share your eGPU experience with the community.
 - [eGPU Community on Reddit](https://www.reddit.com/r/eGPU/): A wonderful place to request additional help for your new setup, and to find fellow eGPU users.
 
+## Advanced Users & Developers
+For advanced users and developers willing to test unreleased versions of the script or contributing to the development of the script or its patches, consider reading the [PurgeWrangler for Advanced Users & Developers](./DOCS.md) document.
+
 ## References
 Many thanks to:
 - [@itsage](https://egpu.io/forums/profile/itsage/): For testing the recent releases of the script.

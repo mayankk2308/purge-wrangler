@@ -10,6 +10,7 @@ Describe your system configuration here. State any anomalies (USB drives, etc.) 
 - **macOS Version**: 10.13.4, 10.14.5, etc.
 - **System GPUs**: Intel Iris & NVIDIA GT 750M, etc.
 - **eGPU**: Sonnet Breakaway 650 + RX Vega 64, etc.
+- **Script Version**: Script version you used.
 
 ### Issue Description
 Describe your problem. Does it occur every time?
