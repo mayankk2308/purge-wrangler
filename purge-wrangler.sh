@@ -478,8 +478,8 @@ end_binary_modifications() {
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
   [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
-  [[ -d "${amdlegacy_kextpath}" ]] && echo -e "${bold}AMDLegacySupport.kext${normal} already installed." && return
-  echo -e "${bold}Downloading AMDLegacySupport...${normal}"
+  [[ -d "${amdlegacy_kextpath}" ]] && echo "${bold}AMDLegacySupport.kext${normal} already installed." && return
+  echo "${bold}Downloading AMDLegacySupport...${normal}"
   curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
   if [[ ! -e "${amdlegacy_downloadpath}" || ! -s "${amdlegacy_downloadpath}" || "$(cat "${amdlegacy_downloadpath}")" == "404: Not Found" ]]
   then
@@ -487,7 +487,7 @@ install_amd_legacy_kext() {
     rm -rf "${amdlegacy_downloadpath}" 2>/dev/null
     return
   fi
-  echo -e "Download complete."
+  echo "Download complete."
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
@@ -508,7 +508,7 @@ enable_ti82() {
 
 ### Patch TB1/2 block
 patch_tb() {
-  echo -e "${bold}Patching for AMD eGPUs...${normal}"
+  echo "${bold}Patching for AMD eGPUs...${normal}"
   [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && echo" "echo -e \"Skipping legacy kext.\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && echo "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
@@ -798,12 +798,12 @@ auto_setup_egpu() {
   [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && echo
   if [[ "${egpu_vendor}" == "1002" ]]
   then
-    [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext
-    echo && patch_tb
+    [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext && echo
+    patch_tb
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
-    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1
-    echo && patch_nv
+    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && echo
+    patch_nv
   else
     manual_setup_egpu
   fi
@@ -958,6 +958,12 @@ donate() {
   echo "See your ${bold}web browser${normal}."
 }
 
+### Report issues
+report_issues() {
+  open "https://github.com/mayankk2308/purge-wrangler/issues"
+  echo "See your ${bold}web browser${normal}."
+}
+
 ### Notify
 notify() {
   osascript -e "
@@ -1061,8 +1067,8 @@ process_cli_args() {
 
 ### Present more options
 present_more_options_menu() {
-  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Reboot" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "reboot_action -f" "present_menu")
+  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Report Issues" "Reboot" "Back")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "report_issues" "reboot_action -f" "present_menu")
   generate_menu "More Options" "0" "4" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
