@@ -37,7 +37,7 @@ If you want to switch back to a release build:
 In case of a situation where the uninstallation mechanism has a bug, it is wiser to reinstall macOS and clean out the script components as described above.
 
 ## Deep Dive
-This section dives deeper into the mechanisms involved in **purge-wrangler.sh** and how you can leverage them to add your own capabilities. This section is updated according to the document revision, which corresponds to the planned/deployed script version.
+This section dives deeper into some key mechanisms involved in **purge-wrangler.sh** and how you can leverage them to add your own capabilities. This section is updated according to the document revision, which corresponds to the planned/deployed script version.
 
 API definitions will be of the following format:
 
@@ -106,8 +106,29 @@ present_menu() {
 }
 ```
 
-### Patching Mechanisms
-Todo.
+#### Patching Mechanisms
+Patching is always a **3-step** process - creating a hexadecimal patchable representation of a binary, replacing hex values in this representation, and converting back to an executable, now patched.
+
+##### API Definition
+The patching mechanisms consist of three primary functions:
+- `create_hexrepresentation`
+  - **target_binary**, *String*: Binary executable to convert.
+- `patch_binary`
+  - **target_binary**, *String*: Executable to patch.
+  - **find**, *String*: Value in hex to search for in binary.
+  - **replace**, *String*: Value in hex to replace with in binary.
+- `create_patched_binary`
+  - **target_binary**, *String*: Binary executable to create patched binary for.
+
+##### Example
+This example demonstrates how to patch a kext binary:
+```bash
+local extension_to_patch="/System/Library/Extensions/SomeExtension.kext/Contents/MacOS/SomeExtension"
+create_hexrepresentation "${extension_to_patch}"
+patch_binary "${extension_to_patch}" "AB02EF" "BB02EF"
+create_patched_binary "${extension_to_patch}"
+```
+Keep in mind that it is wise to add checks and handle any edge cases (previously patched system, for example), and always ensure that patches can work alongside already-present patches.
 
 ## What's Ahead
-It is clear that **Apple** will never be incorporating support for external GPUs for **Thunderbolt 1/2** Macs, and for now, neither for **NVIDIA eGPUs**. My hope is that until we see operating system updates for the last thunderbolt 2 Mac, the patches continue to function. Beyond that, we have to move on to other things (and devices :p).
+It is clear that **Apple** will never be incorporating support for external GPUs for **Thunderbolt 1/2** Macs, and for now, neither for **NVIDIA eGPUs**. My hope is that as long as we see operating system updates for the last **Thunderbolt 2** Mac, the patches continue to function. Beyond that, we have to move on to other things (and devices :p).
