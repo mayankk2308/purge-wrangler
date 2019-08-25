@@ -459,10 +459,16 @@ backup_system() {
 
 # --- CORE PATCHWORK
 
+### Run clean reboot
+clean_reboot() {
+  osascript -e 'tell application "Finder" to restart' &
+}
+
 ### Reboot prompt
 reboot_action() {
   [[ ${1} == -f ]] && echo "${mark}${gap}${bold}Reboot${normal}"
-  yesno_action "${bold}Reboot Now?${normal}" "echo \"${bold}Rebooting...${normal}\" && reboot" "echo \"Reboot aborted.\""
+  yesno_action "${bold}Reboot Now?${normal}" "echo \"${bold}Rebooting...
+  ${normal}\" && clean_reboot && exit" "echo \"Reboot aborted.\""
 }
 
 ### Conclude patching sequence
@@ -470,6 +476,7 @@ end_binary_modifications() {
   update_config
   sanitize_system
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
+  [[ ${single_user_mode} == 1 ]] && reboot 1>/dev/null 2>&1 && exit
   local message="${1}"
   echo -e "${bold}${message}\n\n${bold}Reboot${normal} to apply changes."
   reboot_action
@@ -798,7 +805,7 @@ auto_setup_egpu() {
   [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && echo
   if [[ "${egpu_vendor}" == "1002" ]]
   then
-    [[ ${legacy_amd_needed} == 1 ]] && echo && install_amd_legacy_kext && echo
+    [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext && echo
     patch_tb
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
