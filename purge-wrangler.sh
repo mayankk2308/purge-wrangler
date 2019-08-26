@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.0.0
+# Version: 6.0.1
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="0" && script_patch_ver="0"
+script_major_ver="6" && script_minor_ver="0" && script_patch_ver="1"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -201,10 +201,10 @@ generate_config() {
   [[ -f "${scriptconfig_filepath}" ]] && return
   > "${scriptconfig_filepath}"
   echo -e "${plist_defaultstring}" >> "${scriptconfig_filepath}"
-  $pb -c "Add :OSVersionAtPatch string ${macos_ver}" "${scriptconfig_filepath}"
-  $pb -c "Add :OSBuildAtPatch string ${macos_build}" "${scriptconfig_filepath}"
-  $pb -c "Add :DidApplyBinPatch bool false" "${scriptconfig_filepath}"
-  $pb -c "Add :DidApplyPatchNVDAWebDrv bool false" "${scriptconfig_filepath}"
+  modify_plist "${scriptconfig_filepath}" "Add" ":OSVersionAtPatch string" "${macos_ver}"
+  modify_plist "${scriptconfig_filepath}" "Add" ":OSBuildAtPatch string" "${macos_build}"
+  modify_plist "${scriptconfig_filepath}" "Add" ":DidApplyBinPatch bool" "false"
+  modify_plist "${scriptconfig_filepath}" "Add" ":DidApplyPatchNVDAWebDrv bool" "false"
 }
 
 ### Updates the configuration as necessary
@@ -212,10 +212,10 @@ update_config() {
   generate_config
   check_patch
   local status=("false" "true" "false")
-  $pb -c "Set :OSVersionAtPatch ${macos_ver}" "${scriptconfig_filepath}"
-  $pb -c "Set :OSBuildAtPatch ${macos_build}" "${scriptconfig_filepath}"
-  $pb -c "Set :DidApplyBinPatch ${status[${binpatch_enabled}]}" "${scriptconfig_filepath}"
-  $pb -c "Set :DidApplyPatchNVDAWebDrv ${status[${nvdawebdrv_patched}]}" "${scriptconfig_filepath}"
+  modify_plist "${scriptconfig_filepath}" "Set" ":OSVersionAtPatch" "${macos_ver}"
+  modify_plist "${scriptconfig_filepath}" "Set" ":OSBuildAtPatch" "${macos_build}"
+  modify_plist "${scriptconfig_filepath}" "Set" ":DidApplyBinPatch" "${status[${binpatch_enabled}]}"
+  modify_plist "${scriptconfig_filepath}" "Set" ":DidApplyPatchNVDAWebDrv" "${status[${nvdawebdrv_patched}]}"
 }
 
 ### Deprecate manifest
@@ -255,7 +255,7 @@ create_launchagent() {
 
 ### Perform software update
 perform_software_update() {
-  echo -e "\n\n${bold}Downloading...${normal}"
+  echo "${bold}Downloading...${normal}"
   curl -qLs -o "${tmp_script}" "${latest_release_dwld}"
   [[ "$(cat "${tmp_script}")" == "404: Not Found" ]] && echo -e "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
   echo -e "Download complete.\n${bold}Updating...${normal}"
@@ -746,7 +746,7 @@ get_gpu_name() {
 
 ### Retrieve Ti82 need
 get_ti82_need() {
-  local ti82_data="$(system_profiler SPThunderboltDataType | grep -i unsupported 2>/dev/null)"
+  local ti82_data="$(system_profiler SPThunderboltDataType 2>/dev/null | grep -i unsupported)"
   [[ -z ${ti82_data} ]] && echo "No" || echo "Yes"
 }
 
@@ -914,7 +914,7 @@ detect_discrete_gpu_vendor() {
 ### Detect Mac Model
 detect_mac_model() {
   is_desktop_mac=false
-  local model_id="$(system_profiler SPHardwareDataType | awk '/Model Identifier/ {print $3}' 2>/dev/null)"
+  local model_id="$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Model Identifier/ {print $3}')"
   [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
 }
 
@@ -939,7 +939,7 @@ anomaly_states() {
 
 ### Print anomalies, if any
 print_anomalies() {
-  local detected_gpus="$(system_profiler SPDisplaysDataType | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1' 2>/dev/null)"
+  local detected_gpus="$(system_profiler SPDisplaysDataType 2>/dev/null | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1')"
   echo -e "${bold}Detected System GPUs${normal}:\n${detected_gpus}\n"
   case "${resolution_needed}" in
     1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
