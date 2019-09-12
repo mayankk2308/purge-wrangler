@@ -16,7 +16,9 @@
 | **Backup** | Recommended | Always | A system backup is always recommended before modifying core operating system components. |
 
 ## Installation
-**Note**: If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs.
+Few things of **note** before you install:
+- If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs. The script will not proceed to patch if appropriate web drivers are not available for your system.
+- If you have a **Ti82** enclosure such **Razer Core V1** and **Akitio Thunder3**, the script will not be able to determine the GPU installed inside it automatically. In this scenario, the script will ask you what GPU you are using (AMD or NVIDIA).
 
 Download and install using **Terminal**:
 ```bash

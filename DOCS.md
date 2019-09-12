@@ -107,7 +107,9 @@ present_menu() {
 ```
 
 #### Patching Mechanisms
-Patching is always a **3-step** process - creating a hexadecimal patchable representation of a binary, replacing hex values in this representation, and converting back to an executable, now patched.
+Patching is always a **3-step** process - creating a hexadecimal patchable representation of a binary, replacing hex values in this representation, and converting back to an executable, now patched. The reason for using three separate functions is to allow for multiple patches in a single binary with ease.
+
+One cool aspect about the patching mechanisms that you might notice is the lack of `rm` and preference of `rsync`. This is done to minimize the potential of losing files completely, however it does not necessarily protect against corruption. Corruption fallbacks are dealt with by the recovery mechanism described ahead.
 
 ##### API Definition
 The patching mechanisms consist of three primary functions:
@@ -129,6 +131,26 @@ patch_binary "${extension_to_patch}" "AB02EF" "BB02EF"
 create_patched_binary "${extension_to_patch}"
 ```
 Keep in mind that it is wise to add checks and handle any edge cases (previously patched system, for example), and always ensure that patches can work alongside already-present patches.
+
+The above is only an example - the hex values do not mean anything. Finding the right hex values to patch or replace requires reverse engineering expertise. I personally prefer using [Ghidra](https://ghidra-sre.org) for macOS reverse engineering and patch testing.
+
+## Additional Features
+**purge-wrangler.sh** has some other nifty features to customize your patching setup as desired. This includes the ability to specify the web driver version you wish to install, and individually apply patches.
+
+### AMD Legacy Support
+This option is present at **[5] More Options > [1] AMD Legacy Support**. This installs a codeless **AMDLegacySupport** kext to **/Library/Extensions/** to add `IOPCITunnelCompatible: true` values for more AMD GPU architectures, thus enabling them over Thunderbolt. This will automatically be done if a legacy AMD GPU is detected.
+
+### Ti82 Support
+This option is present at **[5] More Options > [2] Enable Ti82 Support**. Ti82 patching is required to enable early **Thunderbolt 3** devices that macOS declares as *"Unsupported"*. If detected during eGPU configuration, this patch is automatically applied, but more information about the GPU is required since it could not be read.
+
+### NVIDIA Web Drivers
+This option is present at **[5] More Options > [3] Install NVIDIA Web Drivers**. The script includes a comprehensive system to install NVIDIA Web Drivers directly from NVIDIA servers. The latest updates to the script bring the ability to specify a web driver version you would like to install. This is useful in cases where an older driver works better. However, during automatic eGPU setup, there will be no option to specify web driver versions.
+
+### System Diagnosis
+This option is present at **[5] More Options > [4] System Diagnosis**. This checks for edge-case configurations such as macs with discrete NVIDIA GPUs. By default, system diagnosis runs after applying patches in the automatic setup workflow.
+
+### Recovery
+This option is present at **[4] Recovery**. Fundamentally, the end result of running **Uninstall** or **Recovery** is supposed to be the same. However, since patching and unpatching are non-atomic operations, there may be an undefined number of unprecedented situations where the mechanisms go wrong and files are lost/misplaced. In such a scenario, undoing patches would not work. By maintaining an invariant that a **kext backup** must occur before any patch, any patching failure can be recovered even if the uninstallation mechanism fails by relying on the last backup (hence called 'recovery'). In this case a cure is better than prevention. When the script is executed in [Single User Mode](http://osxdaily.com/2018/10/29/boot-single-user-mode-mac/), this operation is executed by default and no other capabilities are available.
 
 ## What's Ahead
 It is clear that **Apple** will never be incorporating support for external GPUs for **Thunderbolt 1/2** Macs, and for now, neither for **NVIDIA eGPUs**. My hope is that as long as we see operating system updates for the last **Thunderbolt 2** Mac, the patches continue to function. Beyond that, we have to move on to other things (and devices :p).
