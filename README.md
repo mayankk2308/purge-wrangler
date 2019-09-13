@@ -68,6 +68,25 @@ With NVIDIA GPUs, **hot-unplugging** capability is not supported. Additionally, 
 | **Intel** | **AMD** | NVIDIA | NVIDIA Web Drivers | Slow/black screens  which may require switching **mux** to the iGPU or logging out and in after hot-plugging. |
 
 ## Troubleshooting
+This section includes a nifty FAQ and additional resources that you can use to get help.
+
+### FAQ
+These are some of the most frequently asked questions regarding this script and eGPU support in general. Of course, the list is not exhaustive, so always search for more information via other resources for questions not listed here.
+
+#### Why did the script fail to detect my enclosure?
+Assuming hardware is appropriately configured and not defective, the only case when the script fails to detect eGPU configurations is when the enclosure has a Ti82 controller, which macOS does not support by default. Hence detection fails. Simply answer the questions the script asks to proceed with your setup.
+
+#### Do I require NVIDIA Web Drivers?
+If asked this question while setting up your eGPU, the answer depends on the NVIDIA GPU you are using. See the installation notes for more insight. Essentially, you don't need these if you are using Kepler GPUs.
+
+#### Why do patched NVIDIA drivers not work on macOS Mojave or later?
+In macOS Mojave, Apple removed the necessary APIs that NVIDIA-provided graphics drivers used for accelerating their graphics processors. The script uses a simple check to see if it is possible to run NVIDIA drivers for an older macOS version, and patches it for the new version if so. If not, then patching terminates.
+
+#### Should I enable AMD Legacy Support if asked?
+As explained in the installation section, you only need this for AMD GPUs not mentioned in Apple's [eGPU Support document](https://support.apple.com/en-us/HT208544). Enabling this for any other GPUs yields no benefit, but is also not harmful.
+
+### Get Help
+If you are stuck somewhere, reach out to fellow users:
 - [eGPU.io Build Guides](https://egpu.io/build-guides/): See builds for a variety of systems and eGPUs. If you don't find an exact match, look for similar builds.
 - [eGPU.io Troubleshooting Guide](https://egpu.io/forums/mac-setup/guide-troubleshooting-egpus-on-macos/): Some basics on external GPUs in macOS.
 - [eGPU.io Community](https://egpu.io/forums/): Ask about, request help, learn more, and share your eGPU experience with the community.
