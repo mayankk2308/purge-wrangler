@@ -19,6 +19,7 @@
 Few things of **note** before you install:
 - If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs. The script will not proceed to patch if appropriate web drivers are not available for your system.
 - If you have a **Ti82** enclosure such **Razer Core V1** and **Akitio Thunder3**, the script will not be able to determine the GPU installed inside it automatically. In this scenario, the script will ask you what GPU you are using (AMD or NVIDIA).
+- If you are using an AMD GPU not listed in [Apple's eGPU support document](https://support.apple.com/en-us/HT208544), such as the **R9 Nano**, legacy support will have to be enabled. In most cases, this will be done automatically. However, as above, if you have a Ti82 enclosure, the script will ask you if you would like to install this.
 
 Download and install using **Terminal**:
 ```bash
