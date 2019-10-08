@@ -17,6 +17,18 @@ git clone https://github.com/mayankk2308/purge-wrangler.git
 ```
 Always know that unreleased builds of the script can potentially cause problems and may even render your system unbootable in worst-case scenarios. For example, if a new build of the script has a bug in its recovery mechanism, it may leave the system unbootable. It is recommended to use an [extra installation of macOS](https://support.apple.com/en-us/HT208891) for testing.
 
+### Script Options
+There are convenient command-line arguments for the script that advanced users may prefer using, enumerated in the following table.
+
+| Menu | CLI Arg | Description |
+| :------: | :--: | :---------- |
+| Setup eGPU | `-a` | Automatically set up eGPU based on your system configuration and external GPU. |
+| Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
+| Recovery | `-r` | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
+| System Status | `-s` | Shows the current status of some of the components of the system and any modifications made using the script. |
+
+Running without arguments launches the menu.
+
 ### Reporting Problems
 Use the [Issues](https://github.com/mayankk2308/purge-wrangler/issues) section on the repository to report any problems with the script. Please follow the templates for bug reports and feature requests. Try not to open duplicate issues.
 
