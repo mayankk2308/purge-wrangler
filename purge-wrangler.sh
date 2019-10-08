@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.0.1
+# Version: 6.0.2
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="0" && script_patch_ver="1"
+script_major_ver="6" && script_minor_ver="0" && script_patch_ver="2"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -109,12 +109,14 @@ deprecated_automate_egpu_kextpath="${libextensions_path}automate-eGPU.kext"
 amdlegacy_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/AMDLegacySupport.kext.zip"
 amdlegacy_downloadpath="${libextensions_path}AMDLegacySupport.kext.zip"
 amdlegacy_kextpath="${libextensions_path}AMDLegacySupport.kext"
+amdlegacy_integrity_hash="b64e399fa4d350b723170eb69780741c3f54af94570b995a201d70d540771500e67081b235c05deca95ad5e44cf1ba529766e47ff3b5f62eeb94161c80b0e29a"
 
 # General backup path
 support_dirpath="/Library/Application Support/Purge-Wrangler/"
 backupkext_dirpath="${support_dirpath}Kexts/"
 prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/pw.png"
 prompticon_filepath="${support_dirpath}pw.png"
+prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
 
 ## Deprecated manifest
 manifest="${support_dirpath}manifest.wglr"
@@ -132,7 +134,7 @@ plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 
 # --- SCRIPT HELPERs
 
-## -- User Interface
+## -- User Interface and Utlities
 
 ### Prompt for a yes/no action
 yesno_action() {
@@ -155,6 +157,15 @@ echoc() {
   echo -e "${1}"
 }
 
+### Object downloader
+obj_download() {
+  local url="${1}"
+  local dst="${2}"
+  local integrity_hash="${3}"
+  curl -qLs  -o "${dst}" "${url}"
+  [[ "$(shasum -a 512 "${dst}" | awk '{ print $1 }')" != "${integrity_hash}" ]] && rm -rf "${dst}" 2>/dev/null 1>&2 || return 0
+}
+
 ## -- Binary Patching Mechanism (P1 -> P2 -> P3)
 
 ### P1: Create hex representation for target binary
@@ -170,7 +181,7 @@ patch_binary() {
   local find="${2}"
   local replace="${3}"
   local scratch_hex="${target_binary}.hex"
-  sed -i "" -e "s/${find}/${replace}/g" "${scratch_hex}"
+  sed -i "" -e "s/${find}/${replace}/g" "${scratch_hex}" 2>/dev/null 1>&2
 }
 
 ### P3: Generic binary generator for given hex file
@@ -246,8 +257,7 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:0 string ${script_bin}" "${agent_plistpath}"
   $pb -c "Add :ProgramArguments:1 string -l" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
-  curl -qLs -o "${prompticon_filepath}" "${prompticon_downloadurl}"
-  [[ ! -s "${prompticon_filepath}" || "$(cat "${prompticon_filepath}")" == "404: Not Found" ]] && rm -f "${prompticon_filepath}" 2>/dev/null 1>&2
+  obj_download "${prompticon_downloadurl}" "${prompticon_filepath}" "${prompticon_integrity_hash}"
   su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
 }
 
@@ -487,13 +497,8 @@ install_amd_legacy_kext() {
   [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && echo "${bold}AMDLegacySupport.kext${normal} already installed." && return
   echo "${bold}Downloading AMDLegacySupport...${normal}"
-  curl -q -L -s -o "${amdlegacy_downloadpath}" "${amdlegacy_downloadurl}"
-  if [[ ! -e "${amdlegacy_downloadpath}" || ! -s "${amdlegacy_downloadpath}" || "$(cat "${amdlegacy_downloadpath}")" == "404: Not Found" ]]
-  then
-    echo -e "Could not download."
-    rm -rf "${amdlegacy_downloadpath}" 2>/dev/null
-    return
-  fi
+  obj_download "${amdlegacy_downloadurl}" "${amdlegacy_downloadpath}" "${amdlegacy_integrity_hash}"
+  [[ ! -e "${amdlegacy_downloadpath}" ]] && echo "Could not download." && return 0
   echo "Download complete."
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
