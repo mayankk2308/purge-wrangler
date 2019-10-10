@@ -13,7 +13,7 @@
 | **System Integrity Protection** | Disabled | When enabled, SIP prevents patching macOS. SIP can be disabled as described in this [article](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/ConfiguringSystemIntegrityProtection/ConfiguringSystemIntegrityProtection.html).  |
 | **Secure Boot on T2** | No Security | For macs with T2 chip. Settings can be adjusted as shown in this [article](https://support.apple.com/en-us/HT208330).  |
 
-A system backup is **always recommended** before using patches on macOS. I suggest using [Time Machine](https://support.apple.com/en-us/HT201250). Unsupported installation of newer operating systems on legacy Macs via **dosdude** patches is not supported at this time.
+A system backup is **always recommended** before using patches on macOS. I suggest using [Time Machine](https://support.apple.com/en-us/HT201250). Unsupported installation of newer operating systems on legacy Macs via **dosdude** patches is not supported at this time. An internet connection is required for downloading some patches.
 
 ## Installation
 Few things of **note** before you install:
@@ -91,6 +91,10 @@ One of the eGPUs would be detected. If you are trying to set up an NVIDIA and AM
 
 #### What's the latest supported macOS version?
 Unless announced or advised otherwise, consider all releases from **macOS 10.13.4** up to the latest publicly available release as compatible. Note that NVIDIA compatibility depends on the GPU and availability of drivers.
+
+#### Script recognizes my GPU as a generic AMD or NVIDIA device. Is that ok?
+The script uses an online repository to retrieve the GPU device name for the connected eGPU. In case internet is absent, a generic vendor name (AMD or NVIDIA) is shown instead. This does not affect the necessary logic that determines the required patches. However, in case of NVIDIA GPUs and legacy AMD GPUs, internet will be required in case driver downloads are necessary.
+
 </details>
 
 ### Get Help

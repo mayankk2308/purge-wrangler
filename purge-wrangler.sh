@@ -134,7 +134,7 @@ plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 
 # --- SCRIPT HELPERs
 
-## -- User Interface and Utlities
+## -- User Interface and Utilities
 
 ### Prompt for a yes/no action
 yesno_action() {
