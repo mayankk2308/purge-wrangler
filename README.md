@@ -16,6 +16,8 @@
 A system backup is **always recommended** before using patches on macOS. I suggest using [Time Machine](https://support.apple.com/en-us/HT201250). Unsupported installation of newer operating systems on legacy Macs via **dosdude** patches is not supported at this time. An internet connection is required for downloading some patches.
 
 ## Installation
+**WARNING**: Avoid macOS 10.15.1 beta. This release has disabled purge-wrangler AMD patches. Stay tuned for updates.
+
 Few things of **note** before you install:
 - If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs. The script will not proceed to patch if appropriate web drivers are not available for your system.
 - If you have a **Ti82** enclosure such **Razer Core V1** and **Akitio Thunder3**, the script will not be able to determine the GPU installed inside it automatically. In this scenario, the script will ask you what GPU you are using (AMD or NVIDIA).
