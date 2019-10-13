@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.0.2
+# Version: 6.0.3
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="0" && script_patch_ver="2"
+script_major_ver="6" && script_minor_ver="0" && script_patch_ver="3"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -50,6 +50,8 @@ system_thunderbolt_ver=""
 
 # Thunderbolt patch references
 hex_thunderboltswitchtype="494F5468756E646572626F6C74537769746368547970653"
+hex_thunderboltcheck="4883C3174889DF31F631D2E8000000004883F803"
+hex_thunderboltcheck_patch="4883C3174889DF31F631D2E8000000004883F800"
 
 # NVIDIA patch references
 hex_nvda_bypass="494F50434954756E6E656C6C6564"
@@ -343,6 +345,7 @@ check_macos_version() {
   local macos_major_ver="$(echo -e "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(echo -e "${macos_ver}" | cut -d '.' -f3)"
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && echo -e "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
+  [[ (${macos_major_ver} > 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} > 0) ]] && is_10151_or_newer=1 || is_10151_or_newer=0
 }
 
 ### Ensure presence of system extensions
@@ -376,7 +379,11 @@ check_patch() {
   [[ ! -e "${nvdastartupweb_kextpath}" ]] && nvdawebdrv_patched=2 || nvdawebdrv_patched=0
   [[ "${nvdawebdrv_iopcitunnelcompat}" == "true" ]] && nvdawebdrv_patched=1
   [[ -d "${amdlegacy_kextpath}" ]] && amdlegacy_enabled=1 || amdlegacy_enabled=0
-  [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
+  if (( ${is_10151_or_newer} == 0 )); then
+    [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
+  else
+    [[ "${hex_agwbin}" =~ "${hex_thunderboltcheck_patch}" ]] && tbswitch_enabled=1 || tbswitch_enabled=0
+  fi
   [[ "${hex_iogbin}" =~ "${hex_nvda_bypass_patch}" ]] && nvidia_enabled=1 || nvidia_enabled=0
   [[ "${hex_iotfambin}" =~ "${hex_skipenum_patch}" ]] && ti82_enabled=1 || ti82_enabled=0
   [[ ${tbswitch_enabled} == "1" || ${ti82_enabled} == "1" || ${nvidia_enabled} == "1" ]] && binpatch_enabled=1
@@ -527,7 +534,11 @@ patch_tb() {
   [[ ${tbswitch_enabled} == 1 ]] && echo "System has already been patched for ${bold}AMD eGPUs${normal}." && return
   [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo "No patch required for this Mac." && return
   create_hexrepresentation "${agw_binpath}"
-  patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
+  if (( ${is_10151_or_newer} == 0 )); then
+    patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
+  else
+    patch_binary "${agw_binpath}" "${hex_thunderboltcheck}" "${hex_thunderboltcheck_patch}"
+  fi
   create_patched_binary "${agw_binpath}"
   echo -e "Patches applied."
 }
@@ -843,7 +854,10 @@ uninstall() {
     create_patched_binary "${iotfam_binpath}"
   fi
   create_hexrepresentation "${agw_binpath}"
-  [[ ${tbswitch_enabled} == 1 ]] && patch_binary "${agw_binpath}" "${system_thunderbolt_ver}" "${hex_thunderboltswitchtype}"3
+  if [[ ${tbswitch_enabled} == 1 ]]; then
+    patch_binary "${agw_binpath}" "${system_thunderbolt_ver}" "${hex_thunderboltswitchtype}"3
+    patch_binary "${agw_binpath}" "${hex_thunderboltcheck_patch}" "${hex_thunderboltcheck}" 
+  fi
   if [[ ${nvidia_enabled} == 1 ]]
   then
     create_hexrepresentation "${iog_binpath}"
