@@ -8,7 +8,7 @@
 # ----- ENVIRONMENT
 
 # Script and options
-script="${BASH_SOURCE}"
+(script="${BASH_SOURCE}"
 option=""
 single_user_mode="$(sysctl -n kern.singleuser)"
 
@@ -342,10 +342,11 @@ check_sys_volume() {
 
 ### macOS compatibility check
 check_macos_version() {
+  is_10151_or_newer=1
   local macos_major_ver="$(echo -e "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(echo -e "${macos_ver}" | cut -d '.' -f3)"
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && echo -e "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
-  [[ (${macos_major_ver} > 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} > 0) ]] && is_10151_or_newer=1 || is_10151_or_newer=0
+  [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && is_10151_or_newer=0
 }
 
 ### Ensure presence of system extensions
@@ -379,7 +380,7 @@ check_patch() {
   [[ ! -e "${nvdastartupweb_kextpath}" ]] && nvdawebdrv_patched=2 || nvdawebdrv_patched=0
   [[ "${nvdawebdrv_iopcitunnelcompat}" == "true" ]] && nvdawebdrv_patched=1
   [[ -d "${amdlegacy_kextpath}" ]] && amdlegacy_enabled=1 || amdlegacy_enabled=0
-  if (( ${is_10151_or_newer} == 0 )); then
+  if [[ ${is_10151_or_newer} -eq 0 ]]; then
     [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
   else
     [[ "${hex_agwbin}" =~ "${hex_thunderboltcheck_patch}" ]] && tbswitch_enabled=1 || tbswitch_enabled=0
@@ -786,9 +787,9 @@ detect_egpu() {
       legacy_amd_needed=0
       webdrv_needed=0
       local name_data="$(get_gpu_name "${egpu_dev_id}" "${egpu_vendor}")"
-      egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
+      local egpu_name="$(echo "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(echo "${name_data}" | cut -d ":" -f2)"
-      [[ "${egpu_arch}" =~ "Vega" || "${egpu_arch}" =~ "Baffin" || "${egpu_arch}" =~ "Ellesmere" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
+      [[ "${egpu_arch}" =~ "Vega" || "${egpu_arch}" =~ "Baffin" || "${egpu_arch}" =~ "Ellesmere" || "${egpu_arch}" =~ "Navi" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
       [[ "${egpu_arch}" =~ "GK" || "${egpu_arch}" =~ "GF" ]] && webdrv_needed=0 || webdrv_needed=1
       echoc "${bold}External GPU${normal}\t${egpu_name}"
       echo -e "${bold}GPU Arch${normal}" "\t${egpu_arch}"
@@ -821,8 +822,12 @@ auto_setup_egpu() {
   [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && echo
   if [[ "${egpu_vendor}" == "1002" ]]
   then
-    [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext && echo
-    patch_tb
+    if [[ "${egpu_arch}" =~ "Navi" && ${is_10151_or_newer} != 1 ]]; then
+      echo "${bold}Navi${normal} eGPUs require ${bold}macOS 10.15.1${normal} or later."
+    else
+      [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext && echo
+      patch_tb
+    fi
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
     [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && echo
@@ -932,9 +937,8 @@ detect_discrete_gpu_vendor() {
 
 ### Detect Mac Model
 detect_mac_model() {
-  is_desktop_mac=false
   local model_id="$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Model Identifier/ {print $3}')"
-  [[ ! "MacBook" =~ "${model_id}" ]] && is_desktop_mac=true
+  [[ "${model_id}" == *"MacBook"* ]] && is_desktop_mac=0 || is_desktop_mac=1
 }
 
 ### Compute anomaly states
@@ -1119,4 +1123,4 @@ begin() {
   process_cli_args "${option}"
 }
 
-begin "${0}" "${1}"
+begin "${0}" "${1}")
