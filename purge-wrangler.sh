@@ -300,9 +300,9 @@ fetch_latest_release() {
 
 ### Check caller
 validate_caller() {
-  [[ "${1}" == "bash" && -z "${2}" ]] && echo -e "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
+  [[ -z "${script}" ]] && echo -e "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
   [[ "${1}" != "${script}" ]] && option="${3}" || option="${2}"
-  [[ "${script}" == "${script_bin}" || "${script}" == "purge-wrangler" ]] && is_bin_call=1
+  [[ "${script}" == "${script_bin}" ]] && is_bin_call=1
 }
 
 ### Elevate privileges
@@ -884,13 +884,11 @@ uninstall() {
 ### Binary first-time setup
 first_time_setup() {
   [[ $is_bin_call == 1 ]] && return
-  call_script_file="$(pwd)/$(echo -e "${script}")"
-  [[ "${script}" == "${0}" ]] && call_script_file="$(echo -e "${call_script_file}" | cut -c 1-)"
-  script_sha="$(shasum -a 512 -b "${call_script_file}" | awk '{ print $1 }')"
+  script_sha="$(shasum -a 512 -b "${script}" | awk '{ print $1 }')"
   bin_sha=""
   [[ -s "${script_bin}" ]] && bin_sha="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
   [[ "${bin_sha}" == "${script_sha}" ]] && return
-  rsync "${call_script_file}" "${script_bin}"
+  rsync "${script}" "${script_bin}"
   chown "${SUDO_USER}" "${script_bin}"
   chmod 755 "${script_bin}"
 }
