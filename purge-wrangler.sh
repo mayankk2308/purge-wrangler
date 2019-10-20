@@ -1021,6 +1021,7 @@ notify() {
 
 ### Show update prompt
 show_update_prompt() {
+  check_macos_version
   check_patch
   [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
