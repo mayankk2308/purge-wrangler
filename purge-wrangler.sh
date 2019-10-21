@@ -52,6 +52,8 @@ system_thunderbolt_ver=""
 hex_thunderboltswitchtype="494F5468756E646572626F6C74537769746368547970653"
 hex_thunderboltcheck="4883C3174889DF31F631D2E8000000004883F803"
 hex_thunderboltcheck_patch="4883C3174889DF31F631D2E8000000004883F800"
+hex_selected_thunderbolt="${hex_thunderboltcheck}"
+hex_selected_thunderbolt_patch="${hex_thunderboltcheck_patch}"
 
 # NVIDIA patch references
 hex_nvda_bypass="494F50434954756E6E656C6C6564"
@@ -169,6 +171,14 @@ obj_download() {
 }
 
 ## -- Binary Patching Mechanism (P1 -> P2 -> P3)
+
+### Optional: Check binary patchability
+check_bin_patchability() {
+  local target_binary="${1}"
+  local find="${2}"
+  local dump="$(hexdump -ve '1/1 "%.2X"' "${target_binary}")"
+  [[ "${dump}" == *"${find}"* ]] && return 0 || return 1
+}
 
 ### P1: Create hex representation for target binary
 create_hexrepresentation() {
@@ -289,7 +299,8 @@ fetch_latest_release() {
   latest_major_ver="$(echo -e "${latest_release_ver}" | cut -d '.' -f1)"
   latest_minor_ver="$(echo -e "${latest_release_ver}" | cut -d '.' -f2)"
   latest_patch_ver="$(echo -e "${latest_release_ver}" | cut -d '.' -f3)"
-  if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver) || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
+  if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver)\
+   || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
     echo -e "${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n\nFor the best experience, stick to the latest release."
     yesno_action "${bold}Would you like to update?${normal}" "perform_software_update" "echo \"${bold}Proceeding without updating...${normal}\""
@@ -340,13 +351,17 @@ check_sys_volume() {
   fi
 }
 
-### macOS compatibility check
+### macOS compatibility check and patch selection
 check_macos_version() {
   is_10151_or_newer=1
   local macos_major_ver="$(echo -e "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(echo -e "${macos_ver}" | cut -d '.' -f3)"
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && echo -e "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
-  [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && is_10151_or_newer=0
+  if [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]]; then
+    is_10151_or_newer=0
+    hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
+    hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
+  fi
 }
 
 ### Ensure presence of system extensions
@@ -366,7 +381,6 @@ retrieve_tb_ver() {
   tb_type="${tb_type##*+-o AppleThunderboltNHIType}"
   tb_type="${tb_type::1}"
   system_thunderbolt_ver="${hex_thunderboltswitchtype}${tb_type}"
-  [[ ${tb_type} != 3 ]] && tb_needed=1 || tb_needed=0
 }
 
 ### Retrieve patch status
@@ -380,11 +394,7 @@ check_patch() {
   [[ ! -e "${nvdastartupweb_kextpath}" ]] && nvdawebdrv_patched=2 || nvdawebdrv_patched=0
   [[ "${nvdawebdrv_iopcitunnelcompat}" == "true" ]] && nvdawebdrv_patched=1
   [[ -d "${amdlegacy_kextpath}" ]] && amdlegacy_enabled=1 || amdlegacy_enabled=0
-  if [[ ${is_10151_or_newer} -eq 0 ]]; then
-    [[ "${hex_agwbin}" =~ "${system_thunderbolt_ver}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
-  else
-    [[ "${hex_agwbin}" =~ "${hex_thunderboltcheck_patch}" ]] && tbswitch_enabled=1 || tbswitch_enabled=0
-  fi
+  [[ "${hex_agwbin}" =~ "${hex_selected_thunderbolt_patch}" && "${system_thunderbolt_ver}" != "${hex_thunderboltswitchtype}"3 ]] && tbswitch_enabled=1 || tbswitch_enabled=0
   [[ "${hex_iogbin}" =~ "${hex_nvda_bypass_patch}" ]] && nvidia_enabled=1 || nvidia_enabled=0
   [[ "${hex_iotfambin}" =~ "${hex_skipenum_patch}" ]] && ti82_enabled=1 || ti82_enabled=0
   [[ ${tbswitch_enabled} == "1" || ${ti82_enabled} == "1" || ${nvidia_enabled} == "1" ]] && binpatch_enabled=1
@@ -405,8 +415,8 @@ check_patch_status() {
 ### Cumulative system check
 perform_sys_check() {
   check_sip
-  check_macos_version
   retrieve_tb_ver
+  check_macos_version
   elevate_privileges
   check_sys_volume
   check_sys_extensions
@@ -519,6 +529,8 @@ enable_ti82() {
   [[ "${1}" == -end ]] && echo -e "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
   [[ ${ti82_enabled} == 1 ]] && echo -e "Ti82 support is already enabled on this system." && return
   echo "${bold}Enabling Ti82 support...${normal}"
+  check_bin_patchability "${iotfam_binpath}" "${hex_skipenum}"
+  [[ $? == 1 ]] && echo -e "${bold}Unable to patch${normal} for Ti82 devices.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${iotfam_binpath}"
   patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
   create_patched_binary "${iotfam_binpath}"
@@ -534,12 +546,10 @@ patch_tb() {
   [[ ${nvidia_enabled} == 1 ]] && echo "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && echo "System has already been patched for ${bold}AMD eGPUs${normal}." && return
   [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && echo "No patch required for this Mac." && return
+  check_bin_patchability "${agw_binpath}" "${hex_selected_thunderbolt}"
+  [[ $? == 1 ]] && echo -e "${bold}Unable to patch${normal} for TB1/2 AMD eGPUs.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${agw_binpath}"
-  if (( ${is_10151_or_newer} == 0 )); then
-    patch_binary "${agw_binpath}" "${hex_thunderboltswitchtype}"3 "${system_thunderbolt_ver}"
-  else
-    patch_binary "${agw_binpath}" "${hex_thunderboltcheck}" "${hex_thunderboltcheck_patch}"
-  fi
+  patch_binary "${agw_binpath}" "${hex_selected_thunderbolt}" "${hex_selected_thunderbolt_patch}"
   create_patched_binary "${agw_binpath}"
   echo -e "Patches applied."
 }
@@ -712,6 +722,11 @@ run_patch_nv() {
     nvram -d nvda_drv 2>/dev/null
     nvdastartupplist_topatch="${nvdastartup_plistpath}"
   fi
+  check_bin_patchability "${agw_binpath}" "${hex_nvda_bypass}"
+  local pass=$?
+  check_bin_patchability "${iog_binpath}" "${hex_nvda_bypass}"
+  pass=$(( ${pass} + $? ))
+  (( ${pass} != 0 )) && echo -e "${bold}Unable to patch${normal} for NVIDIA eGPUs.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
@@ -737,10 +752,10 @@ patch_nv() {
 
 # Run webdriver uninstallation process
 run_webdriver_uninstaller() {
-  echo -e "${bold}Uninstalling NVIDIA drivers...${normal}"
   nvram -d nvda_drv
   local webdriver_uninstaller="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
-  [[ ! -s "${webdriver_uninstaller}" ]] && echo -e "None found." && return
+  [[ ! -s "${webdriver_uninstaller}" ]] && return
+  echo -e "${bold}Uninstalling NVIDIA drivers...${normal}"
   installer -target "/" -pkg "${webdriver_uninstaller}" 2>&1 1>/dev/null
   [[ ${single_user_mode} == 0 ]] && echo "Drivers Uninstalled." || echo "Drivers deactivated."
 }
@@ -860,8 +875,7 @@ uninstall() {
   fi
   create_hexrepresentation "${agw_binpath}"
   if [[ ${tbswitch_enabled} == 1 ]]; then
-    patch_binary "${agw_binpath}" "${system_thunderbolt_ver}" "${hex_thunderboltswitchtype}"3
-    patch_binary "${agw_binpath}" "${hex_thunderboltcheck_patch}" "${hex_thunderboltcheck}" 
+    patch_binary "${agw_binpath}" "${hex_selected_thunderbolt_patch}" "${hex_selected_thunderbolt}"
   fi
   if [[ ${nvidia_enabled} == 1 ]]
   then
