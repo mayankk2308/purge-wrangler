@@ -16,9 +16,8 @@
 A system backup is **always recommended** before using patches on macOS. I suggest using [Time Machine](https://support.apple.com/en-us/HT201250). Unsupported installation of newer operating systems on legacy Macs via **dosdude** patches is not supported at this time. An internet connection is required for downloading some patches.
 
 ## Installation
-**WARNING**: Avoid macOS 10.15.1 beta. This release has disabled purge-wrangler AMD patches. Stay tuned for updates.
-
 Few things of **note** before you install:
+- If you are using **macOS 10.15.1 or later**, ensure you are running script **v6.0.3** or later. If this is your first time installing, the following instructions will ensure you get the latest version automatically. For previous users, the script will prompt for an update automatically.
 - If you are using an NVIDIA 9xx or newer GPU, only **macOS High Sierra** is supported. Newer macOS versions do not have available web drivers to accelerate these GPUs. The script will not proceed to patch if appropriate web drivers are not available for your system.
 - If you have a **Ti82** enclosure such **Razer Core V1** and **Akitio Thunder3**, the script will not be able to determine the GPU installed inside it automatically. In this scenario, the script will ask you what GPU you are using (AMD or NVIDIA).
 - If you are using an AMD GPU not listed in [Apple's eGPU support document](https://support.apple.com/en-us/HT208544), such as the **R9 Nano**, legacy support will have to be enabled. In most cases, this will be done automatically. However, as above, if you have a Ti82 enclosure, the script will ask you if you would like to install this.
@@ -72,6 +71,9 @@ These are some of the most frequently asked questions regarding this script and 
 
 <details>
 <summary>See Questions</summary>
+
+#### Why is eGPU not working on Thunderbolt 1/2 system on Catalina?
+See installation notes. If you are running **macOS 10.15.1 or later**, use script version **v6.0.3** or newer.
 
 #### Why did the script fail to detect my enclosure?
 Assuming hardware is appropriately configured and not defective, the only case when the script fails to detect eGPU configurations is when the enclosure has a Ti82 controller, which macOS does not support by default. Hence detection fails. Simply answer the questions the script asks to proceed with your setup.

@@ -351,17 +351,20 @@ check_sys_volume() {
   fi
 }
 
-### macOS compatibility check and patch selection
+### Old patch(es) selector
+select_older_patches() {
+  is_10151_or_newer=0
+  hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
+  hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
+}
+
+### macOS compatibility check
 check_macos_version() {
   is_10151_or_newer=1
   local macos_major_ver="$(echo -e "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(echo -e "${macos_ver}" | cut -d '.' -f3)"
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && echo -e "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
-  if [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]]; then
-    is_10151_or_newer=0
-    hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
-    hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
-  fi
+  [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
 }
 
 ### Ensure presence of system extensions
@@ -852,8 +855,7 @@ auto_setup_egpu() {
   fi
   check_patch
   [[ ${binpatch_enabled} != "1" && ${amdlegacy_enabled} != "1" ]] && return
-  echo -e "\n${bold}Detecting anomalies...${normal}"
-  anomaly_states
+  echo
   print_anomalies
   echo
   end_binary_modifications "Modifications complete."
@@ -874,9 +876,7 @@ uninstall() {
     create_patched_binary "${iotfam_binpath}"
   fi
   create_hexrepresentation "${agw_binpath}"
-  if [[ ${tbswitch_enabled} == 1 ]]; then
-    patch_binary "${agw_binpath}" "${hex_selected_thunderbolt_patch}" "${hex_selected_thunderbolt}"
-  fi
+  [[ ${tbswitch_enabled} == 1 ]] && patch_binary "${agw_binpath}" "${hex_selected_thunderbolt_patch}" "${hex_selected_thunderbolt}"
   if [[ ${nvidia_enabled} == 1 ]]
   then
     create_hexrepresentation "${iog_binpath}"
@@ -957,10 +957,7 @@ detect_mac_model() {
 anomaly_states() {
   detect_mac_model
   detect_discrete_gpu_vendor
-  will_use_ext_disp=0
   resolution_needed=0
-  yesno_action "Will you be using an ${bold}external monitor${normal}?" "will_use_ext_disp=1" "will_use_ext_disp=0"
-  [[ ${will_use_ext_disp} == 0 ]] && return
   [[ ${is_desktop_mac} == 1 ]] && resolution_needed="-1" && return
   if [[ "${dgpu_vendor}" == "10de" ]]
   then
@@ -974,21 +971,19 @@ anomaly_states() {
 
 ### Print anomalies, if any
 print_anomalies() {
-  local detected_gpus="$(system_profiler SPDisplaysDataType 2>/dev/null | grep -i "Chipset Model" | cut -d':' -f2 | awk '{$1=$1};1')"
-  echo -e "${bold}Detected System GPUs${normal}:\n${detected_gpus}\n"
+  echo "${bold}Analyzing system...${normal}"
+  anomaly_states
   case "${resolution_needed}" in
-    1) echo -e "${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
-    2) echo -e "${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
-    3) echo -e "${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
-    *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present." || echo "No anomalies expected.";;
+    1) echo -e "\n${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
+    2) echo -e "\n${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
+    3) echo -e "\n${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
+    *) [[ ${is_desktop_mac} == 1 ]] && echo "No resolutions to any anomalies if present. See README." || echo "No anomalies expected.";;
   esac
 }
 
 ### Anomaly detection
 detect_anomalies() {
   echo -e "${mark}${gap}${bold}System Diagnosis${normal}\n"
-  echo -e "Diagnosis will check your system to ${bold}find\npotential hiccups${normal} based on the applied system patches."
-  anomaly_states
   print_anomalies
 }
 
