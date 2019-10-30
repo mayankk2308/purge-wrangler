@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.0.3
+# Version: 6.1.0
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="0" && script_patch_ver="3"
+script_major_ver="6" && script_minor_ver="1" && script_patch_ver="0"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -734,7 +734,6 @@ run_patch_nv() {
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
-  patch_binary "${iog_binpath}" "${hex_nvda_clamshell}" "${hex_nvda_clamshell_patch}"
   create_patched_binary "${agw_binpath}"
   create_patched_binary "${iog_binpath}"
   modify_plist "${iondrv_plistpath}" "Add" "${set_iognvda_pcitunnelled}" "true"
