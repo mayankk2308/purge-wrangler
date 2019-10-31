@@ -140,25 +140,30 @@ plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 
 ## -- User Interface and Utilities
 
+### Printf newline
+printfn() {
+  printf '%b\n' "${@}"
+}
+
+### Clear print
+printfc() {
+  printf "\033[2K\r"
+  printfn "${@}"
+}
+
 ### Prompt for a yes/no action
 yesno_action() {
   local prompt="${1}"
   local yesaction="${2}"
   local noaction="${3}"
   local no_newline="${4}"
-  [[ -z "${no_newline}" ]] && printf '%b\n'
+  [[ -z "${no_newline}" ]] && printfn
   read -n1 -p "${prompt} [Y/N]: " userinput
   printf "\033[2K\r"
   [[ ${userinput} == "Y" ]] && eval "${yesaction}" && return
   [[ ${userinput} == "N" ]] && eval "${noaction}" && return
-  printf '%b\n' "Invalid choice. Please try again."
+  printfn "Invalid choice. Please try again."
   yesno_action "${prompt}" "${yesaction}" "${noaction}"
-}
-
-### Clear print
-printfc() {
-  printf "\033[2K\r"
-  printf '%b\n' "${@}"
 }
 
 ### Object downloader
@@ -223,7 +228,7 @@ generate_config() {
   mkdir -p "${support_dirpath}"
   [[ -f "${scriptconfig_filepath}" ]] && return
   > "${scriptconfig_filepath}"
-  printf '%b\n' "${plist_defaultstring}" >> "${scriptconfig_filepath}"
+  printfn "${plist_defaultstring}" >> "${scriptconfig_filepath}"
   modify_plist "${scriptconfig_filepath}" "Add" ":OSVersionAtPatch string" "${macos_ver}"
   modify_plist "${scriptconfig_filepath}" "Add" ":OSBuildAtPatch string" "${macos_build}"
   modify_plist "${scriptconfig_filepath}" "Add" ":DidApplyBinPatch bool" "false"
@@ -260,7 +265,7 @@ create_launchagent() {
   mkdir -p "${agent_dirpath}"
   local agent_plistpath="${agent_dirpath}${script_launchagent}.plist"
   > "${agent_plistpath}"
-  printf '%b\n' "${plist_defaultstring}" >> "${agent_plistpath}"
+  printfn "${plist_defaultstring}" >> "${agent_plistpath}"
   $pb -c "Add :Label string ${script_launchagent}" "${agent_plistpath}"
   $pb -c "Add :OnDemand bool false" "${agent_plistpath}"
   $pb -c "Add :LaunchOnlyOnce bool true" "${agent_plistpath}"
@@ -277,14 +282,14 @@ create_launchagent() {
 
 ### Perform software update
 perform_software_update() {
-  printf '%b\n' "${bold}Downloading...${normal}"
+  printfn "${bold}Downloading...${normal}"
   curl -qLs -o "${tmp_script}" "${latest_release_dwld}"
-  [[ "$(cat "${tmp_script}")" == "404: Not Found" ]] && printf '%b\n' "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
-  printf '%b\n' "Download complete.\n${bold}Updating...${normal}"
+  [[ "$(cat "${tmp_script}")" == "404: Not Found" ]] && printfn "Download failed.\n${bold}Continuing without updating...${normal}" && rm "${tmp_script}" && return
+  printfn "Download complete.\n${bold}Updating...${normal}"
   chmod 700 "${tmp_script}" && chmod +x "${tmp_script}"
   rm "${script}" && mv "${tmp_script}" "${script}"
   chown "${SUDO_USER}" "${script}"
-  printf '%b\n' "Update complete."
+  printfn "Update complete."
   "${script}" "${option}"
   exit 0
 }
@@ -294,15 +299,15 @@ fetch_latest_release() {
   mkdir -p -m 775 "${local_bin}"
   [[ "${is_bin_call}" == 0 ]] && return
   latest_script_data="$(curl -q -s "https://api.github.com/repos/mayankk2308/purge-wrangler/releases/latest")"
-  latest_release_ver="$(printf '%b\n' "${latest_script_data}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
-  latest_release_dwld="$(printf '%b\n' "${latest_script_data}" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/')"
-  latest_major_ver="$(printf '%b\n' "${latest_release_ver}" | cut -d '.' -f1)"
-  latest_minor_ver="$(printf '%b\n' "${latest_release_ver}" | cut -d '.' -f2)"
-  latest_patch_ver="$(printf '%b\n' "${latest_release_ver}" | cut -d '.' -f3)"
+  latest_release_ver="$(printfn "${latest_script_data}" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
+  latest_release_dwld="$(printfn "${latest_script_data}" | grep '"browser_download_url":' | sed -E 's/.*"([^"]+)".*/\1/')"
+  latest_major_ver="$(printfn "${latest_release_ver}" | cut -d '.' -f1)"
+  latest_minor_ver="$(printfn "${latest_release_ver}" | cut -d '.' -f2)"
+  latest_patch_ver="$(printfn "${latest_release_ver}" | cut -d '.' -f3)"
   if [[ $latest_major_ver > $script_major_ver || ($latest_major_ver == $script_major_ver && $latest_minor_ver > $script_minor_ver)\
    || ($latest_major_ver == $script_major_ver && $latest_minor_ver == $script_minor_ver && $latest_patch_ver > $script_patch_ver) && ! -z "${latest_release_dwld}" ]]
   then
-    printf '%b\n' "${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n"
+    printfn "${mark}${gap}${bold}Software Update${normal}\n\nSoftware updates are available.\n\nOn Your System    ${bold}${script_ver}${normal}\nLatest Available  ${bold}${latest_release_ver}${normal}\n"
     perform_software_update
   fi
 }
@@ -311,7 +316,7 @@ fetch_latest_release() {
 
 ### Check caller
 validate_caller() {
-  [[ -z "${script}" ]] && printf '%b\n' "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
+  [[ -z "${script}" ]] && printfn "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
   [[ "${1}" != "${script}" ]] && option="${3}" || option="${2}"
   [[ "${script}" == "${script_bin}" ]] && is_bin_call=1
 }
@@ -329,7 +334,7 @@ elevate_privileges() {
 check_sip() {
   if [[ ! -z "$(csrutil status | grep -i enabled)" ]]
   then
-    printf '%b\n' "\nPlease disable ${bold}System Integrity Protection${normal}.\n"
+    printfn "\nPlease disable ${bold}System Integrity Protection${normal}.\n"
     exit
   fi
 }
@@ -346,7 +351,7 @@ check_sys_volume() {
       check_sys_volume
       return
     fi
-    printf '%b\n' "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
+    printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
     exit
   fi
 }
@@ -361,9 +366,9 @@ select_older_patches() {
 ### macOS compatibility check
 check_macos_version() {
   is_10151_or_newer=1
-  local macos_major_ver="$(printf '%b\n' "${macos_ver}" | cut -d '.' -f2)"
-  local macos_minor_ver="$(printf '%b\n' "${macos_ver}" | cut -d '.' -f3)"
-  [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printf '%b\n' "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
+  local macos_major_ver="$(printfn "${macos_ver}" | cut -d '.' -f2)"
+  local macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
+  [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
   [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
 }
 
@@ -371,9 +376,9 @@ check_macos_version() {
 check_sys_extensions() {
   if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
   then
-    printf '%b\n' "\nUnexpected system configuration or missing files."
+    printfn "\nUnexpected system configuration or missing files."
     yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "exit"
-    printf '%b\n'
+    printfn
     exit
   fi
 }
@@ -405,14 +410,14 @@ check_patch() {
 
 ### Display patch statuses
 check_patch_status() {
-  printf '%b\n' "${mark}${gap}${bold}System Status${normal}\n"
+  printfn "${mark}${gap}${bold}System Status${normal}\n"
   local status=("Disabled" "Enabled" "Unknown")
   local drv_status=("Clean" "Patched" "Absent")
-  printf '%b\n' "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
-  printf '%b\n' "${bold}TB1/2 AMD eGPUs${normal}   ${status[$tbswitch_enabled]}"
-  printf '%b\n' "${bold}Legacy AMD eGPUs${normal}  ${status[$amdlegacy_enabled]}"
-  printf '%b\n' "${bold}NVIDIA eGPUs${normal}      ${status[$nvidia_enabled]}"
-  printf '%b\n' "${bold}Web Drivers${normal}       ${drv_status[$nvdawebdrv_patched]}"
+  printfn "${bold}Ti82 Devices${normal}      ${status[${ti82_enabled}]}"
+  printfn "${bold}TB1/2 AMD eGPUs${normal}   ${status[$tbswitch_enabled]}"
+  printfn "${bold}Legacy AMD eGPUs${normal}  ${status[$amdlegacy_enabled]}"
+  printfn "${bold}NVIDIA eGPUs${normal}      ${status[$nvidia_enabled]}"
+  printfn "${bold}Web Drivers${normal}       ${drv_status[$nvdawebdrv_patched]}"
 }
 
 ### Cumulative system check
@@ -432,11 +437,11 @@ perform_sys_check() {
 
 ### Sanitize system permissions and caches
 sanitize_system() {
-  printf '%b\n' "${bold}Sanitizing system...${normal}"
+  printfn "${bold}Sanitizing system...${normal}"
   chmod -R 755 "${agc_kextpath}" "${iog_kextpath}" "${iondrv_kextpath}" "${nvdastartupweb_kextpath}" "${nvdastartup_kextpath}" "${amdlegacy_kextpath}" "${iotfam_kextpath}" 1>/dev/null 2>&1
   chown -R root:wheel "${agc_kextpath}" "${iog_kextpath}" "${iondrv_kextpath}" "${nvdastartupweb_kextpath}" "${nvdastartup_kextpath}" "${amdlegacy_kextpath}" "${iotfam_kextpath}" 1>/dev/null 2>&1
   kextcache -i / 1>/dev/null 2>&1
-  printf '%b\n' "System sanitized."
+  printfn "System sanitized."
 }
 
 # ----- BACKUP SYSTEM
@@ -453,7 +458,7 @@ execute_backup() {
 
 ### Backup procedure
 backup_system() {
-  printf '%b\n' "${bold}Backing up...${normal}"
+  printfn "${bold}Backing up...${normal}"
   if [[ ! -z $(find "${backupkext_dirpath}" -mindepth 1 -print -quit 2>/dev/null) && -s "${scriptconfig_filepath}" ]]
   then
     local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
@@ -463,28 +468,28 @@ backup_system() {
       if [[ ${binpatch_enabled} == 0 ]]
       then
         execute_backup
-        printf '%b\n' "Backup refreshed."
+        printfn "Backup refreshed."
         update_config
         return
       fi
-      printf '%b\n' "Backup already exists."
+      printfn "Backup already exists."
     else
-      printf '%b\n' "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
-      printf '%b\n' "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-      printf '%b\n' "${bold}Updating backup...${normal}"
+      printfn "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
+      printfn "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
+      printfn "${bold}Updating backup...${normal}"
       if [[ ${binpatch_enabled} == 1 ]]
       then
-        printf '%b\n' "${bold}Uninstalling patch(es) before updating backup...${normal}\n"
+        printfn "${bold}Uninstalling patch(es) before updating backup...${normal}\n"
         uninstall
       fi
       execute_backup
       update_config
-      printf '%b\n' "Update complete."
+      printfn "Update complete."
     fi
   else
     execute_backup
     update_config
-    printf '%b\n' "Backup complete."
+    printfn "Backup complete."
   fi
 }
 
@@ -497,9 +502,9 @@ clean_reboot() {
 
 ### Reboot prompt
 reboot_action() {
-  [[ ${1} == -f ]] && printf '%b\n' "${mark}${gap}${bold}Reboot${normal}"
-  yesno_action "${bold}Reboot Now?${normal}" "printf '%b\n' \"${bold}Rebooting...
-  ${normal}\" && clean_reboot && exit" "printf '%b\n' \"Reboot aborted.\""
+  [[ ${1} == -f ]] && printfn "${mark}${gap}${bold}Reboot${normal}"
+  yesno_action "${bold}Reboot Now?${normal}" "printfn \"${bold}Rebooting...
+  ${normal}\" && clean_reboot && exit" "printfn \"Reboot aborted.\""
 }
 
 ### Conclude patching sequence
@@ -509,18 +514,18 @@ end_binary_modifications() {
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   [[ ${single_user_mode} == 1 ]] && reboot 1>/dev/null 2>&1 && exit
   local message="${1}"
-  printf '%b\n' "${bold}${message}\n\n${bold}Reboot${normal} to apply changes."
+  printfn "${bold}${message}\n\n${bold}Reboot${normal} to apply changes."
   reboot_action
 }
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
-  [[ "${1}" == -end ]] && printf '%b\n' "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
-  [[ -d "${amdlegacy_kextpath}" ]] && printf '%b\n' "${bold}AMDLegacySupport.kext${normal} already installed." && return
-  printf '%b\n' "${bold}Downloading AMDLegacySupport...${normal}"
+  [[ "${1}" == -end ]] && printfn "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
+  [[ -d "${amdlegacy_kextpath}" ]] && printfn "${bold}AMDLegacySupport.kext${normal} already installed." && return
+  printfn "${bold}Downloading AMDLegacySupport...${normal}"
   obj_download "${amdlegacy_downloadurl}" "${amdlegacy_downloadpath}" "${amdlegacy_integrity_hash}"
-  [[ ! -e "${amdlegacy_downloadpath}" ]] && printf '%b\n' "Could not download." && return 0
-  printf '%b\n' "Download complete."
+  [[ ! -e "${amdlegacy_downloadpath}" ]] && printfn "Could not download." && return 0
+  printfn "Download complete."
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
   unzip -d "${libextensions_path}" "${amdlegacy_downloadpath}" 1>/dev/null 2>&1
   rm -r "${amdlegacy_downloadpath}" "${libextensions_path}/__MACOSX" 1>/dev/null 2>&1
@@ -529,32 +534,32 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  [[ "${1}" == -end ]] && printf '%b\n' "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
-  [[ ${ti82_enabled} == 1 ]] && printf '%b\n' "Ti82 support is already enabled on this system." && return
-  printf '%b\n' "${bold}Enabling Ti82 support...${normal}"
+  [[ "${1}" == -end ]] && printfn "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
+  [[ ${ti82_enabled} == 1 ]] && printfn "Ti82 support is already enabled on this system." && return
+  printfn "${bold}Enabling Ti82 support...${normal}"
   check_bin_patchability "${iotfam_binpath}" "${hex_skipenum}"
-  [[ $? == 1 ]] && printf '%b\n' "${bold}Unable to patch${normal} for Ti82 devices.\nPlease file a Github issue." && return 0
+  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for Ti82 devices.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${iotfam_binpath}"
   patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
   create_patched_binary "${iotfam_binpath}"
-  printf '%b\n' "Ti82 support enabled."
+  printfn "Ti82 support enabled."
   if [[ "${1}" == -end ]]; then end_binary_modifications "Patch complete."; fi
 }
 
 ### Patch TB1/2 block
 patch_tb() {
-  printf '%b\n' "${bold}Patching for AMD eGPUs...${normal}"
-  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && printf '%b\n'" "printf '%b\n' \"Skipping legacy kext.\n\""
+  printfn "${bold}Patching for AMD eGPUs...${normal}"
+  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && printfn" "printfn \"Skipping legacy kext.\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
-  [[ ${nvidia_enabled} == 1 ]] && printf '%b\n' "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
-  [[ ${tbswitch_enabled} == 1 ]] && printf '%b\n' "System has already been patched for ${bold}AMD eGPUs${normal}." && return
-  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && printf '%b\n' "No patch required for this Mac." && return
+  [[ ${nvidia_enabled} == 1 ]] && printfn "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 ]] && printfn "System has already been patched for ${bold}AMD eGPUs${normal}." && return
+  [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && printfn "No patch required for this Mac." && return
   check_bin_patchability "${agw_binpath}" "${hex_selected_thunderbolt}"
-  [[ $? == 1 ]] && printf '%b\n' "${bold}Unable to patch${normal} for TB1/2 AMD eGPUs.\nPlease file a Github issue." && return 0
+  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for TB1/2 AMD eGPUs.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_selected_thunderbolt}" "${hex_selected_thunderbolt_patch}"
   create_patched_binary "${agw_binpath}"
-  printf '%b\n' "Patches applied."
+  printfn "Patches applied."
 }
 
 ### Download and install NVIDIA Web Drivers
@@ -564,31 +569,31 @@ install_web_drivers() {
   local nvdadrv_ver="${1}"
   local nvdadrv_downloadurl="${2}"
   rm -r "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
-  printf '%b\n' "${bold}Downloading drivers (${nvdadrv_ver})...${normal}"
+  printfn "${bold}Downloading drivers (${nvdadrv_ver})...${normal}"
   curl -q --connect-timeout 15 --progress-bar -o "${installerpkg_path}" "${nvdadrv_downloadurl}"
   if [[ ! -s "${installerpkg_path}" ]]
   then
     rm -r "${installerpkg_path}" 2>/dev/null 1>&2
-    printf '%b\n' "Unable to download."
+    printfn "Unable to download."
     return
   fi
-  printf '%b\n' "Download complete.\n${bold}Sanitizing package...${normal}"
+  printfn "Download complete.\n${bold}Sanitizing package...${normal}"
   pkgutil --expand-full "${installerpkg_path}" "${installerpkgexpanded_path}"
   sed -i "" -e "/installation-check/d" "${installerpkgexpanded_path}/Distribution"
   local nvdastartup_pkgkextpath="$(find "${installerpkgexpanded_path}" -maxdepth 1 | grep -i NVWebDrivers)/Payload/Library/Extensions/NVDAStartupWeb.kext"
   if [[ ! -d "${nvdastartup_pkgkextpath}" ]]
   then
     rm -r "${installerpkg_path}" "${installerpkgexpanded_path}" 2>/dev/null 1>&2
-    printf '%b\n' "Unable to patch driver."
+    printfn "Unable to patch driver."
     return
   fi
   $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartup_pkgkextpath}/Contents/Info.plist" 2>/dev/null 1>&2
   chown -R root:wheel "${nvdastartup_pkgkextpath}"
   rm -r "${installerpkg_path}"
   pkgutil --flatten-full "${installerpkgexpanded_path}" "${installerpkg_path}" 2>/dev/null 1>&2
-  printf '%b\n' "Package sanitized.\n${bold}Installing...${normal}"
+  printfn "Package sanitized.\n${bold}Installing...${normal}"
   local installer_err="$(installer -target "/" -pkg "${installerpkg_path}" 2>&1 1>/dev/null)"
-  [[ -e "${nvdastartupweb_kextpath}" ]] && printf '%b\n' "Installation complete." || printf '%b\n' "Installation failed."
+  [[ -e "${nvdastartupweb_kextpath}" ]] && printfn "Installation complete." || printfn "Installation failed."
   rm -r "${installerpkg_path}" "${installerpkgexpanded_path}"
   rm "${webdriver_plistpath}"
 }
@@ -610,11 +615,11 @@ reset_nvdawebdrv_stats() {
 get_nvdawebdrv_stats() {
   reset_nvdawebdrv_stats
   nvdawebdrv_target_ver="${1}"
-  printf '%b\n' "${bold}Fetching driver information...${normal}"
+  printfn "${bold}Fetching driver information...${normal}"
   [[ -f "${nvdastartupweb_plistpath}" ]] && nvdawebdrv_alreadypresentos="$(${pb} -c "Print ${set_nvdastartup_requiredos}" "${nvdastartupweb_plistpath}" 2>/dev/null)"
   local webdriver_data="$(curl -q -s "https://gfe.nvidia.com/mac-update")"
   [[ -z "${webdriver_data}" ]] && return
-  printf '%b\n' "${webdriver_data}" > "${webdriver_plistpath}"
+  printfn "${webdriver_data}" > "${webdriver_plistpath}"
   local index=0
   local current_macos_build="${macos_build}"
   local currentdriver_downloadurl=""
@@ -649,28 +654,28 @@ get_nvdawebdrv_stats() {
     nvdawebdrv_lastcompatible_ver="${currentdriver_ver}"
     nvdawebdrv_lastcompatible_downloadurl="${currentdriver_downloadurl}"
   fi
-  printf '%b\n' "Information fetched."
+  printfn "Information fetched."
 }
 
 ### Patch NVIDIA Web Driver version
 patch_nvdawebdrv_version() {
-  printf '%b\n' "${bold}Patching drivers...${normal}"
+  printfn "${bold}Patching drivers...${normal}"
   $pb -c "Set ${set_nvdastartup_requiredos} \"${macos_build}\"" "${nvdastartupweb_plistpath}" 2>/dev/null 1>&2
-  printf '%b\n' "Drivers patched."
+  printfn "Drivers patched."
 }
 
 ### Current webdriver possibilities
 webdriver_possibilities() {
   if [[ "${3}" == -already-present ]]
   then
-    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && printf '%b\n' "Appropriate NVIDIA Web Drivers are ${bold}already installed${normal}." && return
-    printf '%b\n' "Installed ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
-    [[ "${4}" != "-prompt" ]] && printf '%b\n' "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && printf '%b\n' "Resolved." && return
-    yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "printf '%b\n' \"Drivers unchanged.\n\""
+    [[ "${nvdawebdrv_alreadypresentos}" == "${macos_build}" ]] && printfn "Appropriate NVIDIA Web Drivers are ${bold}already installed${normal}." && return
+    printfn "Installed ${bold}NVIDIA Web Drivers${normal} are specifying incorrect macOS build."
+    [[ "${4}" != "-prompt" ]] && printfn "${bold}Resolving...${normal}" && patch_nvdawebdrv_version 1>/dev/null && printfn "Resolved." && return
+    yesno_action "${bold}Attempt to Rectify${normal}?" "patch_nvdawebdrv_version" "printfn \"Drivers unchanged.\n\""
   else
     local recommendation=("Not Required" "Suggested" "Not Advised" "Cannot Determine")
-    printf '%b\n' "\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
-    yesno_action "${bold}Patch?${normal}" "install_web_drivers \"${1}\" \"${2}\"" "printf '%b\n' \"Installation aborted.\n\" && return"
+    printfn "\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
+    yesno_action "${bold}Patch?${normal}" "install_web_drivers \"${1}\" \"${2}\"" "printfn \"Installation aborted.\n\" && return"
   fi
 }
 
@@ -686,19 +691,19 @@ run_webdriver_installer() {
     install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}";;
     2|3)
     [[ "${1}" == -prompt ]] && webdriver_possibilities "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}" && return
-    printf '%b\n' "No compatible or suitably patchable NVIDIA driver available.";;
+    printfn "No compatible or suitably patchable NVIDIA driver available.";;
   esac
 }
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
-  printf '%b\n' "${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
-  printf '%b\n' "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
+  printfn "${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
+  printfn "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
-  printf '%b\n'
-  [[ -z "${userinput}" || "${userinput}" == Q ]] && printf '%b\n' "No changes made." && return
+  printfn
+  [[ -z "${userinput}" || "${userinput}" == Q ]] && printfn "No changes made." && return
   get_nvdawebdrv_stats "${userinput}"
-  [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && printf '%b\n' "No driver found for specified version." && return
+  [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && printfn "No driver found for specified version." && return
   [[ "${userinput}" != "L" ]] && install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}" || install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}"
   using_nvdawebdrv=1
 }
@@ -713,13 +718,13 @@ run_patch_nv() {
       webdriver_possibilities "" "" "-already-present" "-prompt"
       using_nvdawebdrv=1
     else
-      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "printf '%b\n' \"Skipping web drivers.\n\""
+      yesno_action "Install ${bold}NVIDIA Web Drivers${normal}?" "using_nvdawebdrv=1 && run_webdriver_installer -prompt" "printfn \"Skipping web drivers.\n\""
     fi
   fi
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
   if (( ${using_nvdawebdrv} == 1 ))
   then
-    [[ ! -f "${nvdastartupweb_plistpath}" ]] && printf '%b\n' "${bold}NVIDIA Web Drivers${normal} required, but not installed." && return
+    [[ ! -f "${nvdastartupweb_plistpath}" ]] && printfn "${bold}NVIDIA Web Drivers${normal} required, but not installed." && return
     nvram nvda_drv=1
   else
     nvram -d nvda_drv 2>/dev/null
@@ -729,7 +734,7 @@ run_patch_nv() {
   local pass=$?
   check_bin_patchability "${iog_binpath}" "${hex_nvda_bypass}"
   pass=$(( ${pass} + $? ))
-  (( ${pass} != 0 )) && printf '%b\n' "${bold}Unable to patch${normal} for NVIDIA eGPUs.\nPlease file a Github issue." && return 0
+  (( ${pass} != 0 )) && printfn "${bold}Unable to patch${normal} for NVIDIA eGPUs.\nPlease file a Github issue." && return 0
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
@@ -740,15 +745,15 @@ run_patch_nv() {
   modify_plist "${nvdastartupplist_topatch}" "Add" "${set_nvdastartup_pcitunnelled}" "true"
   rm -r "${deprecated_automate_egpu_kextpath}" 2>/dev/null 1>&2
   rm -r "${deprecated_nvsolution_kextpath}" 2>/dev/null 1>&2
-  printf '%b\n' "Patches applied."
+  printfn "Patches applied."
 }
 
 ### Patch for NVIDIA eGPUs
 patch_nv() {
-  printf '%b\n' "${bold}Patching for NVIDIA eGPUs...${normal}"
+  printfn "${bold}Patching for NVIDIA eGPUs...${normal}"
   [[ -e "${nvdastartupweb_kextpath}" && ${nvdawebdrv_patched} == 0 ]] && run_patch_nv "${1}" && return
-  [[ ${nvidia_enabled} == 1 ]] && printf '%b\n' "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
-  [[ ${tbswitch_enabled} == 1 ]] && printf '%b\n' "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
+  [[ ${nvidia_enabled} == 1 ]] && printfn "System has already been patched for ${bold}NVIDIA eGPUs${normal}." && return
+  [[ ${tbswitch_enabled} == 1 ]] && printfn "System has previously been patched for ${bold}AMD eGPUs${normal}." && return
   run_patch_nv "${1}"
 }
 
@@ -757,9 +762,9 @@ run_webdriver_uninstaller() {
   nvram -d nvda_drv
   local webdriver_uninstaller="/Library/PreferencePanes/NVIDIA Driver Manager.prefPane/Contents/MacOS/NVIDIA Web Driver Uninstaller.app/Contents/Resources/NVUninstall.pkg"
   [[ ! -s "${webdriver_uninstaller}" ]] && return
-  printf '%b\n' "${bold}Uninstalling NVIDIA drivers...${normal}"
+  printfn "${bold}Uninstalling NVIDIA drivers...${normal}"
   installer -target "/" -pkg "${webdriver_uninstaller}" 2>&1 1>/dev/null
-  [[ ${single_user_mode} == 0 ]] && printf '%b\n' "Drivers Uninstalled." || printf '%b\n' "Drivers deactivated."
+  [[ ${single_user_mode} == 0 ]] && printfn "Drivers Uninstalled." || printfn "Drivers deactivated."
 }
 
 ### Retrieve GPU name
@@ -767,26 +772,34 @@ get_gpu_name() {
   local id="${1}"
   local vendor="${2}"
   local device_names="$(curl -s "http://pci-ids.ucw.cz/read/PC/${vendor}/${id}" | grep -i "itemname" | sed -E "s/.*Name\: (.*)$/\1/")"
-  local device_name="$(printf '%b\n' "${device_names}" | tail -1 | cut -d '[' -f2)"
-  local egpu_arch="$(printf '%b\n' "${device_names}" | tail -1 | cut -d '[' -f1)"
+  local device_name="$(printfn "${device_names}" | tail -1 | cut -d '[' -f2)"
+  local egpu_arch="$(printfn "${device_names}" | tail -1 | cut -d '[' -f1)"
   if [[ ! -z "${device_name}" ]]
   then
-    printf '%b\n' "${device_name%?}:${egpu_arch}"
+    printfn "${device_name%?}:${egpu_arch}"
   else
-    [[ ${vendor} == "10de" ]] && printf '%b\n' "NVIDIA"
-    [[ ${vendor} == "1002" ]] && printf '%b\n' "AMD"
+    [[ ${vendor} == "10de" ]] && printfn "NVIDIA"
+    [[ ${vendor} == "1002" ]] && printfn "AMD"
   fi
+}
+
+### Retrieve eGPU data
+retrieve_egpu_data() {
+  egpu_vendor=$(printfn "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
+  egpu_dev_id=$(printfn "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
 }
 
 ### Retrieve Ti82 need
 get_ti82_need() {
   local ti82_data="$(system_profiler SPThunderboltDataType 2>/dev/null | grep -i unsupported)"
-  [[ -z ${ti82_data} ]] && printf '%b\n' "No" || printf '%b\n' "Yes"
+  [[ -z ${ti82_data} ]] && printfn "No" || printfn "Yes"
 }
 
 ### Detect eGPU
 detect_egpu() {
-  printf '%b\n' "${bold}Plug-in eGPU${normal}. Press ESC if you are not plugging in eGPU.\n"
+  printfn "${bold}Plug-in eGPU${normal}. Press ESC if you are not plugging in eGPU.\n"
+  egpu_vendor=""
+  egpu_dev_id=""
   IFS=''
   for (( i = 20; i > 0; i-- ))
   do
@@ -795,8 +808,7 @@ detect_egpu() {
     needs_ti82="$(get_ti82_need)"
     [[ "${needs_ti82}" == "Yes" ]] && printfc "Detection not possible. Ti82 override needed first." && return
     local ioreg_info="$(ioreg -n display@0)"
-    egpu_vendor=$(printf '%b\n' "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
-    local egpu_dev_id=$(printf '%b\n' "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')
+    retrieve_egpu_data
     local key=""
     read -r -s -n 1 -t 1 key
     if [[ ! -z "${egpu_vendor}" ]]
@@ -804,14 +816,14 @@ detect_egpu() {
       legacy_amd_needed=0
       webdrv_needed=0
       local name_data="$(get_gpu_name "${egpu_dev_id}" "${egpu_vendor}")"
-      local egpu_name="$(printf '%b\n' "${name_data}" | cut -d ":" -f1)"
-      egpu_arch="$(printf '%b\n' "${name_data}" | cut -d ":" -f2)"
+      local egpu_name="$(printfn "${name_data}" | cut -d ":" -f1)"
+      egpu_arch="$(printfn "${name_data}" | cut -d ":" -f2)"
       [[ "${egpu_arch}" =~ "Vega" || "${egpu_arch}" =~ "Baffin" || "${egpu_arch}" =~ "Ellesmere" || "${egpu_arch}" =~ "Navi" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
       [[ "${egpu_arch}" =~ "GK" || "${egpu_arch}" =~ "GF" ]] && webdrv_needed=0 || webdrv_needed=1
       printfc "${bold}External GPU${normal}\t${egpu_name}"
-      printf '%b\n' "${bold}GPU Arch${normal}" "\t${egpu_arch}"
-      printf '%b\n' "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
-      printf '%b\n' "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
+      printfn "${bold}GPU Arch${normal}" "\t${egpu_arch}"
+      printfn "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
+      printfn "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
       return
     fi
     [[ "${key}" == $'\e' ]] && printfc "eGPU detection skipped. Please provide more information." && return
@@ -821,53 +833,53 @@ detect_egpu() {
 
 ### Manual eGPU setup
 manual_setup_egpu() {
-  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && printf '%b\n'" "printf '%b\n' \"Skipping Ti82 support.\n\"" -n
+  [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && printfn" "printfn \"Skipping Ti82 support.\n\"" -n
   local menu_items=("AMD" "NVIDIA" "Cancel")
-  local menu_actions=("patch_tb -prompt" "patch_nv -prompt" "printf '%b\n' \"Further patching aborted.\"")
+  local menu_actions=("patch_tb -prompt" "patch_nv -prompt" "printfn \"Further patching aborted.\"")
   generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
   autoprocess_input "Choice" "" "" "false" "${menu_actions[@]}"
 }
 
 ### Automatic eGPU setup
 auto_setup_egpu() {
-  printf '%b\n' "${mark}${gap}${bold}Setup eGPU${normal}\n"
-  [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && printf '%b\n' "System has previously been modified. Uninstall first." && return
+  printfn "${mark}${gap}${bold}Setup eGPU${normal}\n"
+  [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && printfn "System has previously been modified. Uninstall first." && return
   detect_egpu
-  printf '%b\n'
+  printfn
   backup_system
-  printf '%b\n'
-  [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && printf '%b\n'
+  printfn
+  [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && printfn
   if [[ "${egpu_vendor}" == "1002" ]]
   then
     if [[ "${egpu_arch}" =~ "Navi" && ${is_10151_or_newer} != 1 ]]; then
-      printf '%b\n' "${bold}Navi${normal} eGPUs require ${bold}macOS 10.15.1${normal} or later."
+      printfn "${bold}Navi${normal} eGPUs require ${bold}macOS 10.15.1${normal} or later."
     else
-      [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext && printf '%b\n'
+      [[ ${legacy_amd_needed} == 1 ]] && install_amd_legacy_kext && printfn
       patch_tb
     fi
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
-    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && printf '%b\n'
+    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && printfn
     patch_nv
   else
     manual_setup_egpu
   fi
   check_patch
   [[ ${binpatch_enabled} != "1" && ${amdlegacy_enabled} != "1" ]] && return
-  printf '%b\n'
+  printfn
   print_anomalies
-  printf '%b\n'
+  printfn
   end_binary_modifications "Modifications complete."
 }
 
 ### In-place re-patcher
 uninstall() {
-  printf '%b\n' "${mark}${gap}${bold}Uninstall${normal}\n"
-  [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && printf '%b\n' "No patches detected.\n${bold}System already clean.${normal}" && return
-  printf '%b\n' "${bold}Uninstalling...${normal}"
+  printfn "${mark}${gap}${bold}Uninstall${normal}\n"
+  [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && printfn "No patches detected.\n${bold}System already clean.${normal}" && return
+  printfn "${bold}Uninstalling...${normal}"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
-  [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "run_webdriver_uninstaller" "printf '%b\n' \"Skipping web drivers.\n\""
-  printf '%b\n' "${bold}Reverting binaries...${normal}"
+  [[ -e "${nvdastartupweb_kextpath}" ]] && yesno_action "Remove ${bold}NVIDIA Web Drivers${normal}?" "run_webdriver_uninstaller" "printfn \"Skipping web drivers.\n\""
+  printfn "${bold}Reverting binaries...${normal}"
   if [[ ${ti82_enabled} == 1 ]]
   then
     create_hexrepresentation "${iotfam_binpath}"
@@ -888,7 +900,7 @@ uninstall() {
     modify_plist "${iondrv_plistpath}" "Delete" "${set_iognvda_pcitunnelled}"
   fi
   create_patched_binary "${agw_binpath}"
-  printf '%b\n' "Binaries reverted."
+  printfn "Binaries reverted."
   end_binary_modifications "Uninstallation Complete." -no-agent
 }
 
@@ -910,28 +922,28 @@ first_time_setup() {
 
 ### Perform recovery
 perform_recovery() {
-  printf '%b\n' "${bold}Recovering...${normal}"
+  printfn "${bold}Recovering...${normal}"
   rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
   modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
   modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
   run_webdriver_uninstaller
-  printf '%b\n' "System restored."
+  printfn "System restored."
   end_binary_modifications "Recovery complete." -no-agent
 }
 
 ### Recovery logic
 recover_sys() {
-  printf '%b\n' "${mark}${gap}${bold}Recovery${normal}\n"
+  printfn "${mark}${gap}${bold}Recovery${normal}\n"
   [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
-  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && printf '%b\n' "Nothing to recover." && return
+  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && printfn "Nothing to recover." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
   if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
   then
-    printf '%b\n' "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
-    printf '%b\n' "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-    [[ ${binpatch_enabled} == 1 ]] && printf '%b\n' "No relevant backup available. Better to ${bold}uninstall${normal}." || printf '%b\n' "System may already be clean."
-    yesno_action "Still ${bold}attempt recovery${normal}?" "perform_recovery" "printf '%b\n' \"Recovery aborted.\""
+    printfn "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
+    printfn "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
+    [[ ${binpatch_enabled} == 1 ]] && printfn "No relevant backup available. Better to ${bold}uninstall${normal}." || printfn "System may already be clean."
+    yesno_action "Still ${bold}attempt recovery${normal}?" "perform_recovery" "printfn \"Recovery aborted.\""
   else
     perform_recovery
   fi
@@ -942,8 +954,8 @@ recover_sys() {
 ### Detect discrete GPU vendor
 detect_discrete_gpu_vendor() {
   local ioreg_info="$(ioreg -n GFX0@0)"
-  dgpu_vendor="$(printf '%b\n' "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
-  dgpu_dev_id="$(printf '%b\n' "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
+  dgpu_vendor="$(printfn "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
+  dgpu_dev_id="$(printfn "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
 }
 
 ### Detect Mac Model
@@ -970,19 +982,19 @@ anomaly_states() {
 
 ### Print anomalies, if any
 print_anomalies() {
-  printf '%b\n' "${bold}Analyzing system...${normal}"
+  printfn "${bold}Analyzing system...${normal}"
   anomaly_states
   case "${resolution_needed}" in
-    1) printf '%b\n' "\n${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
-    2) printf '%b\n' "\n${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
-    3) printf '%b\n' "\n${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
-    *) [[ ${is_desktop_mac} == 1 ]] && printf '%b\n' "No resolutions to any anomalies if present. See README." || printf '%b\n' "No anomalies expected.";;
+    1) printfn "\n${bold}Problem${normal}     Loss of OpenCL/GL on all NVIDIA GPUs.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} NVIDIA optimizations.";;
+    2) printfn "\n${bold}Problem${normal}     Black screens on monitors connected to eGPU.\n${bold}Resolution${normal}  Use ${bold}purge-nvda.sh${normal} AMD optimizations.";;
+    3) printfn "\n${bold}Problem${normal}     Black screens/slow performance with eGPU.\n${bold}Resolution${normal}  Use \`${bold}pmset -a gpuswitch 0${normal}\` to force iGPU.";;
+    *) [[ ${is_desktop_mac} == 1 ]] && printfn "No resolutions to any anomalies if present. See README." || printfn "No anomalies expected.";;
   esac
 }
 
 ### Anomaly detection
 detect_anomalies() {
-  printf '%b\n' "${mark}${gap}${bold}System Diagnosis${normal}\n"
+  printfn "${mark}${gap}${bold}System Diagnosis${normal}\n"
   print_anomalies
 }
 
@@ -991,14 +1003,29 @@ detect_anomalies() {
 ### Request donation
 donate() {
   open "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=mayankk2308@gmail.com&lc=US&item_name=Development%20of%20PurgeWrangler&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donate_SM.gif:NonHostedGuest"
-  printf '%b\n' "See your ${bold}web browser${normal}."
+  printfn "See your ${bold}web browser${normal}."
 }
 
-### Report issues
-report_issues() {
-  open "https://github.com/mayankk2308/purge-wrangler/issues"
-  printf '%b\n' "See your ${bold}web browser${normal}."
-}
+### Generate system report
+generate_sys_report() {
+   printfn "${bold}Generating system log...${normal}"
+   local report_dirpath="/Users/${SUDO_USER}/Desktop/pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
+   mkdir -p "${report_dirpath}"
+   detect_discrete_gpu_vendor
+   rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
+   system_profiler SPThunderboltDataType > "${report_dirpath}/ThunderboltDevices.log"
+   system_profiler SPDisplaysDataType > "${report_dirpath}/GPUs.log"
+   system_profiler SPPCIDataType > "${report_dirpath}/PCI.log"
+   system_profiler SPExtensionsDataType > "${report_dirpath}/Extensions.log"
+   retrieve_egpu_data
+   printfn "${egpu_dev_id} ${egpu_vendor}" > "${report_dirpath}/eGPU.log"
+   get_gpu_name "${egpu_dev_id}" "${egpu_vendor}" >> "${report_dirpath}/eGPU.log"
+   kextstat > "${report_dirpath}/Kextstat.log"
+   zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
+   rm -r "${report_dirpath}"
+   chown "${SUDO_USER}" "${report_dirpath}.zip"
+   printfn "Log generated on the Desktop.\n\nShare this file when opening an ${bold}issue${normal} on Github."
+ }
 
 ### Notify
 notify() {
@@ -1050,7 +1077,7 @@ autoprocess_args() {
     eval "${actions[(( ${choice} - 1 ))]}"
     return
   fi
-  printf '%b\n' "Invalid choice."
+  printfn "Invalid choice."
   return
 }
 
@@ -1081,31 +1108,31 @@ generate_menu() {
     indent="${indent} "
   done
   [[ ${should_clear} == 1 ]] && clear
-  printf '%b\n' "${indent}${mark}${gap}${bold}${header}${normal}\n"
+  printfn "${indent}${mark}${gap}${bold}${header}${normal}\n"
   for (( i = 0; i < ${#items[@]}; i++ ))
   do
     num=$(( i + 1 ))
-    printf '%b\n' "${indent}${gap}${bold}${num}${normal}. ${items[${i}]}"
-    (( ${num} == ${gap_after} )) && printf '%b\n'
+    printfn "${indent}${gap}${bold}${num}${normal}. ${items[${i}]}"
+    (( ${num} == ${gap_after} )) && printfn
   done
-  printf '%b\n'
+  printfn
 }
 
 ### Args processor
 process_cli_args() {
   case "${1}" in
-    -a) auto_setup_egpu && printf '%b\n';;
-    -u) uninstall && printf '%b\n';;
-    -r) recover_sys && printf '%b\n';;
-    -s) check_patch_status && printf '%b\n';;
+    -a) auto_setup_egpu && printfn;;
+    -u) uninstall && printfn;;
+    -r) recover_sys && printfn;;
+    -s) check_patch_status && printfn;;
     *) first_time_setup && present_menu;;
   esac
 }
 
 ### Present more options
 present_more_options_menu() {
-  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "Report Issues" "Reboot" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "report_issues" "reboot_action -f" "present_menu")
+  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "System Log" "Reboot" "Back")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "generate_sys_report" "reboot_action -f" "present_menu")
   generate_menu "More Options" "0" "4" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
