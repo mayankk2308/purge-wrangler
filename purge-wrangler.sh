@@ -542,7 +542,7 @@ enable_ti82() {
   [[ ${ti82_enabled} == 1 ]] && printfn "Ti82 support is already enabled on this system." && return
   printfn "${bold}Enabling Ti82 support...${normal}"
   check_bin_patchability "${iotfam_binpath}" "${hex_skipenum}"
-  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for Ti82 devices.\nPlease file a Github issue." && return 0
+  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for Ti82 devices." && generate_sys_report && return 0
   create_hexrepresentation "${iotfam_binpath}"
   patch_binary "${iotfam_binpath}" "${hex_skipenum}" "${hex_skipenum_patch}"
   create_patched_binary "${iotfam_binpath}"
@@ -559,7 +559,7 @@ patch_tb() {
   [[ ${tbswitch_enabled} == 1 ]] && printfn "System has already been patched for ${bold}AMD eGPUs${normal}." && return
   [[ "${system_thunderbolt_ver}" == "${hex_thunderboltswitchtype}3" ]] && printfn "No patch required for this Mac." && return
   check_bin_patchability "${agw_binpath}" "${hex_selected_thunderbolt}"
-  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for TB1/2 AMD eGPUs.\nPlease file a Github issue." && return 0
+  [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for TB1/2 AMD eGPUs." && generate_sys_report && return 0
   create_hexrepresentation "${agw_binpath}"
   patch_binary "${agw_binpath}" "${hex_selected_thunderbolt}" "${hex_selected_thunderbolt_patch}"
   create_patched_binary "${agw_binpath}"
@@ -738,7 +738,7 @@ run_patch_nv() {
   local pass=$?
   check_bin_patchability "${iog_binpath}" "${hex_nvda_bypass}"
   pass=$(( ${pass} + $? ))
-  (( ${pass} != 0 )) && printfn "${bold}Unable to patch${normal} for NVIDIA eGPUs.\nPlease file a Github issue." && return 0
+  (( ${pass} != 0 )) && printfn "${bold}Unable to patch${normal} for NVIDIA eGPUs." && generate_sys_report && return 0
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
@@ -835,9 +835,8 @@ detect_egpu() {
         fi
       done
       printfc "${bold}External GPU${normal}\t${egpu_name}"
-      printfn "${bold}GPU Arch${normal}" "\t${egpu_arch}"
-      printfn "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
-      printfn "${bold}Ti82 Enclosure${normal}" "\t${needs_ti82}"
+      printfn "${bold}GPU Arch${normal}\t${egpu_arch}"
+      printfn "${bold}Thunderbolt${normal}\t${system_thunderbolt_ver: -1}"
       return
     fi
     [[ "${key}" == $'\e' ]] && printfc "eGPU detection skipped. Please provide more information." && return
@@ -1022,11 +1021,13 @@ donate() {
 
 ### Generate system report
 generate_sys_report() {
-  printfn "${mark}${gap}${bold}System Log${normal}\n"
+  [[ ${1} == -standalone ]] && printfn "${mark}${gap}${bold}System Log${normal}\n"
   printfn "${bold}Generating system log...${normal}"
   local report_dirpath="/Users/${SUDO_USER}/Desktop/pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
   mkdir -p "${report_dirpath}"
   rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
+  rsync -r "${backupkext_dirpath}" "${report_dirpath}/Backup Kexts"
+  system_profiler SPHardwareDataType 2>/dev/null | sed '/Serial Number/d; /UUID/d' > "${report_dirpath}/Mac.log"
   system_profiler SPThunderboltDataType 2>/dev/null > "${report_dirpath}/ThunderboltDevices.log"
   system_profiler SPDisplaysDataType 2>/dev/null > "${report_dirpath}/GPUs.log"
   system_profiler SPPCIDataType 2>/dev/null > "${report_dirpath}/PCI.log"
@@ -1036,10 +1037,10 @@ generate_sys_report() {
   printfn "${egpu_dev_id} ${egpu_vendor}" > "${report_dirpath}/eGPU.log"
   get_gpu_name "${egpu_dev_id}" "${egpu_vendor}" >> "${report_dirpath}/eGPU.log"
   kextstat > "${report_dirpath}/Kextstat.log"
-  zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
+  hdiutil create -format UDZO -srcfolder "${report_dirpath}" "${report_dirpath}.dmg" 2>/dev/null 1>&2
   rm -r "${report_dirpath}"
-  chown "${SUDO_USER}" "${report_dirpath}.zip"
-  printfn "Log generated on the Desktop.\n\nShare this file when opening an ${bold}issue${normal} on Github."
+  chown "${SUDO_USER}" "${report_dirpath}.dmg"
+  printfn "DMG log generated on the Desktop.\n\nOpen an ${bold}issue${normal} on Github and share this disk image."
 }
 
 ### Notify
@@ -1147,7 +1148,7 @@ process_cli_args() {
 ### Present more options
 present_more_options_menu() {
   local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "System Log" "Reboot" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "generate_sys_report" "reboot_action -f" "present_menu")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "generate_sys_report -standalone" "reboot_action -f" "present_menu")
   generate_menu "More Options" "0" "4" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
