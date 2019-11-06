@@ -849,7 +849,7 @@ manual_setup_egpu() {
   [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && printfn" "printfn \"Skipping Ti82 support.\n\"" -n
   local menu_items=("AMD" "NVIDIA" "Cancel")
   local menu_actions=("patch_tb -prompt" "patch_nv -prompt" "printfn \"Further patching aborted.\"")
-  generate_menu "Select eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
+  generate_menu "eGPU Vendor" "0" "-1" "0" "${menu_items[@]}"
   autoprocess_input "Choice" "" "" "false" "${menu_actions[@]}"
 }
 
@@ -955,8 +955,8 @@ recover_sys() {
   then
     printfn "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
     printfn "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-    [[ ${binpatch_enabled} == 1 ]] && printfn "No relevant backup available. Better to ${bold}uninstall${normal}." || printfn "System may already be clean."
-    yesno_action "Still ${bold}attempt recovery${normal}?" "perform_recovery" "printfn \"Recovery aborted.\""
+    printfn "OS version ${bold}discrepancy${normal} detected with kext backup. macOS Recovery recommended instead."
+    yesno_action "Still ${bold}perform recovery${normal}?" "perform_recovery" "printfn \"Recovery aborted.\""
   else
     perform_recovery
   fi
@@ -1144,7 +1144,6 @@ process_cli_args() {
   case "${1}" in
     -a) auto_setup_egpu && printfn;;
     -u) uninstall && printfn;;
-    -r) recover_sys && printfn;;
     -s) check_patch_status && printfn;;
     *) first_time_setup && present_menu;;
   esac
@@ -1152,17 +1151,17 @@ process_cli_args() {
 
 ### Present more options
 present_more_options_menu() {
-  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis" "System Log" "Reboot" "Back")
-  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies" "generate_sys_report -standalone" "reboot_action -f" "present_menu")
-  generate_menu "More Options" "0" "4" "1" "${menu_items[@]}"
+  local menu_items=("Add AMD Legacy Support" "Enable Ti82 Support" "Install NVIDIA Web Drivers" "System Diagnosis & Logging" "Reboot" "Back")
+  local menu_actions=("install_amd_legacy_kext -end" "enable_ti82 -end" "install_ver_spec_webdrv" "detect_anomalies && printfn && generate_sys_report -standalone" "reboot_action -f" "present_menu")
+  generate_menu "More Options" "0" "3" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_more_options_menu" "present_menu" "true" "${menu_actions[@]}"
 }
 
 ### Script menu
 present_menu() {
-  local menu_items=("Setup eGPU" "System Status" "Uninstall" "Recovery" "More Options" "Donate" "Quit")
-  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "recover_sys" "present_more_options_menu" "donate" "exit")
-  generate_menu "PurgeWrangler (${script_ver})" "0" "4" "1" "${menu_items[@]}"
+  local menu_items=("Setup eGPU" "System Status" "Uninstall" "More Options" "Donate" "Quit")
+  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "present_more_options_menu" "donate" "exit")
+  generate_menu "PurgeWrangler (${script_ver})" "0" "3" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_menu" "exit" "true" "${menu_actions[@]}"
 }
 
