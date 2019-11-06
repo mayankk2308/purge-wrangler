@@ -74,6 +74,10 @@ ti82_enabled=2
 nvdawebdrv_patched=2
 using_nvdawebdrv=0
 
+# Supported GPU architectures
+supported_amd_archs=("Polaris" "Vega" "Navi")
+supported_nv_archs=("GK" "GF")
+
 # General kext paths
 sysextensions_path="/System/Library/Extensions/"
 libextensions_path="/Library/Extensions/"
@@ -807,19 +811,29 @@ detect_egpu() {
     printf "${bold}Detecting eGPU (${i})...${normal}"
     needs_ti82="$(get_ti82_need)"
     [[ "${needs_ti82}" == "Yes" ]] && printfc "Detection not possible. Ti82 override needed first." && return
-    local ioreg_info="$(ioreg -n display@0)"
+    ioreg_info="$(ioreg -n display@0)"
     retrieve_egpu_data
     local key=""
     read -r -s -n 1 -t 1 key
     if [[ ! -z "${egpu_vendor}" ]]
     then
-      legacy_amd_needed=0
-      webdrv_needed=0
+      legacy_amd_needed=1
+      webdrv_needed=1
       local name_data="$(get_gpu_name "${egpu_dev_id}" "${egpu_vendor}")"
       local egpu_name="$(printfn "${name_data}" | cut -d ":" -f1)"
       egpu_arch="$(printfn "${name_data}" | cut -d ":" -f2)"
-      [[ "${egpu_arch}" =~ "Vega" || "${egpu_arch}" =~ "Baffin" || "${egpu_arch}" =~ "Ellesmere" || "${egpu_arch}" =~ "Navi" ]] && legacy_amd_needed=0 || legacy_amd_needed=1
-      [[ "${egpu_arch}" =~ "GK" || "${egpu_arch}" =~ "GF" ]] && webdrv_needed=0 || webdrv_needed=1
+      for arch in "${supported_amd_archs[@]}"; do
+        if [[ "${egpu_arch}" =~ "${arch}" ]]; then
+          legacy_amd_needed=0
+          break
+        fi
+      done
+      for arch in "${supported_nv_archs[@]}"; do
+        if [[ "${egpu_arch}" =~ "${arch}" ]]; then
+          webdrv_needed=0
+          break
+        fi
+      done
       printfc "${bold}External GPU${normal}\t${egpu_name}"
       printfn "${bold}GPU Arch${normal}" "\t${egpu_arch}"
       printfn "${bold}Thunderbolt${normal}" "\t${system_thunderbolt_ver: -1}"
@@ -953,9 +967,9 @@ recover_sys() {
 
 ### Detect discrete GPU vendor
 detect_discrete_gpu_vendor() {
-  local ioreg_info="$(ioreg -n GFX0@0)"
-  dgpu_vendor="$(printfn "${ioreg_info}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
-  dgpu_dev_id="$(printfn "${ioreg_info}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
+  local dgpu_ioreg="$(ioreg -n GFX0@0)"
+  dgpu_vendor="$(printfn "${dgpu_ioreg}" | grep \"vendor-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
+  dgpu_dev_id="$(printfn "${dgpu_ioreg}" | grep \"device-id\" | cut -d "=" -f2 | sed 's/ <//' | sed 's/>//' | cut -c1-4 | sed -E 's/^(.{2})(.{2}).*$/\2\1/')"
 }
 
 ### Detect Mac Model
@@ -1008,24 +1022,25 @@ donate() {
 
 ### Generate system report
 generate_sys_report() {
-   printfn "${bold}Generating system log...${normal}"
-   local report_dirpath="/Users/${SUDO_USER}/Desktop/pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
-   mkdir -p "${report_dirpath}"
-   detect_discrete_gpu_vendor
-   rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
-   system_profiler SPThunderboltDataType > "${report_dirpath}/ThunderboltDevices.log"
-   system_profiler SPDisplaysDataType > "${report_dirpath}/GPUs.log"
-   system_profiler SPPCIDataType > "${report_dirpath}/PCI.log"
-   system_profiler SPExtensionsDataType > "${report_dirpath}/Extensions.log"
-   retrieve_egpu_data
-   printfn "${egpu_dev_id} ${egpu_vendor}" > "${report_dirpath}/eGPU.log"
-   get_gpu_name "${egpu_dev_id}" "${egpu_vendor}" >> "${report_dirpath}/eGPU.log"
-   kextstat > "${report_dirpath}/Kextstat.log"
-   zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
-   rm -r "${report_dirpath}"
-   chown "${SUDO_USER}" "${report_dirpath}.zip"
-   printfn "Log generated on the Desktop.\n\nShare this file when opening an ${bold}issue${normal} on Github."
- }
+  printfn "${mark}${gap}${bold}System Log${normal}\n"
+  printfn "${bold}Generating system log...${normal}"
+  local report_dirpath="/Users/${SUDO_USER}/Desktop/pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
+  mkdir -p "${report_dirpath}"
+  rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
+  system_profiler SPThunderboltDataType 2>/dev/null > "${report_dirpath}/ThunderboltDevices.log"
+  system_profiler SPDisplaysDataType 2>/dev/null > "${report_dirpath}/GPUs.log"
+  system_profiler SPPCIDataType 2>/dev/null > "${report_dirpath}/PCI.log"
+  system_profiler SPExtensionsDataType 2>/dev/null > "${report_dirpath}/Extensions.log"
+  ioreg_info="$(ioreg -n display@0)"
+  retrieve_egpu_data
+  printfn "${egpu_dev_id} ${egpu_vendor}" > "${report_dirpath}/eGPU.log"
+  get_gpu_name "${egpu_dev_id}" "${egpu_vendor}" >> "${report_dirpath}/eGPU.log"
+  kextstat > "${report_dirpath}/Kextstat.log"
+  zip -r -j -X "${report_dirpath}.zip" "${report_dirpath}" 1>/dev/null 2>&1
+  rm -r "${report_dirpath}"
+  chown "${SUDO_USER}" "${report_dirpath}.zip"
+  printfn "Log generated on the Desktop.\n\nShare this file when opening an ${bold}issue${normal} on Github."
+}
 
 ### Notify
 notify() {
