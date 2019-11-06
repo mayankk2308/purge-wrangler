@@ -1023,11 +1023,13 @@ donate() {
 generate_sys_report() {
   [[ ${1} == -standalone ]] && printfn "${mark}${gap}${bold}System Log${normal}\n"
   printfn "${bold}Generating system log...${normal}"
-  local report_dirpath="/Users/${SUDO_USER}/Desktop/pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
+  logfiles="pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
+  report_dirpath="/Users/${SUDO_USER}/Desktop/${logfiles}"
   mkdir -p "${report_dirpath}"
   rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
   rsync -r "${backupkext_dirpath}" "${report_dirpath}/Backup Kexts"
-  system_profiler SPHardwareDataType 2>/dev/null | sed '/Serial Number/d; /UUID/d' > "${report_dirpath}/Mac.log"
+  system_profiler SPSoftwareDataType 2>/dev/null | grep -Eiv 'Boot Volume|Name' > "${report_dirpath}/Mac.log"
+  system_profiler SPHardwareDataType 2>/dev/null | grep -Eiv 'Serial|UUID' >> "${report_dirpath}/Mac.log"
   system_profiler SPThunderboltDataType 2>/dev/null > "${report_dirpath}/ThunderboltDevices.log"
   system_profiler SPDisplaysDataType 2>/dev/null > "${report_dirpath}/GPUs.log"
   system_profiler SPPCIDataType 2>/dev/null > "${report_dirpath}/PCI.log"
@@ -1037,10 +1039,13 @@ generate_sys_report() {
   printfn "${egpu_dev_id} ${egpu_vendor}" > "${report_dirpath}/eGPU.log"
   get_gpu_name "${egpu_dev_id}" "${egpu_vendor}" >> "${report_dirpath}/eGPU.log"
   kextstat > "${report_dirpath}/Kextstat.log"
-  hdiutil create -format UDZO -srcfolder "${report_dirpath}" "${report_dirpath}.dmg" 2>/dev/null 1>&2
+  current_dir="$(pwd)"
+  cd "/Users/${SUDO_USER}/Desktop"
+  zip -r -X "${logfiles}.zip" "${logfiles}" 2>/dev/null 1>&2
+  cd "${current_dir}"
   rm -r "${report_dirpath}"
-  chown "${SUDO_USER}" "${report_dirpath}.dmg"
-  printfn "DMG log generated on the Desktop.\n\nOpen an ${bold}issue${normal} on Github and share this disk image."
+  chown "${SUDO_USER}" "${report_dirpath}.zip"
+  printfn "Log generated on the Desktop.\n\nOpen an ${bold}issue${normal} on Github and share this file."
 }
 
 ### Notify
