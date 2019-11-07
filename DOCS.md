@@ -24,10 +24,9 @@ There are convenient command-line arguments for the script that advanced users m
 | :------: | :--: | :---------- |
 | Setup eGPU | `-a` | Automatically set up eGPU based on your system configuration and external GPU. |
 | Uninstall | `-u` | Uninstalls **any** system modifications made by the script in-place. This is the *recommended* uninstallation mechanism. |
-| Recovery | `-r` | Restores untouched macOS configuration prior to script modifications from a clean component backup. This is a more robust cleanup. |
 | System Status | `-s` | Shows the current status of some of the components of the system and any modifications made using the script. |
 
-Running without arguments launches the menu.
+Running without arguments launches the menu. Recovery mechanism is not user-accessible from script version **6.2.0** or later. The script will only run recovery automatically when it detects a system executing it in single user mode.
 
 ### Reporting Problems
 Use the [Issues](https://github.com/mayankk2308/purge-wrangler/issues) section on the repository to report any problems with the script. Please follow the templates for bug reports and feature requests. Try not to open duplicate issues.
