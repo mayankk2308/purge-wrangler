@@ -78,11 +78,17 @@ See installation notes. If you are running **macOS 10.15.1 or later**, use scrip
 #### Why did the script fail to detect my enclosure?
 Assuming hardware is appropriately configured and not defective, the only case when the script fails to detect eGPU configurations is when the enclosure has a Ti82 controller, which macOS does not support by default. Hence detection fails. Simply answer the questions the script asks to proceed with your setup.
 
+#### Can I enable System Integrity Protection after running the patch?
+No. Patched systems may become unbootable if you do so. Keep SIP disabled at all times your system is patched state.
+
 #### Do I require NVIDIA Web Drivers?
 If asked this question while setting up your eGPU, the answer depends on the NVIDIA GPU you are using. See the installation notes for more insight. Essentially, you don't need these if you are using Kepler GPUs.
 
 #### Why do patched NVIDIA drivers not work on macOS Mojave or later?
 In macOS Mojave, Apple removed the necessary APIs that NVIDIA-provided graphics drivers used for accelerating their graphics processors. The script uses a simple check to see if it is possible to run NVIDIA drivers for an older macOS version, and patches it for the new version if so. If not, then patching terminates.
+
+#### Are NVIDIA RTX GPUs supported on macOS?
+No. They require NVIDIA drivers, which macOS does not have. Plus, third-party GPU drivers are not supported as of macOS Mojave - see questions above.
 
 #### Should I enable AMD Legacy Support if asked?
 As explained in the installation section, you only need this for AMD GPUs **not** mentioned in Apple's [eGPU Support document](https://support.apple.com/en-us/HT208544), such as the **R9 Nano** or **R9 Fury**. Enabling this for any other GPUs yields no benefit, but is also not harmful.
