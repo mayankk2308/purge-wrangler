@@ -4,6 +4,8 @@
 
 **Document Revision**: 6.0.0+
 
+### DO NOT CLONE OR DOWNLOAD. READ THIS DOCUMENT ENTIRELY BEFORE PROCEEDING. 
+
 **purge-wrangler.sh** enables unsupported external GPU configurations on macOS for almost all macs. Before proceeding, please read through this **entire document** to familiarize yourself with the script, the community, and the resources available you in case you find that you need help.
 
 ## Requirements
