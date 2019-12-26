@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.2.0
+# Version: 6.2.1
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="2" && script_patch_ver="0"
+script_major_ver="6" && script_minor_ver="2" && script_patch_ver="1"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -872,8 +872,12 @@ auto_setup_egpu() {
     fi
   elif [[ "${egpu_vendor}" == "10de" ]]
   then
-    [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && printfn
-    patch_nv
+    if [[ "${egpu_arch}" =~ "TU" ]]; then
+      printfn "${bold}Turing/RTX${normal} eGPUs are not supported on macOS."
+    else
+      [[ ${webdrv_needed} == 1 ]] && run_webdriver_installer && using_nvdawebdrv=1 && printfn
+      patch_nv
+    fi
   else
     manual_setup_egpu
   fi
