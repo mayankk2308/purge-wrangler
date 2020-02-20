@@ -12,7 +12,7 @@
 | **System Integrity Protection** | Disabled |
 | **Secure Boot on T2** | No Security |
 
-Read the [project wiki](./wiki) to begin.
+Read the [project wiki](https://github.com/mayankk2308/purge-wrangler/wiki) to begin.
 
 ## Support
 Consider **starring** the repository or donating via:
