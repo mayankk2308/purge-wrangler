@@ -3,12 +3,12 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.2.2
+# Version: 6.2.3
 
 # ----- ENVIRONMENT
 
 # Script and options
-(script="${BASH_SOURCE}"
+(script="$0"
 option=""
 single_user_mode="$(sysctl -n kern.singleuser)"
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="2" && script_patch_ver="2"
+script_major_ver="6" && script_minor_ver="2" && script_patch_ver="3"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -75,7 +75,7 @@ nvdawebdrv_patched=2
 using_nvdawebdrv=0
 
 # Supported GPU architectures
-supported_amd_archs=("Polaris" "Vega" "Navi")
+supported_amd_archs=("Ellesmere" "Vega" "Navi")
 supported_nv_archs=("GK" "GF")
 
 # General kext paths
@@ -951,7 +951,7 @@ perform_recovery() {
 ### Recovery logic
 recover_sys() {
   printfn "${mark}${gap}${bold}Recovery${normal}\n"
-  [[ -d "${amdlegacy_kextpath}" ]] && rm -r "${amdlegacy_kextpath}"
+  [[ -d "${amdlegacy_kextpath}" ]] && rm -rf "${amdlegacy_kextpath}"
   [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && printfn "Nothing to recover." && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
   local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
