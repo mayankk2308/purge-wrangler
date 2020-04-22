@@ -1,4 +1,4 @@
-**Copyright © 2018 Mayank Kumar**
+**Copyright © 2020 Mayank Kumar**
 
 The software and contents on this repository are subject to the following terms:
 1. The script/project is for **personal use** only.

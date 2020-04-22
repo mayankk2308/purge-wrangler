@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.2.3
+# Version: 6.2.4
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="2" && script_patch_ver="3"
+script_major_ver="6" && script_minor_ver="2" && script_patch_ver="4"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -742,6 +742,7 @@ run_patch_nv() {
   create_hexrepresentation "${agw_binpath}"
   create_hexrepresentation "${iog_binpath}"
   patch_binary "${agw_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
+  patch_binary "${iog_binpath}" "${hex_nvda_clamshell}" "${hex_nvda_clamshell_patch}"
   patch_binary "${iog_binpath}" "${hex_nvda_bypass}" "${hex_nvda_bypass_patch}"
   create_patched_binary "${agw_binpath}"
   create_patched_binary "${iog_binpath}"
@@ -844,6 +845,24 @@ detect_egpu() {
   printfc "Detection failed. Please provide more information."
 }
 
+### Wait for eGPU to be disconnected
+wait_for_egpu_disconnect() {
+  [[ -z "${egpu_vendor}" ]] && return
+  local detected_egpu_ven="${egpu_vendor}"
+  local base_msg="eGPU disconnected."
+  printf "Please disconnect eGPU (ESC to skip). ${bold}Waiting...${normal}"
+  IFS=''
+  while :; do
+    retrieve_egpu_data
+    local key=""
+    read -r -s -n 1 -t 1 key
+    [[ "${key}" == $'\e' ]] && base_msg="Disconnect skipped." && break
+    [[ -z "${egpu_vendor}" ]] && break
+  done
+  egpu_vendor="${detected_egpu_ven}"
+  printfc "${base_msg}"
+}
+
 ### Manual eGPU setup
 manual_setup_egpu() {
   [[ "${needs_ti82}" == "No" ]] && yesno_action "${bold}Enable Ti82${normal}?" "enable_ti82 && printfn" "printfn \"Skipping Ti82 support.\n\"" -n
@@ -862,6 +881,7 @@ auto_setup_egpu() {
   backup_system
   printfn
   [[ ${needs_ti82} == "Yes" ]] && enable_ti82 && printfn
+  wait_for_egpu_disconnect
   if [[ "${egpu_vendor}" == "1002" ]]
   then
     if [[ "${egpu_arch}" =~ "Navi" && ${is_10151_or_newer} != 1 ]]; then
