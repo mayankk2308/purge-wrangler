@@ -11,6 +11,8 @@
 (script="$0"
 option=""
 single_user_mode="$(sysctl -n kern.singleuser)"
+[[ "$(pwd)" == "/private/var/root" ]] && printfn "Execution not supported in recovery mode." && exit
+
 
 # Enable case-insensitive comparisons
 shopt -s nocasematch
@@ -1163,7 +1165,7 @@ begin() {
   [[ "${2}" == "-l" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
-  [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode." && return
+  [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode.\n" && exit
   fetch_latest_release
   process_cli_args "${option}"
 }
