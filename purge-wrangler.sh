@@ -175,7 +175,7 @@ obj_download() {
   local url="${1}"
   local dst="${2}"
   local integrity_hash="${3}"
-  curl -qLs  -o "${dst}" "${url}"
+  curl -qLs -o "${dst}" "${url}"
   [[ "$(shasum -a 512 "${dst}" | awk '{ print $1 }')" != "${integrity_hash}" ]] && rm -rf "${dst}" 2>/dev/null 1>&2 || return 0
 }
 
@@ -279,7 +279,7 @@ create_launchagent() {
   $pb -c "Add :ProgramArguments:1 string -l" "${agent_plistpath}"
   chown "${SUDO_USER}" "${agent_plistpath}"
   obj_download "${prompticon_downloadurl}" "${prompticon_filepath}" "${prompticon_integrity_hash}"
-  su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\""
+  su "${SUDO_USER}" -c "launchctl load -w \"${agent_plistpath}\"" 2>/dev/null 1>&2
 }
 
 # --- SCRIPT SOFTWARE UPDATE SYSTEM
@@ -381,8 +381,6 @@ check_sys_extensions() {
   if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
   then
     printfn "\nUnexpected system configuration or missing files."
-    yesno_action "${bold}Run Recovery?${normal}" "recover_sys" "exit"
-    printfn
     exit
   fi
 }
@@ -860,7 +858,7 @@ wait_for_egpu_disconnect() {
     [[ -z "${egpu_vendor}" ]] && break
   done
   egpu_vendor="${detected_egpu_ven}"
-  printfc "${base_msg}"
+  printfc "${base_msg}\n"
 }
 
 ### Manual eGPU setup
@@ -953,37 +951,6 @@ first_time_setup() {
   rsync "${script}" "${script_bin}"
   chown "${SUDO_USER}" "${script_bin}"
   chmod 755 "${script_bin}"
-}
-
-# --- RECOVERY SYSTEM
-
-### Perform recovery
-perform_recovery() {
-  printfn "${bold}Recovering...${normal}"
-  rsync -rt "${backupkext_dirpath}"* "${sysextensions_path}"
-  modify_plist "${nvdastartup_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-  modify_plist "${nvdastartupweb_plistpath}" "Delete" "${set_nvdastartup_pcitunnelled}"
-  run_webdriver_uninstaller
-  printfn "System restored."
-  end_binary_modifications "Recovery complete." -no-agent
-}
-
-### Recovery logic
-recover_sys() {
-  printfn "${mark}${gap}${bold}Recovery${normal}\n"
-  [[ -d "${amdlegacy_kextpath}" ]] && rm -rf "${amdlegacy_kextpath}"
-  [[ ! -e "${scriptconfig_filepath}" || ! -d "${backupkext_dirpath}" ]] && printfn "Nothing to recover." && return
-  local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
-  local prev_macos_build="$($pb -c "Print :OSBuildAtPatch" "${scriptconfig_filepath}")"
-  if [[ "${prev_macos_ver}" != "${macos_ver}" || "${prev_macos_build}" != "${macos_build}" ]]
-  then
-    printfn "\n${bold}Last Backup${normal}     ${prev_macos_ver} ${bold}[${prev_macos_build}]${normal}"
-    printfn "${bold}Current System${normal}  ${macos_ver} ${bold}[${macos_build}]${normal}\n"
-    printfn "OS version ${bold}discrepancy${normal} detected with kext backup. macOS Recovery recommended instead."
-    yesno_action "Still ${bold}perform recovery${normal}?" "perform_recovery" "printfn \"Recovery aborted.\""
-  else
-    perform_recovery
-  fi
 }
 
 # ----- ANOMALY MANAGER
@@ -1196,7 +1163,7 @@ begin() {
   [[ "${2}" == "-l" ]] && show_update_prompt && return
   validate_caller "${1}" "${2}"
   perform_sys_check
-  [[ ${single_user_mode} == 1 ]] && recover_sys && return
+  [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode." && return
   fetch_latest_release
   process_cli_args "${option}"
 }
