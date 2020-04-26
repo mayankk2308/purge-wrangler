@@ -851,6 +851,7 @@ wait_for_egpu_disconnect() {
   printf "Please disconnect eGPU (ESC to skip). ${bold}Waiting...${normal}"
   IFS=''
   while :; do
+    ioreg_info="$(ioreg -n display@0)"
     retrieve_egpu_data
     local key=""
     read -r -s -n 1 -t 1 key
