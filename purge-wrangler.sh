@@ -11,8 +11,6 @@
 (script="$0"
 option=""
 single_user_mode="$(sysctl -n kern.singleuser)"
-[[ "$(pwd)" == "/private/var/root" ]] && printfn "Execution not supported in recovery mode." && exit
-
 
 # Enable case-insensitive comparisons
 shopt -s nocasematch
@@ -453,11 +451,11 @@ sanitize_system() {
 ### Primary procedure
 execute_backup() {
   mkdir -p "${backupkext_dirpath}"
-  rsync -rt "${agc_kextpath}" "${backupkext_dirpath}"
-  rsync -rt "${iog_kextpath}" "${backupkext_dirpath}"
-  rsync -rt "${iondrv_kextpath}" "${backupkext_dirpath}"
-  rsync -rt "${iotfam_kextpath}" "${backupkext_dirpath}"
-  rsync -rt "${nvdastartup_kextpath}" "${backupkext_dirpath}"
+  rsync -a "${agc_kextpath}" "${backupkext_dirpath}"
+  rsync -a "${iog_kextpath}" "${backupkext_dirpath}"
+  rsync -a "${iondrv_kextpath}" "${backupkext_dirpath}"
+  rsync -a "${iotfam_kextpath}" "${backupkext_dirpath}"
+  rsync -a "${nvdastartup_kextpath}" "${backupkext_dirpath}"
 }
 
 ### Backup procedure
@@ -950,7 +948,7 @@ first_time_setup() {
   bin_sha=""
   [[ -s "${script_bin}" ]] && bin_sha="$(shasum -a 512 -b "${script_bin}" | awk '{ print $1 }')"
   [[ "${bin_sha}" == "${script_sha}" ]] && return
-  rsync "${script}" "${script_bin}"
+  rsync -a "${script}" "${script_bin}"
   chown "${SUDO_USER}" "${script_bin}"
   chmod 755 "${script_bin}"
 }
@@ -1019,8 +1017,8 @@ generate_sys_report() {
   logfiles="pwlog-$(date +%Y-%m-%d-%H-%M-%S)"
   report_dirpath="/Users/${SUDO_USER}/Desktop/${logfiles}"
   mkdir -p "${report_dirpath}"
-  rsync "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
-  rsync -r "${backupkext_dirpath}" "${report_dirpath}/Backup Kexts"
+  rsync -a "${scriptconfig_filepath}" "${report_dirpath}/PatchState.plist"
+  rsync -a "${backupkext_dirpath}" "${report_dirpath}/Backup Kexts"
   system_profiler SPSoftwareDataType 2>/dev/null | grep -Eiv 'Boot Volume|Name' > "${report_dirpath}/Mac.log"
   system_profiler SPHardwareDataType 2>/dev/null | grep -Eiv 'Serial|UUID' >> "${report_dirpath}/Mac.log"
   system_profiler SPThunderboltDataType 2>/dev/null > "${report_dirpath}/ThunderboltDevices.log"
