@@ -848,7 +848,7 @@ wait_for_egpu_disconnect() {
   [[ -z "${egpu_vendor}" ]] && return
   local detected_egpu_ven="${egpu_vendor}"
   local base_msg="eGPU disconnected."
-  printf "Please disconnect eGPU (ESC to skip). ${bold}Waiting...${normal}"
+  printf "Please disconnect eGPU. ${bold}Waiting...${normal}"
   IFS=''
   while :; do
     ioreg_info="$(ioreg -n display@0)"
