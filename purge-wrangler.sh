@@ -693,7 +693,7 @@ run_webdriver_installer() {
     install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}";;
     2|3)
     [[ "${1}" == -prompt ]] && webdriver_possibilities "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}" && return
-    printfn "No compatible or suitably patchable NVIDIA driver available.";;
+    printfn "No NVIDIA driver available for your system.";;
   esac
 }
 
@@ -705,7 +705,7 @@ install_ver_spec_webdrv() {
   printfn
   [[ -z "${userinput}" || "${userinput}" == Q ]] && printfn "No changes made." && return
   get_nvdawebdrv_stats "${userinput}"
-  [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && printfn "No driver found for specified version." && return
+  [[ "${userinput}" != "L" && -z "${nvdawebdrv_target_downloadurl}" ]] && printfn "No driver found for specified version. Cannot proceed." && return
   [[ "${userinput}" != "L" ]] && install_web_drivers "${nvdawebdrv_target_ver}" "${nvdawebdrv_target_downloadurl}" || install_web_drivers "${nvdawebdrv_latest_ver}" "${nvdawebdrv_latest_downloadurl}"
   using_nvdawebdrv=1
 }
@@ -726,7 +726,7 @@ run_patch_nv() {
   local nvdastartupplist_topatch="${nvdastartupweb_plistpath}"
   if (( ${using_nvdawebdrv} == 1 ))
   then
-    [[ ! -f "${nvdastartupweb_plistpath}" ]] && printfn "${bold}NVIDIA Web Drivers${normal} required, but not installed." && return
+    [[ ! -f "${nvdastartupweb_plistpath}" ]] && return
     nvram nvda_drv=1
   else
     nvram -d nvda_drv 2>/dev/null
