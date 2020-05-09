@@ -3,13 +3,13 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.2.5
+# Version: 6.3.0
 
 # ----- ENVIRONMENT
 
 # Script and options
-(script="$0"
-option=""
+(script="${BASH_SOURCE}"
+getopts ":ausld " option
 single_user_mode="$(sysctl -n kern.singleuser)"
 
 # Enable case-insensitive comparisons
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="2" && script_patch_ver="5"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="0"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -321,7 +321,6 @@ fetch_latest_release() {
 ### Check caller
 validate_caller() {
   [[ -z "${script}" ]] && printfn "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
-  [[ "${1}" != "${script}" ]] && option="${3}" || option="${2}"
   [[ "${script}" == "${script_bin}" ]] && is_bin_call=1
 }
 
@@ -329,7 +328,7 @@ validate_caller() {
 elevate_privileges() {
   if [[ $(id -u) != 0 ]]
   then
-    sudo /bin/sh "${script}" "${option}"
+    sudo /bin/sh "${script}" "-${option}"
     exit
   fi
 }
@@ -677,7 +676,7 @@ webdriver_possibilities() {
   else
     local recommendation=("Not Required" "Suggested" "Not Advised" "Cannot Determine")
     printfn "\nWeb drivers will require patching.\n${bold}Patch Recommendation${normal}: ${recommendation[${nvdawebdrv_canpatchlatest}]}"
-    yesno_action "${bold}Patch?${normal}" "install_web_drivers \"${1}\" \"${2}\"" "printfn \"Installation aborted.\n\" && return"
+    yesno_action "${bold}Patch?${normal}" "install_web_drivers \"${1}\" \"${2}\"" "printfn \"Installation aborted.\" && return"
   fi
 }
 
@@ -886,6 +885,15 @@ auto_setup_egpu() {
   print_anomalies
   printfn
   end_binary_modifications "Modifications complete."
+}
+
+### Auto-patch daemon executor
+execute_daemon_auto_patch() {
+  printfn "[$(date +%Y-%m-%d::%H:%M:%S)]"
+  printfn "My ID is $(id -u)"
+  printfn "Executing autopatch!"
+  sleep 10
+  printfn "Done!"
 }
 
 ### In-place re-patcher
@@ -1113,10 +1121,11 @@ generate_menu() {
 
 ### Args processor
 process_cli_args() {
-  case "${1}" in
-    -a) auto_setup_egpu && printfn;;
-    -u) uninstall && printfn;;
-    -s) check_patch_status && printfn;;
+  case "${option}" in
+    a) auto_setup_egpu && printfn;;
+    u) uninstall && printfn;;
+    s) check_patch_status && printfn;;
+    d) execute_daemon_auto_patch && printfn;;
     *) first_time_setup && present_menu;;
   esac
 }
@@ -1141,12 +1150,12 @@ present_menu() {
 
 ### Primary execution routine
 begin() {
-  [[ "${2}" == "-l" ]] && show_update_prompt && return
-  validate_caller "${1}" "${2}"
+  [[ "${option}" == "l" ]] && show_update_prompt && return
+  validate_caller
   perform_sys_check
   [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode.\n" && exit
   fetch_latest_release
-  process_cli_args "${option}"
+  process_cli_args
 }
 
-begin "${0}" "${1}")
+begin)
