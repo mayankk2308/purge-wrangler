@@ -84,6 +84,9 @@ amdlegacy_integrity_hash="b64e399fa4d350b723170eb69780741c3f54af94570b995a201d70
 prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/pw.png"
 prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
 
+# APFS snapshot generator
+apfs_systemsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
+
 # Property Lists
 pb="/usr/libexec/PlistBuddy"
 set_iognvda_pcitunnelled=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
@@ -352,9 +355,11 @@ select_older_patches() {
 ### macOS compatibility check
 check_macos_version() {
   is_10151_or_newer=1
+  is_not_macOS11=0
   local macos_major_ver="$(printfn "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
   [[ -z "${macos_minor_ver}" ]] && macos_minor_ver=0
+  [[ ${macos_major_ver} < 16 ]] && is_not_macOS11=1
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
   [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
 }
@@ -420,12 +425,25 @@ perform_sys_check() {
 
 # ----- OS MANAGEMENT
 
+### Rebuild kexts as necessary
+rebuild_kexts() {
+  if [[ "${is_not_macOS11}" == 1 ]]; then
+    kextcache -i / 1>/dev/null 2>&1
+    return
+  fi
+  kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
+  [[ -z "${root_vol}" ]] && return
+  current_date="$(date)"
+  "${apfs_systemsnapshot}" -s "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
+  "${apfs_systemsnapshot}" -r "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
+}
+
 ### Sanitize system permissions and caches
 sanitize_system() {
   printfn "${bold}Sanitizing system...${normal}"
   chmod -R 755 "${agc_kextpath}" "${iog_kextpath}" "${iondrv_kextpath}" "${nvdastartupweb_kextpath}" "${nvdastartup_kextpath}" "${amdlegacy_kextpath}" "${iotfam_kextpath}" 1>/dev/null 2>&1
   chown -R root:wheel "${agc_kextpath}" "${iog_kextpath}" "${iondrv_kextpath}" "${nvdastartupweb_kextpath}" "${nvdastartup_kextpath}" "${amdlegacy_kextpath}" "${iotfam_kextpath}" 1>/dev/null 2>&1
-  kextcache -i / 1>/dev/null 2>&1
+  rebuild_kexts
   printfn "System sanitized."
 }
 
