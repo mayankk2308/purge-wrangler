@@ -8,7 +8,7 @@
 # ----- ENVIRONMENT
 
 # Script and options
-(script="${BASH_SOURCE}"
+(script="${0}"
 getopts ":ausld " option
 single_user_mode="$(sysctl -n kern.singleuser)"
 
@@ -328,6 +328,11 @@ check_sip() {
     printfn "\nPlease disable ${bold}System Integrity Protection${normal}.\n"
     exit
   fi
+  if [[ "${is_not_macOS11}" == "0" && ! -z "$(csrutil authenticated-root status | grep -i enabled)" ]]
+  then
+    printfn "\nPlease disable ${bold}Authenticated Root${normal}.\n"
+    exit
+  fi
 }
 
 ### Check if system volume is writable
@@ -412,10 +417,11 @@ check_patch_status() {
 
 ### Cumulative system check
 perform_sys_check() {
+  elevate_privileges
+  fetch_latest_release
+  check_macos_version
   check_sip
   retrieve_tb_ver
-  check_macos_version
-  elevate_privileges
   check_sys_volume
   check_sys_extensions
   check_patch
@@ -539,6 +545,7 @@ install_amd_legacy_kext() {
 enable_ti82() {
   [[ "${1}" == -end ]] && printfn "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
   [[ ${ti82_enabled} == 1 ]] && printfn "Ti82 support is already enabled on this system." && return
+  [[ "${is_not_macOS11}" == 0 ]] && printfn "${bold}macOS 11${normal} currently not supported." && return
   printfn "${bold}Enabling Ti82 support...${normal}"
   check_bin_patchability "${iotfam_binpath}" "${hex_skipenum}"
   [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for Ti82 devices." && generate_sys_report && return 0
@@ -1152,11 +1159,10 @@ present_menu() {
 
 ### Primary execution routine
 begin() {
+  [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode.\n" && exit
   [[ "${option}" == "l" ]] && show_update_prompt && return
   validate_caller
   perform_sys_check
-  [[ ${single_user_mode} == 1 ]] && printfn "\nExecution not supported in single user mode.\n" && exit
-  fetch_latest_release
   process_cli_args
 }
 
