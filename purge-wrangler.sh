@@ -78,67 +78,52 @@ using_nvdawebdrv=0
 supported_amd_archs=("Ellesmere" "Vega" "Navi")
 supported_nv_archs=("GK" "GF")
 
-# General kext paths
-sysextensions_path="/System/Library/Extensions/"
-libextensions_path="/Library/Extensions/"
-
-## AppleGPUWrangler
-agc_kextpath="${sysextensions_path}AppleGraphicsControl.kext"
-agc_binsubpath="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
-agw_binpath="${agc_kextpath}${agc_binsubpath}"
-
-## IONDRVSupport
-iondrv_kextpath="${sysextensions_path}IONDRVSupport.kext"
-iondrv_plistpath="${iondrv_kextpath}/Info.plist"
-
-## IOGraphicsFamily
-iog_kextpath="${sysextensions_path}IOGraphicsFamily.kext"
-iog_subpath="/IOGraphicsFamily"
-iog_binpath="${iog_kextpath}${iog_subpath}"
-
-## IOThunderboltFamily
-iotfam_kextpath="${sysextensions_path}IOThunderboltFamily.kext"
-iotfam_binsubpath="/Contents/MacOS/IOThunderboltFamily"
-iotfam_binpath="${iotfam_kextpath}${iotfam_binsubpath}"
-
-## NVDAStartup
-nvdastartup_kextpath="${sysextensions_path}NVDAStartup.kext"
-nvdastartup_plistpath="${nvdastartup_kextpath}/Contents/Info.plist"
-
-## NVDAStartupWeb
-nvdastartupweb_kextpath="${libextensions_path}NVDAStartupWeb.kext"
-nvdastartupweb_plistpath="${nvdastartupweb_kextpath}/Contents/Info.plist"
-
-## NVDAEGPUSupport
-deprecated_nvsolution_kextpath="${libextensions_path}NVDAEGPUSupport.kext"
-
-## AMDLegacySupport
-deprecated_automate_egpu_kextpath="${libextensions_path}automate-eGPU.kext"
 amdlegacy_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/AMDLegacySupport.kext.zip"
-amdlegacy_downloadpath="${libextensions_path}AMDLegacySupport.kext.zip"
-amdlegacy_kextpath="${libextensions_path}AMDLegacySupport.kext"
 amdlegacy_integrity_hash="b64e399fa4d350b723170eb69780741c3f54af94570b995a201d70d540771500e67081b235c05deca95ad5e44cf1ba529766e47ff3b5f62eeb94161c80b0e29a"
 
-# General backup path
-support_dirpath="/Library/Application Support/Purge-Wrangler/"
-backupkext_dirpath="${support_dirpath}Kexts/"
 prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/pw.png"
-prompticon_filepath="${support_dirpath}pw.png"
 prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
-
-## Deprecated manifest
-manifest="${support_dirpath}manifest.wglr"
 
 # Property Lists
 pb="/usr/libexec/PlistBuddy"
-webdriver_plistpath="/usr/local/bin/webdriver.plist"
-scriptconfig_filepath="${support_dirpath}io.egpu.purge-wrangler.config.plist"
 set_iognvda_pcitunnelled=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
 set_nvdastartup_pcitunnelled=":IOKitPersonalities:NVDAStartup:IOPCITunnelCompatible bool"
 set_nvdastartup_requiredos=":IOKitPersonalities:NVDAStartup:NVDARequiredOS"
 plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">\n<dict>\n</dict>\n</plist>"
+
+# --- PATH INITIALIZER
+initialize_filepaths() {
+  # General kext paths
+  sysextensions_path="${root_vol}/System/Library/Extensions/"
+  libextensions_path="${root_vol}/Library/Extensions/"
+  agc_kextpath="${sysextensions_path}AppleGraphicsControl.kext"
+  agc_binsubpath="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
+  agw_binpath="${agc_kextpath}${agc_binsubpath}"
+  iondrv_kextpath="${sysextensions_path}IONDRVSupport.kext"
+  iondrv_plistpath="${iondrv_kextpath}/Info.plist"
+  iog_kextpath="${sysextensions_path}IOGraphicsFamily.kext"
+  iog_subpath="/IOGraphicsFamily"
+  iog_binpath="${iog_kextpath}${iog_subpath}"
+  iotfam_kextpath="${sysextensions_path}IOThunderboltFamily.kext"
+  iotfam_binsubpath="/Contents/MacOS/IOThunderboltFamily"
+  iotfam_binpath="${iotfam_kextpath}${iotfam_binsubpath}"
+  nvdastartup_kextpath="${sysextensions_path}NVDAStartup.kext"
+  nvdastartup_plistpath="${nvdastartup_kextpath}/Contents/Info.plist"
+  nvdastartupweb_kextpath="${libextensions_path}NVDAStartupWeb.kext"
+  nvdastartupweb_plistpath="${nvdastartupweb_kextpath}/Contents/Info.plist"
+  deprecated_nvsolution_kextpath="${libextensions_path}NVDAEGPUSupport.kext"
+  deprecated_automate_egpu_kextpath="${libextensions_path}automate-eGPU.kext"
+  amdlegacy_downloadpath="${libextensions_path}AMDLegacySupport.kext.zip"
+  amdlegacy_kextpath="${libextensions_path}AMDLegacySupport.kext"
+  support_dirpath="${root_vol}/Library/Application Support/Purge-Wrangler/"
+  backupkext_dirpath="${support_dirpath}Kexts/"
+  prompticon_filepath="${support_dirpath}pw.png"
+  manifest="${support_dirpath}manifest.wglr"
+  webdriver_plistpath="${root_vol}/usr/local/bin/webdriver.plist"
+  scriptconfig_filepath="${support_dirpath}io.egpu.purge-wrangler.config.plist"
+}
 
 # --- SCRIPT HELPERs
 
@@ -343,20 +328,18 @@ check_sip() {
 }
 
 ### Check if system volume is writable
-mount_attempt=0
 check_sys_volume() {
-  if [[ ! -w "${sysextensions_path}" ]]
-  then
-    if [[ ${mount_attempt} == 0 ]]
-    then
-      mount -uw / 2>/dev/null 1>&2
-      mount_attempt=1
-      check_sys_volume
-      return
-    fi
-    printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
-    exit
-  fi
+  root_vol=""
+  initialize_filepaths "${root_vol}"
+  mount -uw / 2>/dev/null 1>&2
+  [[ -w "${sysextensions_path}" ]] && return
+  diskutil mount $(bless --getBoot) 2>/dev/null 1>&2
+  root_vol="/Volumes/$(system_profiler SPSoftwareDataType | grep -i "Boot Volume" | cut -d':' -f2 | cut -c2-) 1"
+  mount -uw "${root_vol}" 2>/dev/null 1>&2
+  initialize_filepaths "${root_vol}"
+  [[ -w "${sysextensions_path}" ]] && return
+  printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
+  exit
 }
 
 ### Old patch(es) selector
@@ -371,6 +354,7 @@ check_macos_version() {
   is_10151_or_newer=1
   local macos_major_ver="$(printfn "${macos_ver}" | cut -d '.' -f2)"
   local macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
+  [[ -z "${macos_minor_ver}" ]] && macos_minor_ver=0
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
   [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
 }
