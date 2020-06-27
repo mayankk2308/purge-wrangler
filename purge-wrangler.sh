@@ -85,7 +85,7 @@ prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrang
 prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
 
 # APFS snapshot generator
-apfs_systemsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
+temsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
 
 # Property Lists
 pb="/usr/libexec/PlistBuddy"
@@ -340,6 +340,7 @@ check_sys_volume() {
   root_vol=""
   initialize_filepaths "${root_vol}"
   mount -uw / 2>/dev/null 1>&2
+  root_vol="/"
   [[ -w "${sysextensions_path}" ]] && return
   diskutil mount $(bless --getBoot) 2>/dev/null 1>&2
   root_vol="$(diskutil info $(bless --getBoot) | grep -i "mount point" | cut -d':' -f2 | sed -e 's/^[ \t]*//')"
@@ -438,7 +439,6 @@ rebuild_kexts() {
     return
   fi
   kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
-  [[ -z "${root_vol}" ]] && return
   current_date="$(date)"
   "${apfs_systemsnapshot}" -s "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
   "${apfs_systemsnapshot}" -r "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
@@ -463,6 +463,8 @@ execute_backup() {
   rsync -a "${iondrv_kextpath}" "${backupkext_dirpath}"
   rsync -a "${iotfam_kextpath}" "${backupkext_dirpath}"
   rsync -a "${nvdastartup_kextpath}" "${backupkext_dirpath}"
+  [[ "${is_not_macOS11}" == 1 ]] && return
+  "${apfs_systemsnapshot}" -s "PurgeWrangler Backup ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Backup procedure
