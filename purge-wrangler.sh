@@ -342,7 +342,7 @@ check_sys_volume() {
   mount -uw / 2>/dev/null 1>&2
   [[ -w "${sysextensions_path}" ]] && return
   diskutil mount $(bless --getBoot) 2>/dev/null 1>&2
-  root_vol="/Volumes/$(system_profiler SPSoftwareDataType | grep -i "Boot Volume" | cut -d':' -f2 | cut -c2-) 1"
+  root_vol="$(diskutil info $(bless --getBoot) | grep -i "mount point" | cut -d':' -f2 | sed -e 's/^[ \t]*//')"
   mount -uw "${root_vol}" 2>/dev/null 1>&2
   initialize_filepaths "${root_vol}"
   [[ -w "${sysextensions_path}" ]] && return
