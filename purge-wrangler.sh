@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.3.0
+# Version: 6.2.5
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="3" && script_patch_ver="0"
+script_major_ver="6" && script_minor_ver="2" && script_patch_ver="5"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -440,8 +440,8 @@ rebuild_kexts() {
   kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
   [[ -z "${root_vol}" ]] && return
   current_date="$(date)"
-  "${apfs_systemsnapshot}" -s "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
-  "${apfs_systemsnapshot}" -r "PurgeWrangler ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
+  "${apfs_systemsnapshot}" -s "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
+  "${apfs_systemsnapshot}" -r "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Sanitize system permissions and caches
@@ -531,7 +531,10 @@ end_binary_modifications() {
 
 ### Install AMDLegacySupport.kext
 install_amd_legacy_kext() {
-  [[ "${1}" == -end ]] && printfn "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
+  if [[ "${1}" == -end ]]; then
+    operation="AMD Legacy Only"
+    printfn "${mark}${gap}${bold}AMD Legacy Support${normal}\n"
+  fi
   [[ -d "${amdlegacy_kextpath}" ]] && printfn "${bold}AMDLegacySupport.kext${normal} already installed." && return
   printfn "${bold}Downloading AMDLegacySupport...${normal}"
   obj_download "${amdlegacy_downloadurl}" "${amdlegacy_downloadpath}" "${amdlegacy_integrity_hash}"
@@ -545,7 +548,10 @@ install_amd_legacy_kext() {
 
 ### Enable Ti82
 enable_ti82() {
-  [[ "${1}" == -end ]] && printfn "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
+  if [[ "${1}" == -end ]]; then
+    operation="Ti82 Only"
+    printfn "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
+  fi
   [[ ${ti82_enabled} == 1 ]] && printfn "Ti82 support is already enabled on this system." && return
   [[ "${is_not_macOS11}" == 0 ]] && printfn "${bold}macOS 11${normal} currently not supported." && return
   printfn "${bold}Enabling Ti82 support...${normal}"
@@ -709,6 +715,7 @@ run_webdriver_installer() {
 
 ### Install specified version of Web Drivers
 install_ver_spec_webdrv() {
+  operation="NVIDIA WDrv Only"
   printfn "${mark}${gap}${bold}Install NVIDIA Web Drivers${normal}\n"
   printfn "Specify a ${bold}Webdriver version${normal} to install (${bold}L = Latest${normal}).\nExisting drivers will be overwritten.\n${bold}Example${normal}: 387.10.10.10.25.161\n"
   read -p "${bold}Version${normal} [L|Q]: " userinput
@@ -864,6 +871,7 @@ manual_setup_egpu() {
 
 ### Automatic eGPU setup
 auto_setup_egpu() {
+  operation="Setup"
   printfn "${mark}${gap}${bold}Setup eGPU${normal}\n"
   [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && printfn "System has previously been modified. Uninstall first." && return
   detect_egpu
@@ -909,6 +917,7 @@ execute_daemon_auto_patch() {
 
 ### In-place re-patcher
 uninstall() {
+  operation="Uninstall"
   printfn "${mark}${gap}${bold}Uninstall${normal}\n"
   [[ ${amdlegacy_enabled} == "0" && ${binpatch_enabled} == "0" && ! -e "${nvdastartupweb_kextpath}" ]] && printfn "No patches detected.\n${bold}System already clean.${normal}" && return
   printfn "${bold}Uninstalling...${normal}"
