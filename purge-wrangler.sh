@@ -85,7 +85,7 @@ prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrang
 prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
 
 # APFS snapshot generator
-temsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
+apfs_systemsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
 
 # Property Lists
 pb="/usr/libexec/PlistBuddy"
@@ -463,8 +463,9 @@ execute_backup() {
   rsync -a "${iondrv_kextpath}" "${backupkext_dirpath}"
   rsync -a "${iotfam_kextpath}" "${backupkext_dirpath}"
   rsync -a "${nvdastartup_kextpath}" "${backupkext_dirpath}"
+  tmutil snapshot 1>/dev/null 2>&1
   [[ "${is_not_macOS11}" == 1 ]] && return
-  "${apfs_systemsnapshot}" -s "PurgeWrangler Backup ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
+  "${apfs_systemsnapshot}" -s "PurgeWrangler Backup $(date)" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Backup procedure
