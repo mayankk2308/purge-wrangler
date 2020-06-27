@@ -463,6 +463,8 @@ execute_backup() {
   rsync -a "${iondrv_kextpath}" "${backupkext_dirpath}"
   rsync -a "${iotfam_kextpath}" "${backupkext_dirpath}"
   rsync -a "${nvdastartup_kextpath}" "${backupkext_dirpath}"
+  [[ "${is_not_macOS11}" == 1 ]] && return
+  "${apfs_systemsnapshot}" -s "PurgeWrangler Backup $(date)" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Backup procedure
