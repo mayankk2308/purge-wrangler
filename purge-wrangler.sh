@@ -441,6 +441,7 @@ rebuild_kexts() {
   kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
   kcditto 1>/dev/null 2>&1
   diskutil apfs updatePreboot "${root_vol}" 1>/dev/null 2>&1
+  diskutil apfs updatePreboot / 1>/dev/null 2>&1
   current_date="$(date)"
   "${apfs_systemsnapshot}" -s "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
   "${apfs_systemsnapshot}" -r "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
