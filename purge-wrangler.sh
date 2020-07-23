@@ -362,10 +362,12 @@ select_older_patches() {
 check_macos_version() {
   is_10151_or_newer=1
   is_not_macOS11=0
-  local macos_major_ver="$(printfn "${macos_ver}" | cut -d '.' -f2)"
-  local macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
+  macos_primary_ver="$(printfn "${macos_ver}" | cut -d '.' -f1)"
+  macos_major_ver="$(printfn "${macos_ver}" | cut -d '.' -f2)"
+  macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
   [[ -z "${macos_minor_ver}" ]] && macos_minor_ver=0
-  [[ ${macos_major_ver} < 16 ]] && is_not_macOS11=1
+  [[ (${macos_primary_ver} > 10) ]] && return
+  is_not_macOS11=1
   [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
   [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
 }
