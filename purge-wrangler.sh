@@ -304,6 +304,15 @@ fetch_latest_release() {
 
 # --- SYSTEM CONFIGURATION MANAGER
 
+### Trap CTRL+C exit
+trap terminate SIGINT
+
+### Terminate script safely
+terminate() {
+  [[ ${is_not_macOS11} == "0" ]] && diskutil unmount $(bless --getBoot) 2>/dev/null 1>&2
+  exit
+}
+
 ### Check caller
 validate_caller() {
   [[ -z "${script}" ]] && printfn "\n${bold}Cannot execute${normal}.\nPlease see the README for instructions.\n" && exit
@@ -346,7 +355,7 @@ check_sys_volume() {
   initialize_filepaths "${root_vol}"
   [[ -w "${sysextensions_path}" ]] && return
   printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
-  exit
+  terminate
 }
 
 ### Old patch(es) selector
@@ -375,7 +384,7 @@ check_sys_extensions() {
   if [[ ! -s "${agc_kextpath}" || ! -s "${agw_binpath}" || ! -s "${iondrv_kextpath}" || ! -s "${iog_binpath}" || ! -s "${iotfam_kextpath}" || ! -s "${iotfam_binpath}" ]]
   then
     printfn "\nUnexpected system configuration or missing files."
-    exit
+    terminate
   fi
 }
 
@@ -441,8 +450,6 @@ rebuild_kexts() {
   kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
   kcditto 1>/dev/null 2>&1
   bless --folder "${coreservices}" --bootefi --create-snapshot
-  diskutil apfs updatePreboot "${root_vol}" 1>/dev/null 2>&1
-  diskutil apfs updatePreboot / 1>/dev/null 2>&1
 }
 
 ### Sanitize system permissions and caches
@@ -567,7 +574,7 @@ enable_ti82() {
 ### Patch TB1/2 block
 patch_tb() {
   printfn "${bold}Patching for AMD eGPUs...${normal}"
-  [[ "${1}" == -prompt ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && printfn" "printfn \"Skipping legacy kext.\n\""
+  [[ "${1}" == "-prompt" && ${amdlegacy_enabled} != 1 ]] && yesno_action "Enable ${bold}Legacy AMD Support${normal}?" "install_amd_legacy_kext && printfn" "printfn \"Skipping legacy kext.\n\""
   [[ -e "${deprecated_automate_egpu_kextpath}" ]] && rm -r "${deprecated_automate_egpu_kextpath}"
   [[ ${nvidia_enabled} == 1 ]] && printfn "System has previously been patched for ${bold}NVIDIA eGPUs${normal}." && return
   [[ ${tbswitch_enabled} == 1 ]] && printfn "System has already been patched for ${bold}AMD eGPUs${normal}." && return
@@ -873,7 +880,7 @@ manual_setup_egpu() {
 auto_setup_egpu() {
   operation="Setup"
   printfn "${mark}${gap}${bold}Setup eGPU${normal}\n"
-  [[ ${binpatch_enabled} == "1" || ${amdlegacy_enabled} == "1" ]] && printfn "System has previously been modified. Uninstall first." && return
+  [[ ${binpatch_enabled} == "1" ]] && printfn "System has previously been modified. Uninstall first." && return
   detect_egpu
   printfn
   backup_system
@@ -1075,6 +1082,7 @@ notify() {
 
 ### Show update prompt
 show_update_prompt() {
+  initialize_filepaths
   check_macos_version
   check_patch
   [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
@@ -1163,7 +1171,7 @@ present_menu() {
   local menu_items=("Setup eGPU" "System Status" "Uninstall" "More Options" "Donate" "Quit")
   local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "present_more_options_menu" "donate" "exit")
   generate_menu "PurgeWrangler (${script_ver})" "0" "3" "1" "${menu_items[@]}"
-  autoprocess_input "What next?" "perform_sys_check && present_menu" "exit" "true" "${menu_actions[@]}"
+  autoprocess_input "What next?" "perform_sys_check && present_menu" "terminate" "true" "${menu_actions[@]}"
 }
 
 # --- SCRIPT DRIVER
