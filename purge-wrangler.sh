@@ -84,9 +84,6 @@ amdlegacy_integrity_hash="b64e399fa4d350b723170eb69780741c3f54af94570b995a201d70
 prompticon_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/pw.png"
 prompticon_integrity_hash="28a86c463d184c19c666252a948148c24702990fc06d5b99e419c04efd6475324606263cf38c5a76be3f971c49aeecf89be61b1b8cbe68b73b33c69a903803c5"
 
-# APFS snapshot generator
-apfs_systemsnapshot="/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot"
-
 # Property Lists
 pb="/usr/libexec/PlistBuddy"
 set_iognvda_pcitunnelled=":IOKitPersonalities:3:IOPCITunnelCompatible bool"
@@ -100,6 +97,7 @@ plist_defaultstring="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 initialize_filepaths() {
   # General kext paths
   sysextensions_path="${root_vol}/System/Library/Extensions/"
+  coreservices="${root_vol}/System/Library/CoreServices"
   libextensions_path="${root_vol}/Library/Extensions/"
   agc_kextpath="${sysextensions_path}AppleGraphicsControl.kext"
   agc_binsubpath="/Contents/PlugIns/AppleGPUWrangler.kext/Contents/MacOS/AppleGPUWrangler"
@@ -442,11 +440,9 @@ rebuild_kexts() {
   fi
   kmutil install --update-all --force --volume-root "${root_vol}" 1>/dev/null 2>&1
   kcditto 1>/dev/null 2>&1
+  bless --folder "${coreservices}" --bootefi --create-snapshot
   diskutil apfs updatePreboot "${root_vol}" 1>/dev/null 2>&1
   diskutil apfs updatePreboot / 1>/dev/null 2>&1
-  current_date="$(date)"
-  "${apfs_systemsnapshot}" -s "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
-  "${apfs_systemsnapshot}" -r "PurgeWrangler ${operation} ${current_date}" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Sanitize system permissions and caches
@@ -469,8 +465,6 @@ execute_backup() {
   rsync -a "${iotfam_kextpath}" "${backupkext_dirpath}"
   rsync -a "${nvdastartup_kextpath}" "${backupkext_dirpath}"
   tmutil snapshot 1>/dev/null 2>&1
-  [[ "${is_not_macOS11}" == 1 ]] && return
-  "${apfs_systemsnapshot}" -s "PurgeWrangler Backup $(date)" -v "${root_vol}" 1>/dev/null 2>&1
 }
 
 ### Backup procedure
