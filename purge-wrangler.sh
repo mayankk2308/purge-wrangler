@@ -62,8 +62,10 @@ hex_nvda_clamshell="F0810D790A0300000200008B35730A0300"
 hex_nvda_clamshell_patch="F0810D790A0300000000008B35730A0300"
 
 # Ti82 patch references
-hex_skipenum="554889E54157415641554154534881EC2801"
-hex_skipenum_patch="554889E531C05DC341554154534881EC2801"
+old_hex_skipenum="554889E54157415641554154534881EC2801"
+old_hex_skipenum_patch="554889E531C05DC341554154534881EC2801"
+hex_skipenum="554889E54157415641554154534881EC38010000"
+hex_skipenum_patch="554889E531C08FC548CB4154534881EC38010000"
 
 # Patch status indicators
 amdlegacy_enabled=2
@@ -358,15 +360,8 @@ check_sys_volume() {
   terminate
 }
 
-### Old patch(es) selector
-select_older_patches() {
-  is_10151_or_newer=0
-  hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
-  hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
-}
-
 ### macOS compatibility check
-check_macos_version() {
+manage_macos_compat() {
   is_10151_or_newer=1
   is_not_macOS11=0
   macos_primary_ver="$(printfn "${macos_ver}" | cut -d '.' -f1)"
@@ -374,9 +369,14 @@ check_macos_version() {
   macos_minor_ver="$(printfn "${macos_ver}" | cut -d '.' -f3)"
   [[ -z "${macos_minor_ver}" ]] && macos_minor_ver=0
   [[ (${macos_primary_ver} > 10) ]] && return
+  hex_skipenum="${old_hex_skipenum}"
+  hex_skipenum_patch="${old_hex_skipenum_patch}"
   is_not_macOS11=1
-  [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == 13 && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
-  [[ (${macos_major_ver} < 15) || (${macos_major_ver} == 15 && ${macos_minor_ver} < 1) ]] && select_older_patches
+  [[ ${macos_major_ver} == "15" && ${macos_minor_ver} > 0 ]] && return
+  is_10151_or_newer=0
+  hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
+  hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
+  [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == "13" && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
 }
 
 ### Ensure presence of system extensions
@@ -429,7 +429,7 @@ check_patch_status() {
 perform_sys_check() {
   elevate_privileges
   fetch_latest_release
-  check_macos_version
+  manage_macos_compat
   check_sip
   retrieve_tb_ver
   check_sys_volume
@@ -560,7 +560,6 @@ enable_ti82() {
     printfn "${mark}${gap}${bold}Enable Ti82 Support${normal}\n" && backup_system
   fi
   [[ ${ti82_enabled} == 1 ]] && printfn "Ti82 support is already enabled on this system." && return
-  [[ "${is_not_macOS11}" == 0 ]] && printfn "${bold}macOS 11${normal} currently not supported." && return
   printfn "${bold}Enabling Ti82 support...${normal}"
   check_bin_patchability "${iotfam_binpath}" "${hex_skipenum}"
   [[ $? == 1 ]] && printfn "${bold}Unable to patch${normal} for Ti82 devices." && generate_sys_report && return 0
@@ -1083,7 +1082,7 @@ notify() {
 ### Show update prompt
 show_update_prompt() {
   initialize_filepaths
-  check_macos_version
+  manage_macos_compat
   check_patch
   [[ ! -e "${scriptconfig_filepath}" ]] && sleep 10 && return
   local prev_macos_ver="$($pb -c "Print :OSVersionAtPatch" "${scriptconfig_filepath}")"
