@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.3.0
+# Version: 6.3.1
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="3" && script_patch_ver="0"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="1"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -376,7 +376,7 @@ manage_macos_compat() {
   is_10151_or_newer=0
   hex_selected_thunderbolt="${hex_thunderboltswitchtype}3"
   hex_selected_thunderbolt_patch="${system_thunderbolt_ver}"
-  [[ (${macos_major_ver} < 13) || (${macos_minor_ver} == "13" && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
+  [[ (${macos_major_ver} < 13) || (${macos_major_ver} == "13" && ${macos_minor_ver} < 4) ]] && printfn "\n${bold}macOS 10.13.4 or later${normal} required.\n" && exit
 }
 
 ### Ensure presence of system extensions
@@ -429,9 +429,9 @@ check_patch_status() {
 perform_sys_check() {
   elevate_privileges
   fetch_latest_release
+  retrieve_tb_ver
   manage_macos_compat
   check_sip
-  retrieve_tb_ver
   check_sys_volume
   check_sys_extensions
   check_patch
