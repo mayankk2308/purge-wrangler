@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.2.5
+# Version: 6.3.0
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="2" && script_patch_ver="5"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="0"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -356,7 +356,7 @@ check_sys_volume() {
   mount -uw "${root_vol}" 2>/dev/null 1>&2
   initialize_filepaths "${root_vol}"
   [[ -w "${sysextensions_path}" ]] && return
-  printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\n"
+  printfn "\nYour system volume is ${bold}read-only${normal}. PurgeWrangler cannot proceed.\nPlease ${bold}restart${normal} your Mac and try again.\n"
   terminate
 }
 
@@ -518,6 +518,22 @@ clean_reboot() {
   osascript -e 'tell application "Finder" to restart' &
 }
 
+# Reboot sequence
+initiate_reboot_seq() {
+  printfn
+  local timeout=5
+  while ((${timeout} > -1)); do
+    local key=""
+    read -r -s -n 1 -t 1 key
+    [[ "${key}" == $'\e' ]] && printfc "Restart aborted." && return
+    printf "\033[2K\rRestarting in ${bold}${timeout}s${normal}. Press ESC to abort..."
+    timeout=$((${timeout} - 1))
+  done
+  printf "\033[2K\rRestarting now."
+  clean_reboot
+  exit
+}
+
 ### Reboot prompt
 reboot_action() {
   [[ ${1} == -f ]] && printfn "${mark}${gap}${bold}Reboot${normal}"
@@ -532,8 +548,7 @@ end_binary_modifications() {
   [[ "${2}" == -no-agent ]] && rm -rf "/Users/${SUDO_USER}/Library/LaunchAgents/${script_launchagent}.plist" || create_launchagent
   [[ ${single_user_mode} == 1 ]] && reboot 1>/dev/null 2>&1 && exit
   local message="${1}"
-  printfn "${bold}${message}\n\n${bold}Reboot${normal} to apply changes."
-  reboot_action
+  initiate_reboot_seq
 }
 
 ### Install AMDLegacySupport.kext
