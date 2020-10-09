@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.3.1
+# Version: 6.3.2
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="3" && script_patch_ver="1"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="2"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -65,7 +65,7 @@ hex_nvda_clamshell_patch="F0810D790A0300000000008B35730A0300"
 old_hex_skipenum="554889E54157415641554154534881EC2801"
 old_hex_skipenum_patch="554889E531C05DC341554154534881EC2801"
 hex_skipenum="554889E54157415641554154534881EC38010000"
-hex_skipenum_patch="554889E531C08FC548CB4154534881EC38010000"
+hex_skipenum_patch="554889E531C05DC341554154534881EC38010000"
 
 # Patch status indicators
 amdlegacy_enabled=2
