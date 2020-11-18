@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.3.2
+# Version: 6.3.3
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="3" && script_patch_ver="2"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="3"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -1092,7 +1092,7 @@ notify() {
 		  do script \"purge-wrangler -a\"
 	  end tell
   else if (outcome = {button returned:\"Never\"}) then
-    do shell script \"rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist\"
+    do shell script \"rm ~/Library/LaunchAgents/io.egpu.purge-wrangler-agent.plist\" with administrator privileges
   end if" 2>/dev/null 1>&2
   sleep 10
 }
