@@ -77,7 +77,7 @@ nvdawebdrv_patched=2
 using_nvdawebdrv=0
 
 # Supported GPU architectures
-supported_amd_archs=("Ellesmere" "Vega" "Navi")
+supported_amd_archs=("Polaris" "Ellesmere" "Vega" "Navi")
 supported_nv_archs=("GK" "GF")
 
 amdlegacy_downloadurl="http://raw.githubusercontent.com/mayankk2308/purge-wrangler/${script_ver}/resources/AMDLegacySupport.kext.zip"
@@ -351,8 +351,11 @@ check_sys_volume() {
   mount -uw / 2>/dev/null 1>&2
   root_vol="/"
   [[ -w "${sysextensions_path}" ]] && return
-  diskutil mount $(bless --getBoot) 2>/dev/null 1>&2
-  root_vol="/Volumes/$(system_profiler SPSoftwareDataType | grep -i "Boot Volume" | cut -d':' -f2 | cut -c2-) 1"
+  boot_vol_path="/Volumes/$(system_profiler SPSoftwareDataType | grep -i "Boot Volume" | cut -d':' -f2 | awk '{$1=$1};1')"
+  boot_vol_id="$(diskutil info "${boot_vol_path}" | grep -i "device node" | cut -d':' -f2 | awk '{$1=$1};1')"
+  boot_vol_id="${boot_vol_id%s1}"
+  diskutil mount "${boot_vol_id}" 2>/dev/null 1>&2
+  root_vol="$(diskutil info "${boot_vol_id}" | grep -i "mount point" | cut -d':' -f2 | awk '{$1=$1};1')"
   mount -uw "${root_vol}" 2>/dev/null 1>&2
   initialize_filepaths "${root_vol}"
   [[ -w "${sysextensions_path}" ]] && return
