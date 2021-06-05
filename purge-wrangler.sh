@@ -3,7 +3,7 @@
 # purge-wrangler.sh
 # Author(s): Mayank Kumar (mayankk2308, github.com / mac_editor, egpu.io)
 # License: Specified in LICENSE.md.
-# Version: 6.3.3
+# Version: 6.3.4
 
 # ----- ENVIRONMENT
 
@@ -32,7 +32,7 @@ is_bin_call=0
 call_script_file=""
 
 # Script version
-script_major_ver="6" && script_minor_ver="3" && script_patch_ver="3"
+script_major_ver="6" && script_minor_ver="3" && script_patch_ver="4"
 script_ver="${script_major_ver}.${script_minor_ver}.${script_patch_ver}"
 latest_script_data=""
 latest_release_dwld=""
@@ -141,6 +141,21 @@ printfn() {
 printfc() {
   printf "\033[2K\r"
   printfn "${@}"
+}
+
+wait_for_kryptonite_info() {
+  printfn "\n${bold}Proceeding...${normal}"
+  sleep 5
+}
+
+show_kryptonite_info() {
+  printfn "${bold}Kryptonite${normal} is now the successor of ${bold}PurgeWrangler${normal}.\n"
+  if [ "$1" = "-detail" ]; then
+    printfn "With Kryptonite, eGPU support on Thunderbolt 1 and 2 macs is now"
+    printfn "possible ${bold}without${normal} disabling ${bold}system integrity protection${normal}, ${bold}FileVault${normal},"
+    printfn "and ${bold}authenticated-root${normal} - essentially true native-like support.\n"
+  fi
+  printfn "Please see this for more information: ${bold}https://rb.gy/rlvozf${normal}"
 }
 
 ### Prompt for a yes/no action
@@ -431,6 +446,8 @@ check_patch_status() {
 ### Cumulative system check
 perform_sys_check() {
   elevate_privileges
+  show_kryptonite_info
+  wait_for_kryptonite_info
   fetch_latest_release
   retrieve_tb_ver
   manage_macos_compat
@@ -1185,8 +1202,8 @@ present_more_options_menu() {
 
 ### Script menu
 present_menu() {
-  local menu_items=("Setup eGPU" "System Status" "Uninstall" "More Options" "Donate" "Quit")
-  local menu_actions=("auto_setup_egpu" "check_patch_status" "uninstall" "present_more_options_menu" "donate" "exit")
+  local menu_items=("About Kryptonite" "Setup eGPU" "System Status" "Uninstall" "More Options" "Donate" "Quit")
+  local menu_actions=("show_kryptonite_info -detail" "auto_setup_egpu" "check_patch_status" "uninstall" "present_more_options_menu" "donate" "exit")
   generate_menu "PurgeWrangler (${script_ver})" "0" "3" "1" "${menu_items[@]}"
   autoprocess_input "What next?" "perform_sys_check && present_menu" "terminate" "true" "${menu_actions[@]}"
 }
