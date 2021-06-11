@@ -144,11 +144,14 @@ printfc() {
 }
 
 wait_for_kryptonite_info() {
+  [ "$show_kry" = 1 ] && return
   printfn "\n${bold}Proceeding...${normal}"
   sleep 5
+  show_kry=1
 }
 
 show_kryptonite_info() {
+  ( [ "$show_kry" = 1 ] && [ "$1" != "-detail" ] ) && return
   printfn "${bold}Kryptonite${normal} is now the successor of ${bold}PurgeWrangler${normal}.\n"
   if [ "$1" = "-detail" ]; then
     printfn "With Kryptonite, eGPU support on Thunderbolt 1 and 2 macs is now"
